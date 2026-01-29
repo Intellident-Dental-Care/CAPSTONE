@@ -15,7 +15,7 @@ import { useRouter } from "expo-router";
 import { Feather, AntDesign, FontAwesome, Ionicons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
 import AuthAlert from "./components/authAlert";
-import { loginUser } from "./storage/authStorage";
+import { signInUser } from "../server/supabaseService";
 
 const { height: H } = Dimensions.get("window");
 
@@ -67,42 +67,59 @@ export default function Login() {
     return { transform: [{ translateY: ty }, { scale }] };
   }, [logoAnim]);
 
-  const handleLogin = async () => {
-    setError("");
+const handleLogin = async () => {
+  setError("");
 
-    if (!email.trim() || !password) {
-      setError("Please enter your email and password.");
+  if (!email.trim() || !password) {
+    setError("Please enter your email and password.");
+    return;
+  }
+
+  try {
+    setLoading(true);
+    const res = await signInUser(email, password);
+    setLoading(false);
+
+    if (!res.ok) {
+      setError(res.message);
       return;
     }
 
-    try {
-      setLoading(true);
-      const res = await loginUser(email, password);
-      setLoading(false);
+    // Fetch user profile from Supabase users table
+    const { data: userProfile, error: profileError } = await supabase
+      .from("users")
+      .select("is_verified")
+      .eq("id", res.user.id)
+      .single();
 
-      if (!res.ok) {
-        setError(res.message);
-        return;
-      }
-
-      const firstTime = !res.user.onboardingSeen;
-
-      Animated.parallel([
-        Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
-        Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
-      ]).start(() => {
-        router.back();
-        setTimeout(() => {
-          if (firstTime) router.replace("/onboarding");
-          else router.replace("/home");
-        }, 60);
-      });
-    } catch {
-      setLoading(false);
-      setError("Something went wrong. Please try again.");
+    if (profileError) {
+      setError("Failed to fetch user profile.");
+      return;
     }
-  };
+
+    if (!userProfile?.is_verified) {
+      setError("Please verify your email before logging in.");
+      return;
+    }
+
+    const firstTime = !res.user.onboardingSeen;
+
+    Animated.parallel([
+      Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
+      Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+    ]).start(() => {
+      router.back();
+      setTimeout(() => {
+        if (firstTime) router.replace("/onboarding");
+        else router.replace("/home");
+      }, 60);
+    });
+  } catch {
+    setLoading(false);
+    setError("Something went wrong. Please try again.");
+  }
+};
 
   return (
     <View style={styles.overlayRoot}>

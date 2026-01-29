@@ -15,7 +15,7 @@ import { useRouter } from "expo-router";
 import { Feather, AntDesign, FontAwesome, Ionicons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
 import AuthAlert from "./components/authAlert";
-import { createUser } from "./storage/authStorage";
+import { supabase } from "../server/supabaseService";
 
 const { height: H } = Dimensions.get("window");
 
@@ -70,43 +70,167 @@ export default function Signup() {
     return { transform: [{ translateY: ty }, { scale }] };
   }, [logoAnim]);
 
+  // Simplified server discovery - calls backend for discovery info
+  const getServerUrl = async () => {
+    console.log("Getting server discovery info from backend...");
+    
+    // Try a few common IPs to find the discovery endpoint
+    const commonIPs = [
+      '192.168.18.15', // Your detected IP
+      'localhost',
+      '127.0.0.1',
+      '192.168.1.1',
+      '192.168.0.1'
+    ];
+    
+    for (const ip of commonIPs) {
+      try {
+        const url = ip === 'localhost' || ip === '127.0.0.1' 
+          ? `http://${ip}:5001` 
+          : `http://${ip}:5001`;
+          
+        console.log(`Trying discovery endpoint: ${url}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        
+        const response = await fetch(`${url}/server-discovery`, {
+          method: 'GET',
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          const discoveryData = await response.json();
+          console.log('✓ Got server discovery info:', discoveryData);
+          return discoveryData.serverInfo.currentUrl;
+        }
+      } catch (e) {
+        console.log(`✗ ${url} failed:`, e.name);
+      }
+    }
+    
+    // Fallback to most likely IP
+    console.log('Using fallback IP');
+    return 'http://192.168.18.15:5001';
+  };
+
   const handleSignup = async () => {
+    console.log("=== Starting signup process ===");
     setError("");
 
     if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
+      console.log("Validation failed: Missing fields");
       setError("Please fill in all fields.");
       return;
     }
 
-   
     const strongPassword = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
     if (!strongPassword.test(password)) {
+      console.log("Validation failed: Weak password");
       setError("Password must be at least 8 characters and include 1 uppercase letter, 1 number, and 1 special character.");
       return;
     }
 
     if (password !== confirmPassword) {
+      console.log("Validation failed: Password mismatch");
       setError("Password and Confirm Password do not match.");
       return;
     }
 
     try {
       setLoading(true);
-      const res = await createUser({ fullName, email, password });
-      setLoading(false);
+      console.log("1. Starting Supabase signup for:", email);
 
-      if (!res.ok) {
-        setError(res.message); 
+      //Sign up user with Supabase Auth
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      console.log("Supabase signup response:", { signUpData, signUpError });
+
+      if (signUpError) {
+        console.log("Supabase signup failed:", signUpError.message);
+        setLoading(false);
+        setError(signUpError.message);
         return;
       }
 
-      
+      //Insert user profile into users table (after authentication)
+      const userId = signUpData?.user?.id || signUpData?.session?.user?.id;
+      console.log("2. Extracted userId:", userId);
+
+      if (userId) {
+        console.log("Inserting user profile into database...");
+        const { error: insertError } = await supabase
+          .from("users")
+          .insert([{ 
+            id: userId, 
+            full_name: fullName, 
+            email, 
+            is_verified: false,
+            verification_otp: null,
+            otp_expires_at: null
+          }]);
+
+        console.log("Database insert result:", { insertError });
+
+        if (insertError) {
+          console.log("Database insert failed:", insertError.message);
+          setLoading(false);
+          setError(insertError.message);
+          return;
+        }
+
+        //Send OTP verification email
+        console.log("3. Sending OTP verification email...");
+        try {
+          const serverUrl = await getServerUrl();
+          console.log("Using server URL:", serverUrl);
+          
+          const emailResponse = await fetch(`${serverUrl}/send-verification`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, fullName, userId }),
+          });
+
+          console.log("Email server response status:", emailResponse.status);
+
+          if (emailResponse.ok) {
+            const emailResult = await emailResponse.json();
+            console.log("Email server response body:", emailResult);
+            console.log("✓ OTP sent successfully!");
+          } else {
+            const errorResult = await emailResponse.json();
+            console.log("Email server returned error:", errorResult);
+            console.log("Continuing with signup despite email error");
+          }
+        } catch (emailError) {
+          console.error("Email request failed:", emailError);
+          console.log("Continuing with signup despite email request error");
+        }
+      }
+
+      console.log("4. Signup process completed, redirecting to OTP verification");
+      setLoading(false);
+
+      // Redirect to OTP verification screen instead of login (pero login muna ginawa ko)
       Animated.parallel([
         Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
         Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
         Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
-      ]).start(() => router.back());
-    } catch {
+      ]).start(() => {
+        router.back();
+        setTimeout(() => router.push("/login"), 50);
+      });
+    } catch (e) {
+      console.error("=== Signup process error ===", e);
       setLoading(false);
       setError("Something went wrong. Please try again.");
     }
