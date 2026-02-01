@@ -69,7 +69,11 @@ export default function Home() {
           <QuickBtn icon={<MaterialCommunityIcons name="stethoscope" size={18} color={colors.primary} />} label="Dentist"
 />
 
-          <QuickBtn icon={<Ionicons name="location-outline" size={18} color={colors.primary} />} label="Branches" />
+          <QuickBtn
+            icon={<Ionicons name="location-outline" size={18} color={colors.primary} />}
+            label="Branches"
+            onPress={() => router.push("/branches")}
+          />
           <QuickBtn icon={<MaterialCommunityIcons name="tooth-outline" size={18} color={colors.primary} />} label="3D Model" />
           <QuickBtn
             icon={<Ionicons name="document-text-outline" size={18} color={colors.primary} />}

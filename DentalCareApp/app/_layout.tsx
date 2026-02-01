@@ -22,6 +22,8 @@ export default function RootLayout() {
         options={{ presentation: "transparentModal", animation: "none" }}
       />
 
+      <Stack.Screen name="otp-verification" />
+
                        
       <Stack.Screen name="home" />
     </Stack>

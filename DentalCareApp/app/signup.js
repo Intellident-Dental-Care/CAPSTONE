@@ -78,10 +78,11 @@ export default function Signup() {
       return;
     }
 
-   
     const strongPassword = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
     if (!strongPassword.test(password)) {
-      setError("Password must be at least 8 characters and include 1 uppercase letter, 1 number, and 1 special character.");
+      setError(
+        "Password must be at least 8 characters and include 1 uppercase letter, 1 number, and 1 special character."
+      );
       return;
     }
 
@@ -92,20 +93,32 @@ export default function Signup() {
 
     try {
       setLoading(true);
-      const res = await createUser({ fullName, email, password });
+      const res = await createUser({
+        fullName,
+        email: email.trim(),
+        password,
+      });
       setLoading(false);
 
       if (!res.ok) {
-        setError(res.message); 
+        setError(res.message);
         return;
       }
 
-      
+     
       Animated.parallel([
         Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
         Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
         Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
-      ]).start(() => router.back());
+      ]).start(() => {
+        router.back(); 
+        setTimeout(() => {
+          router.push({
+            pathname: "/otp-verification",
+            params: { email: email.trim() },
+          });
+        }, 60);
+      });
     } catch {
       setLoading(false);
       setError("Something went wrong. Please try again.");
@@ -309,7 +322,16 @@ const styles = StyleSheet.create({
   dividerText: { fontSize: 10, color: colors.textGray },
 
   socialRow: { marginTop: 14, flexDirection: "row", justifyContent: "center", gap: 16 },
-  socialBtn: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: colors.line, alignItems: "center", justifyContent: "center", marginTop: 10 },
+  socialBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+  },
 
   bottomTextRow: { marginTop: 16, flexDirection: "row", justifyContent: "center", alignItems: "center" },
   linkPink: { color: colors.primary, fontSize: 12, fontWeight: "700" },
