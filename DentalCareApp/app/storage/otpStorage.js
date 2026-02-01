@@ -19,12 +19,3 @@ export async function markOtpVerified(email) {
     await AsyncStorage.setItem(OTP_VERIFIED_KEY, JSON.stringify(list));
   }
 }
-
-export async function isOtpVerified(email) {
-  const key = (email || "").trim().toLowerCase();
-  if (!key) return false;
-
-  const raw = await AsyncStorage.getItem(OTP_VERIFIED_KEY);
-  const list = raw ? JSON.parse(raw) : [];
-  return Array.isArray(list) && list.includes(key);
-}
