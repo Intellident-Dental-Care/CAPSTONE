@@ -19,3 +19,6 @@ export async function markOtpVerified(email) {
     await AsyncStorage.setItem(OTP_VERIFIED_KEY, JSON.stringify(list));
   }
 }
+
+// Dummy export to silence Expo Router warnings
+export default function() { return null; }

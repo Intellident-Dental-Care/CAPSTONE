@@ -1,9 +1,9 @@
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
+import MapView, { Marker } from "react-native-maps";
 
 const BRANCHES = [
   {
@@ -12,7 +12,6 @@ const BRANCHES = [
     description: "Molino, Bacoor, Cavite",
     latitude: 14.411954191470624,
     longitude: 120.97465944812357,
-    
   },
   {
     key: "dasma",
@@ -53,18 +52,18 @@ export default function Branches() {
 
   return (
     <View style={styles.container}>
-      {/* Back button (top-left like your design) */}
+      {/* Back button */}
       <Pressable style={styles.backBtn} onPress={() => router.back()}>
         <Ionicons name="chevron-back" size={22} color={colors.primary} />
       </Pressable>
 
-      {/* Center title + subtitle */}
+      {/* Title */}
       <Text style={styles.title}>GC Dental Branches</Text>
       <Text style={styles.subtitle}>
         Select a branch and tap the arrow below to{"\n"}view directions.
       </Text>
 
-      {/*  Map centered with side spacing */}
+      {/* Map container - Metro will handle platform-specific rendering */}
       <View style={styles.mapWrap}>
         <MapView style={StyleSheet.absoluteFill} initialRegion={initialRegion}>
           {BRANCHES.map((b) => (
@@ -118,13 +117,31 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
 
-  
   mapWrap: {
     marginTop: 18,
-    width: "86%",     
-    height: "85%",    
+    width: "86%",
+    height: "85%",
     borderRadius: 12,
     overflow: "hidden",
     backgroundColor: "#f2f2f2",
+  },
+
+  mapFallback: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8f8f8",
+  },
+
+  mapFallbackText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.primary,
+    marginBottom: 8,
+  },
+
+  mapFallbackSubtext: {
+    fontSize: 14,
+    color: colors.textGray,
   },
 });

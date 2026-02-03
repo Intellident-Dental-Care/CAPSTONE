@@ -1,7 +1,43 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { supabase } from "../../server/supabaseService";
 
 const USERS_KEY = "@dc_users";
 const SESSION_KEY = "@dc_session_user";
+
+export const getSession = async () => {
+  try {
+    const sessionData = await AsyncStorage.getItem("@auth_session");
+    if (sessionData) {
+      return JSON.parse(sessionData);
+    }
+    return null;
+  } catch (error) {
+    console.error("Error getting session:", error);
+    return null;
+  }
+};
+
+export const setSession = async (sessionData) => {
+  try {
+    await AsyncStorage.setItem("@auth_session", JSON.stringify(sessionData));
+  } catch (error) {
+    console.error("Error setting session:", error);
+  }
+};
+
+export const logoutUser = async () => {
+  try {
+    // Sign out from Supabase
+    await supabase.auth.signOut();
+    
+    // Clear AsyncStorage
+    await AsyncStorage.removeItem("@auth_session");
+    
+    console.log("✅ User logged out successfully");
+  } catch (error) {
+    console.error("Error during logout:", error);
+  }
+};
 
 async function readJSON(key, fallback) {
   const raw = await AsyncStorage.getItem(key);
@@ -60,16 +96,11 @@ export async function loginUser(email, password) {
   return { ok: true, user };
 }
 
-export async function getSession() {
-  return await readJSON(SESSION_KEY, null);
-}
-
-export async function logoutUser() {
-  await AsyncStorage.removeItem(SESSION_KEY);
-}
-
 export async function setOnboardingSeenForUser(userId) {
   const users = await getUsers();
   const updated = users.map((u) => (u.id === userId ? { ...u, onboardingSeen: true } : u));
   await setUsers(updated);
 }
+
+// Dummy export to silence Expo Router warnings
+export default function() { return null; }

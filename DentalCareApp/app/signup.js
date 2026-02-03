@@ -16,6 +16,7 @@ import { Feather, AntDesign, FontAwesome, Ionicons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
 import AuthAlert from "./components/authAlert";
 import { supabase } from "../server/supabaseService";
+import { getServerUrl } from "../server/getClientSideUrl";
 
 const { height: H } = Dimensions.get("window");
 
@@ -32,6 +33,21 @@ export default function Signup() {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [serverUrl, setServerUrl] = useState(null);
+
+  // Pre-load server URL when component mounts
+  useEffect(() => {
+    const preloadServer = async () => {
+      try {
+        const url = await getServerUrl();
+        setServerUrl(url);
+      } catch (error) {
+        console.log("Server pre-load failed:", error);
+      }
+    };
+
+    preloadServer();
+  }, []);
 
   const translateY = useRef(new Animated.Value(H)).current;
   const backdrop = useRef(new Animated.Value(0)).current;
@@ -70,56 +86,6 @@ export default function Signup() {
     return { transform: [{ translateY: ty }, { scale }] };
   }, [logoAnim]);
 
-  // Simplified server discovery - calls backend for discovery info
-  const getServerUrl = async () => {
-    console.log("Getting server discovery info from backend...");
-    
-    // Try a few common IPs to find the discovery endpoint
-    const commonIPs = [
-      '192.168.18.15', // Your detected IP
-      'localhost',
-      '127.0.0.1',
-      '192.168.1.1',
-      '192.168.0.1'
-    ];
-    
-    for (const ip of commonIPs) {
-      try {
-        const url = ip === 'localhost' || ip === '127.0.0.1' 
-          ? `http://${ip}:5001` 
-          : `http://${ip}:5001`;
-          
-        console.log(`Trying discovery endpoint: ${url}`);
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
-        
-        const response = await fetch(`${url}/server-discovery`, {
-          method: 'GET',
-          signal: controller.signal,
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          }
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (response.ok) {
-          const discoveryData = await response.json();
-          console.log('✓ Got server discovery info:', discoveryData);
-          return discoveryData.serverInfo.currentUrl;
-        }
-      } catch (e) {
-        console.log(`✗ ${url} failed:`, e.name);
-      }
-    }
-    
-    // Fallback to most likely IP
-    console.log('Using fallback IP');
-    return 'http://192.168.18.15:5001';
-  };
-
   const handleSignup = async () => {
     console.log("=== Starting signup process ===");
     setError("");
@@ -147,7 +113,7 @@ export default function Signup() {
       setLoading(true);
       console.log("1. Starting Supabase signup for:", email);
 
-      //Sign up user with Supabase Auth
+      // Sign up user with Supabase Auth
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -162,7 +128,7 @@ export default function Signup() {
         return;
       }
 
-      //Insert user profile into users table (after authentication)
+      // Insert user profile into users table (after authentication)
       const userId = signUpData?.user?.id || signUpData?.session?.user?.id;
       console.log("2. Extracted userId:", userId);
 
@@ -188,13 +154,13 @@ export default function Signup() {
           return;
         }
 
-        //Send OTP verification email
+        // Send OTP verification email using pre-loaded server URL
         console.log("3. Sending OTP verification email...");
         try {
-          const serverUrl = await getServerUrl();
-          console.log("Using server URL:", serverUrl);
+          const emailServerUrl = serverUrl || await getServerUrl();
+          console.log("Using server URL:", emailServerUrl);
           
-          const emailResponse = await fetch(`${serverUrl}/send-verification`, {
+          const emailResponse = await fetch(`${emailServerUrl}/send-verification`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, fullName, userId }),
@@ -205,7 +171,7 @@ export default function Signup() {
           if (emailResponse.ok) {
             const emailResult = await emailResponse.json();
             console.log("Email server response body:", emailResult);
-            console.log("✓ OTP sent successfully!");
+            console.log("OTP sent successfully!");
           } else {
             const errorResult = await emailResponse.json();
             console.log("Email server returned error:", errorResult);
@@ -220,14 +186,23 @@ export default function Signup() {
       console.log("4. Signup process completed, redirecting to OTP verification");
       setLoading(false);
 
-      // Redirect to OTP verification screen instead of login (pero login muna ginawa ko)
+      // Redirect to OTP verification screen
       Animated.parallel([
         Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
         Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
         Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
       ]).start(() => {
         router.back();
-        setTimeout(() => router.push("/login"), 50);
+        setTimeout(() => {
+          router.push({
+            pathname: "/otp-verification",
+            params: {
+              email: email,
+              userId: userId,
+              fullName: fullName
+            }
+          });
+        }, 50);
       });
     } catch (e) {
       console.error("=== Signup process error ===", e);

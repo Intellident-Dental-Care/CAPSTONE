@@ -16,6 +16,10 @@ import { Feather, AntDesign, FontAwesome, Ionicons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
 import AuthAlert from "./components/authAlert";
 import { signInUser } from "../server/supabaseService";
+import { supabase } from "../server/supabaseService";
+import { handleGoogleLogin } from "../server/googleLogin";
+import { handleAppleLogin } from "../server/appleLogin";
+import { handleFacebookLogin } from "../server/facebookLogin";
 
 const { height: H } = Dimensions.get("window");
 
@@ -77,23 +81,37 @@ const handleLogin = async () => {
 
   try {
     setLoading(true);
-    const res = await signInUser(email, password);
-    setLoading(false);
+    
+    // Sign in the user first
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-    if (!res.ok) {
-      setError(res.message);
+    if (error) {
+      setLoading(false);
+      setError(error.message);
       return;
     }
 
-    // Fetch user profile from Supabase users table
+    if (!data.user) {
+      setLoading(false);
+      setError("Login failed. Please try again.");
+      return;
+    }
+
+    // Now fetch the user profile with the authenticated user
     const { data: userProfile, error: profileError } = await supabase
       .from("users")
-      .select("is_verified")
-      .eq("id", res.user.id)
+      .select("is_verified, full_name")
+      .eq("id", data.user.id)
       .single();
 
+    setLoading(false);
+
     if (profileError) {
-      setError("Failed to fetch user profile.");
+      console.error("Profile fetch error:", profileError);
+      setError("Failed to fetch user profile. Please try again.");
       return;
     }
 
@@ -102,7 +120,8 @@ const handleLogin = async () => {
       return;
     }
 
-    const firstTime = !res.user.onboardingSeen;
+    // Success - redirect based on onboarding status
+    const firstTime = !data.user.user_metadata?.onboardingSeen;
 
     Animated.parallel([
       Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
@@ -115,11 +134,70 @@ const handleLogin = async () => {
         else router.replace("/home");
       }, 60);
     });
-  } catch {
+  } catch (err) {
+    console.error("Login error:", err);
     setLoading(false);
     setError("Something went wrong. Please try again.");
   }
 };
+
+  const handleSocialLogin = async (provider) => {
+    try {
+      console.log(`=== STARTING ${provider.toUpperCase()} LOGIN ===`);
+      setLoading(true);
+      setError("");
+      
+      let user;
+      
+      switch (provider) {
+        case 'google':
+          setError("Opening Google login... Please complete authentication in browser.");
+          user = await handleGoogleLogin();
+          break;
+        case 'apple':
+          setError("Opening Apple login...");
+          user = await handleAppleLogin();
+          break;
+        case 'facebook':
+          setError("Opening Facebook login...");
+          user = await handleFacebookLogin();
+          break;
+        default:
+          throw new Error('Unsupported provider');
+      }
+      
+      if (user) {
+        console.log(`🎉 ${provider} login completed!`);
+        setError("Login successful! Welcome to DentalCare!");
+        
+        // Navigate to home after successful social login
+        Animated.parallel([
+          Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
+          Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
+          Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+        ]).start(() => {
+          router.back();
+          setTimeout(() => {
+            router.replace("/home");
+          }, 100);
+        });
+      }
+    } catch (error) {
+      console.error(`${provider} login error:`, error);
+      
+      let errorMessage = `${provider.charAt(0).toUpperCase() + provider.slice(1)} login failed. Please try again.`;
+      
+      if (error.message.includes('cancelled')) {
+        errorMessage = `${provider.charAt(0).toUpperCase() + provider.slice(1)} login was cancelled.`;
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Login timed out. Please complete authentication and try again.';
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.overlayRoot}>
@@ -201,13 +279,27 @@ const handleLogin = async () => {
                 </View>
 
                 <View style={styles.socialRow}>
-                  <Pressable style={styles.socialBtn}>
+                  <Pressable 
+                    style={styles.socialBtn}
+                    onPress={() => handleSocialLogin('facebook')}
+                    disabled={loading}
+                  >
                     <FontAwesome name="facebook" size={18} color={colors.primary} />
                   </Pressable>
-                  <Pressable style={styles.socialBtn}>
+                  
+                  <Pressable 
+                    style={styles.socialBtn}
+                    onPress={() => handleSocialLogin('google')}
+                    disabled={loading}
+                  >
                     <AntDesign name="google" size={18} color={colors.primary} />
                   </Pressable>
-                  <Pressable style={styles.socialBtn}>
+                  
+                  <Pressable 
+                    style={styles.socialBtn}
+                    onPress={() => handleSocialLogin('apple')}
+                    disabled={loading}
+                  >
                     <Ionicons name="logo-apple" size={18} color={colors.primary} />
                   </Pressable>
                 </View>
@@ -292,10 +384,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
     elevation: 2,
+    // Platform-specific shadow styles
+    ...(Platform.OS === 'ios' && {
+      shadowColor: "#000",
+      shadowOpacity: 0.12,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 3 },
+    }),
+    ...(Platform.OS === 'android' && {
+      shadowColor: "#000",
+      shadowOpacity: 0.12,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 3 },
+    }),
   },
   
   loginText: { color: colors.white, fontSize: 13, fontWeight: "800" },

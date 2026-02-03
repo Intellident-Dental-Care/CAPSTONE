@@ -3,21 +3,20 @@ import { View, Text, StyleSheet, TextInput, Pressable, Keyboard } from "react-na
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { colors } from "./theme/colors";
-import { markOtpVerified } from "./storage/otpStorage";
+import { markOtpVerified } from "./_storage/otpStorage";
+import { supabase } from "../server/supabaseService";
+import { getServerUrl } from "../server/getClientSideUrl";
 
 const OTP_LEN = 6;
 const RESEND_SECONDS = 60;
-
-// ✅ FIXED OTP for demo
-const FIXED_OTP = "123456";
 
 export default function OtpVerification() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
-  // optional display (you can pass email from signup)
   const email = typeof params?.email === "string" ? params.email : "";
-  const displayTo = email ? email : "+00-1234-567-8912";
+  const userId = params?.userId;
+  const displayTo = email || "+00-1234-567-8912";
 
   const [otp, setOtp] = useState(Array(OTP_LEN).fill(""));
   const inputs = useRef([]);
@@ -29,8 +28,7 @@ export default function OtpVerification() {
   const isComplete = otp.every((d) => d !== "");
   const code = otp.join("");
 
-
-  // ✅ countdown timer
+  // Countdown timer for resend
   useEffect(() => {
     if (secondsLeft <= 0) return;
     const t = setInterval(() => setSecondsLeft((s) => s - 1), 1000);
@@ -58,7 +56,6 @@ export default function OtpVerification() {
   const handleKeyPress = (e, index) => {
     if (e.nativeEvent.key !== "Backspace") return;
 
-    // if current is empty, go previous and clear it
     if (!otp[index] && index > 0) {
       const next = [...otp];
       next[index - 1] = "";
@@ -67,13 +64,10 @@ export default function OtpVerification() {
     }
   };
 
-  // ✅ auto-submit when 6 digits are filled
- useEffect(() => {
-  if (!isComplete || submitting) return;
-  submitOtp(code);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [isComplete]);
-
+  useEffect(() => {
+    if (!isComplete || submitting) return;
+    submitOtp(code);
+  }, [isComplete]);
 
   const submitOtp = async (otpCode) => {
     if (submitting) return;
@@ -82,36 +76,61 @@ export default function OtpVerification() {
     Keyboard.dismiss();
 
     try {
-      // small delay for nicer UX
-      await new Promise((r) => setTimeout(r, 350));
+      const serverUrl = await getServerUrl();
+      const response = await fetch(`${serverUrl}/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, otp: otpCode }),
+      });
 
-      // ✅ FIXED OTP check
-      if (otpCode !== FIXED_OTP) {
-        setSubmitting(false);
-        setError("Invalid OTP. Try 123456.");
+      if (response.ok) {
+        const result = await response.json();
+        console.log("OTP verified successfully:", result);
+
+        // Mark verified locally and redirect to login
+        await markOtpVerified(email);
+        router.replace("/login"); // Redirect to login.js after successful OTP verification
+      } else {
+        const errorResult = await response.json();
+        console.error("OTP verification failed:", errorResult);
+        setError(errorResult.error || "Invalid OTP. Please try again.");
         clearAll();
-        return;
       }
-
-      // mark verified for this email (local only)
-      await markOtpVerified(email);
-
-      // You said: after signup + OTP, user should LOGIN first
-      router.replace("/login");
-    } catch (e) {
-      setSubmitting(false);
+    } catch (error) {
+      console.error("OTP verification error:", error);
       setError("Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const resendOtp = async () => {
     if (secondsLeft > 0) return;
 
-    // ✅ for demo, just restart timer
-    setSecondsLeft(RESEND_SECONDS);
+    try {
+      setSecondsLeft(RESEND_SECONDS);
+      setError("");
 
-    // optional: show a hint
-    setError("Demo OTP is 123456.");
+      const serverUrl = await getServerUrl();
+      const response = await fetch(`${serverUrl}/resend-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, fullName: params.fullName, userId }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log("New OTP sent successfully:", result);
+        setError("A new OTP has been sent to your email.");
+      } else {
+        const errorResult = await response.json();
+        console.error("Failed to resend OTP:", errorResult);
+        setError("Failed to resend OTP. Please try again.");
+      }
+    } catch (error) {
+      console.error("Resend OTP request failed:", error);
+      setError("Failed to resend OTP. Please try again.");
+    }
   };
 
   return (
@@ -120,7 +139,6 @@ export default function OtpVerification() {
         <Ionicons name="chevron-back" size={22} color={colors.primary} />
       </Pressable>
 
-      {/* pink illustration placeholder */}
       <View style={styles.illustration} />
 
       <Text style={styles.title}>OTP Verification</Text>
@@ -129,27 +147,23 @@ export default function OtpVerification() {
       </Text>
 
       <View style={styles.otpRow}>
-        {otp.map((digit, i) => {
-          const active = !!digit;
-          return (
-            <TextInput
-              key={i}
-              ref={(r) => (inputs.current[i] = r)}
-              value={digit}
-              onChangeText={(v) => handleChange(v, i)}
-              onKeyPress={(e) => handleKeyPress(e, i)}
-              keyboardType="number-pad"
-              maxLength={1}
-              style={[styles.otpBox, active && styles.otpBoxActive]}
-              returnKeyType="done"
-            />
-          );
-        })}
+        {otp.map((digit, i) => (
+          <TextInput
+            key={i}
+            ref={(r) => (inputs.current[i] = r)}
+            value={digit}
+            onChangeText={(v) => handleChange(v, i)}
+            onKeyPress={(e) => handleKeyPress(e, i)}
+            keyboardType="number-pad"
+            maxLength={1}
+            style={[styles.otpBox, digit && styles.otpBoxActive]}
+            returnKeyType="done"
+          />
+        ))}
       </View>
 
       {!!error && <Text style={styles.error}>{error}</Text>}
 
-      {/* optional submit button (auto-submit already works) */}
       <Pressable
         style={[styles.submitBtn, (!isComplete || submitting) && { opacity: 0.6 }]}
         onPress={() => isComplete && submitOtp(code)}
@@ -171,9 +185,6 @@ export default function OtpVerification() {
           {secondsLeft > 0 ? `Resend in ${secondsLeft}s` : "Resend"}
         </Text>
       </Text>
-
-      {/* optional hint for demo */}
-      <Text style={styles.demoHint}>Demo OTP: 123456</Text>
     </View>
   );
 }
@@ -258,6 +269,4 @@ const styles = StyleSheet.create({
 
   resendText: { marginTop: 18, fontSize: 11, color: "#888" },
   resend: { color: colors.primary, fontWeight: "900" },
-
-  demoHint: { marginTop: 10, fontSize: 10, color: "#999" },
 });

@@ -9,9 +9,9 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
-import { getSession } from "./storage/authStorage";
+import { getSession } from "./_storage/authStorage";
 import { useRouter } from "expo-router";
-import { logoutUser } from "./storage/authStorage";
+import { logoutUser } from "./_storage/authStorage";
 
 
 export default function Home() {

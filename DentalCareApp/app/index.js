@@ -1,9 +1,16 @@
 import { useEffect } from "react";
 import { View, Image, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
+import { startDeepLinkListener } from '../server/deepLinkHandler';
 
 export default function Index() {
   const router = useRouter();
+
+  useEffect(() => {
+    // Initialize deep link listener when app starts
+    console.log('🚀 Initializing deep link listener for OAuth');
+    startDeepLinkListener();
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => {

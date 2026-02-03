@@ -17,13 +17,15 @@ const supabase = createClient(
 const LOCAL_IP = getLocalIpAddress();
 console.log('Detected local IP:', LOCAL_IP);
 
-app.use(cors());
+app.use(cors({
+  origin: '*', // Allow all origins for development
+  credentials: true
+}));
 app.use(express.json());
 
 console.log('Email server starting...');
 console.log('EMAIL_USER configured:', !!process.env.EMAIL_USER);
 console.log('EMAIL_PASS configured:', !!process.env.EMAIL_PASS);
-console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
 
 // Create transporter using environment variables
 const transporter = nodemailer.createTransport({
@@ -58,13 +60,13 @@ app.post('/send-verification', async (req, res) => {
   }
 
   try {
-    // Generate 6-digit OTP
+    // Generate a new 6-digit OTP
     const otp = generateOTP();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
     
     console.log('Generated OTP:', otp, 'Expires at:', otpExpiresAt);
 
-    // Store OTP in database
+    // Update OTP in the database
     const { error: updateError } = await supabase
       .from('users')
       .update({
@@ -106,6 +108,68 @@ app.post('/send-verification', async (req, res) => {
   } catch (error) {
     console.error('Email sending error:', error);
     res.status(500).json({ error: 'Failed to send verification code', details: error.message });
+  }
+});
+
+// Add endpoint to resend OTP
+app.post('/resend-otp', async (req, res) => {
+  console.log('Received OTP resend request:', req.body);
+  const { email, fullName, userId } = req.body;
+
+  if (!email || !fullName || !userId) {
+    console.log('Missing required fields:', { email: !!email, fullName: !!fullName, userId: !!userId });
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    // Generate a new OTP
+    const otp = generateOTP();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+    
+    console.log('Generated new OTP:', otp, 'Expires at:', otpExpiresAt);
+
+    // Update OTP in the database
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        verification_otp: otp,
+        otp_expires_at: otpExpiresAt.toISOString()
+      })
+      .eq('id', userId);
+
+    if (updateError) {
+      console.error('Failed to update OTP:', updateError);
+      return res.status(500).json({ error: 'Failed to update verification code' });
+    }
+
+    // Send the new OTP via email
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Your New Verification Code - Dental Care App',
+      html: `
+        <h2>Hello ${fullName}!</h2>
+        <p>Your new email verification code is:</p>
+        <h1 style="font-size: 32px; color: #e91e63; text-align: center; letter-spacing: 5px; margin: 20px 0;">${otp}</h1>
+        <p><strong>This code will expire in 10 minutes.</strong></p>
+        <p>Enter this code in the app to verify your email address.</p>
+        <p>If you didn't request this code, please ignore this email.</p>
+      `,
+    };
+
+    console.log('Sending new OTP email to:', email);
+    
+    const info = await transporter.sendMail(mailOptions);
+    console.log('New OTP email sent successfully:', info.messageId);
+    
+    res.json({ 
+      success: true, 
+      message: 'New verification code sent to your email', 
+      messageId: info.messageId 
+    });
+  } catch (error) {
+    console.error('Resend OTP error:', error);
+    res.status(500).json({ error: 'Failed to resend verification code', details: error.message });
   }
 });
 
@@ -178,18 +242,41 @@ app.post('/verify-otp', async (req, res) => {
 // Add endpoint to get server discovery information
 app.get('/server-discovery', (req, res) => {
   const discoveryInfo = getServerDiscoveryUrls();
+  console.log('Server discovery request received from:', req.ip);
+  
   res.json({
     success: true,
     serverInfo: {
       currentIP: LOCAL_IP,
       currentUrl: `http://${LOCAL_IP}:${PORT}`,
       port: PORT,
+      timestamp: new Date().toISOString(),
+      requestFrom: req.ip,
       ...discoveryInfo
     }
   });
 });
 
-// Keep existing /server-info endpoint for backward compatibility
+// Add a simple test endpoint for debugging
+app.get('/test', (req, res) => {
+  console.log('Test request received from:', req.ip);
+  res.json({ 
+    message: 'Email server is working!', 
+    server: `${LOCAL_IP}:${PORT}`,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Add a health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'healthy', 
+    server: `${LOCAL_IP}:${PORT}`,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Keep existing server-info endpoint for backward compatibility
 app.get('/server-info', (req, res) => {
   res.json({ 
     ip: LOCAL_IP, 
@@ -198,7 +285,26 @@ app.get('/server-info', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Email server running on port ${PORT}`);
   console.log(`Server accessible at: http://${LOCAL_IP}:${PORT}`);
+  console.log(`Test endpoint: http://${LOCAL_IP}:${PORT}/test`);
+  console.log(`Server discovery: http://${LOCAL_IP}:${PORT}/server-discovery`);
+  console.log(`Health check: http://${LOCAL_IP}:${PORT}/health`);
+  console.log(`Network interfaces detected:`);
+  
+  // Show all network interfaces for debugging
+  const os = require('os');
+  const interfaces = os.networkInterfaces();
+  for (const interfaceName in interfaces) {
+    const networkInterface = interfaces[interfaceName];
+    for (const connection of networkInterface) {
+      if (!connection.internal && connection.family === 'IPv4') {
+        console.log(`   - ${interfaceName}: http://${connection.address}:${PORT}`);
+      }
+    }
+  }
+  
+  console.log(`Email server ready to receive requests!`);
+  console.log(`If client can't find server, try: http://${LOCAL_IP}:${PORT}/test in browser`);
 });

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image, FlatList, Pressable, Dimensions } from "
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
-import { getSession, setOnboardingSeenForUser } from "./storage/authStorage";
+import { getSession, setOnboardingSeenForUser } from "./_storage/authStorage";
 
 const { width } = Dimensions.get("window");
 

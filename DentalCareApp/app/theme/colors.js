@@ -8,3 +8,6 @@ export const colors = {
   inputBorder: "#F2A2BD",
   line: "#EAEAEA",
 };
+
+// Dummy export to silence Expo Router warnings
+export default function() { return null; }
