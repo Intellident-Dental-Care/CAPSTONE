@@ -433,7 +433,16 @@ const styles = StyleSheet.create({
   dividerText: { fontSize: 10, color: colors.textGray },
 
   socialRow: { marginTop: 14, flexDirection: "row", justifyContent: "center", gap: 16 },
-  socialBtn: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: colors.line, alignItems: "center", justifyContent: "center", marginTop: 10 },
+  socialBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+  },
 
   bottomTextRow: { marginTop: 16, flexDirection: "row", justifyContent: "center", alignItems: "center" },
   linkPink: { color: colors.primary, fontSize: 12, fontWeight: "700" },
