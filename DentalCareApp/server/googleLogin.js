@@ -3,7 +3,7 @@ import * as Linking from 'expo-linking';
 import { supabase } from './supabaseService';
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
-import { setSession } from '../app/_storage/authStorage';
+import { storeSession } from '../app/_storage/authStorage';
 
 // Ensure this is called
 WebBrowser.maybeCompleteAuthSession();
@@ -193,25 +193,22 @@ const processUserProfile = async (user, provider) => {
       };
     }
 
-    // Store in local storage
-    const sessionData = {
+    // Store in local storage using unified storeSession function
+    await storeSession({
       user,
-      fullName: userProfile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email,
-      loginTime: Date.now(),
-      provider
-    };
+      session: await supabase.auth.getSession(),
+      fullName: userProfile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User'
+    });
     
-    await setSession(sessionData);
     console.log('✅ Session stored with profile data');
     
   } catch (e) {
     console.error('Profile processing error:', e);
     // Continue anyway with basic session
-    await setSession({
+    await storeSession({
       user,
-      fullName: user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'User',
-      loginTime: Date.now(),
-      provider
+      session: null,
+      fullName: user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'User'
     });
   }
 };

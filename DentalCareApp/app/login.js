@@ -15,8 +15,8 @@ import { useRouter } from "expo-router";
 import { Feather, AntDesign, FontAwesome, Ionicons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
 import AuthAlert from "./components/authAlert";
-import { signInUser } from "../server/supabaseService";
 import { supabase } from "../server/supabaseService";
+import { storeSession } from "./_storage/authStorage";
 import { handleGoogleLogin } from "../server/googleLogin";
 import { handleAppleLogin } from "../server/appleLogin";
 import { handleFacebookLogin } from "../server/facebookLogin";
@@ -120,6 +120,13 @@ const handleLogin = async () => {
       return;
     }
 
+    // Store session with user data including full name
+    await storeSession({
+      user: data.user,
+      session: data.session,
+      fullName: userProfile.full_name || data.user.email
+    });
+
     // Success - redirect based on onboarding status
     const firstTime = !data.user.user_metadata?.onboardingSeen;
 
@@ -168,6 +175,21 @@ const handleLogin = async () => {
       
       if (user) {
         console.log(`🎉 ${provider} login completed!`);
+        
+        // Fetch user profile for social login users too
+        const { data: userProfile } = await supabase
+          .from("users")
+          .select("full_name")
+          .eq("id", user.id)
+          .single();
+          
+        // Store session with full name
+        await storeSession({
+          user: user,
+          session: await supabase.auth.getSession(),
+          fullName: userProfile?.full_name || user.user_metadata?.full_name || user.email
+        });
+        
         setError("Login successful! Welcome to DentalCare!");
         
         // Navigate to home after successful social login

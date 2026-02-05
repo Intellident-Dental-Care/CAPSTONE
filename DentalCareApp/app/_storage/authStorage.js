@@ -4,6 +4,23 @@ import { supabase } from "../../server/supabaseService";
 const USERS_KEY = "@dc_users";
 const SESSION_KEY = "@dc_session_user";
 
+// Unified session storage function for both regular login and Google login
+export const storeSession = async ({ user, session, fullName }) => {
+  try {
+    const sessionData = {
+      user,
+      session,
+      fullName: fullName || user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'User',
+      loginTime: Date.now()
+    };
+    
+    await AsyncStorage.setItem("@auth_session", JSON.stringify(sessionData));
+    console.log("✅ Session stored successfully");
+  } catch (error) {
+    console.error("Error storing session:", error);
+  }
+};
+
 export const getSession = async () => {
   try {
     const sessionData = await AsyncStorage.getItem("@auth_session");
@@ -17,9 +34,19 @@ export const getSession = async () => {
   }
 };
 
+// Keep setSession for Google login compatibility
 export const setSession = async (sessionData) => {
   try {
-    await AsyncStorage.setItem("@auth_session", JSON.stringify(sessionData));
+    // Convert Google login format to unified format
+    const unifiedData = {
+      user: sessionData.user,
+      session: sessionData.session || null,
+      fullName: sessionData.fullName,
+      loginTime: sessionData.loginTime || Date.now()
+    };
+    
+    await AsyncStorage.setItem("@auth_session", JSON.stringify(unifiedData));
+    console.log("✅ Google session stored successfully");
   } catch (error) {
     console.error("Error setting session:", error);
   }
