@@ -1,37 +1,136 @@
-import React, { useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import React, { useMemo, useState, useEffect } from "react";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
 import { usePreAssessment } from "./_layout";
-
-const QUESTIONS = [
-  { q: "Do you feel tooth pain when biting or chewing?", options: ["Yes", "No", "Sometimes"] },
-  { q: "Do you experience sensitivity to cold drinks?", options: ["Yes", "No", "Sometimes"] },
-  { q: "Do you experience sensitivity to hot food/drinks?", options: ["Yes", "No", "Sometimes"] },
-  { q: "Do your gums bleed when brushing or flossing?", options: ["Yes", "No", "Sometimes"] },
-  { q: "Do you notice swelling in the gums or face?", options: ["Yes", "No", "A little"] },
-  { q: "Do you have bad breath even after brushing?", options: ["Yes", "No", "Sometimes"] },
-  { q: "Do you see a visible hole or dark spot on the tooth?", options: ["Yes", "No", "Not sure"] },
-  { q: "Do you feel pain that wakes you up at night?", options: ["Yes", "No", "Sometimes"] },
-  { q: "Do you feel pain when eating sweet food?", options: ["Yes", "No", "Sometimes"] },
-  { q: "Have you had a filling or dental treatment on this tooth before?", options: ["Yes", "No", "Not sure"] },
-];
+import { supabase } from "../../server/supabaseService";
+import { getCurrentUser } from "../../server/supabaseService";
 
 export default function Questions() {
   const router = useRouter();
   const { state, dispatch } = usePreAssessment();
   const [idx, setIdx] = useState(0);
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  const current = QUESTIONS[idx];
+  // Fetch questions from Supabase
+  useEffect(() => {
+    fetchQuestions();
+  }, []);
+
+  const fetchQuestions = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const { data, error } = await supabase
+        .from('questionnaire')
+        .select('*')
+        .eq('is_active', true)
+        .order('question_order');
+
+      if (error) throw error;
+
+      // Transform data to match existing format
+      const transformedQuestions = data.map(item => ({
+        q: item.question_text,
+        options: item.options
+      }));
+
+      setQuestions(transformedQuestions);
+    } catch (err) {
+      console.error('Error fetching questions:', err);
+      setError(err.message);
+      setQuestions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centeredContainer]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading questions...</Text>
+      </View>
+    );
+  }
+
+  // Show error state or continue with empty questions array
+  if (questions.length === 0) {
+    return (
+      <View style={[styles.container, styles.centeredContainer]}>
+        <Text style={styles.errorText}>
+          {error ? `Error: ${error}` : "No questions available"}
+        </Text>
+        <Pressable style={styles.btnFilled} onPress={fetchQuestions}>
+          <Text style={styles.btnFilledText}>Retry</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const current = questions[idx];
   const selected = state.answers[idx] || "";
 
   const canNext = selected.length > 0;
 
-  const next = () => {
-    if (!canNext) return;
-    if (idx === QUESTIONS.length - 1) router.push("/pre-assessment/description");
-    else setIdx((p) => p + 1);
+  const next = async () => {
+    if (!canNext || saving) return;
+    
+    if (idx === questions.length - 1) {
+      // Prevent duplicate saves
+      if (saving) return;
+      setSaving(true);
+      
+      // Save preassessment data before proceeding
+      try {
+        const user = await getCurrentUser();
+        if (user) {
+          // Check if preassessment already exists for this session
+          const { data: existing } = await supabase
+            .from('patient_preassessment')
+            .select('id')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          // Only create if no recent preassessment exists
+          if (!existing || existing.length === 0) {
+            const { data, error } = await supabase
+              .from('patient_preassessment')
+              .insert([{
+                user_id: user.id,
+                answers: state.answers,
+                description: null // Will be updated from description page
+              }])
+              .select()
+              .single();
+
+            if (error) {
+              console.error('Error saving preassessment:', error);
+            } else {
+              // Store preassessment ID for later use
+              dispatch({ type: "SET_PREASSESSMENT_ID", payload: data.id });
+            }
+          } else {
+            // Use existing preassessment ID
+            dispatch({ type: "SET_PREASSESSMENT_ID", payload: existing[0].id });
+          }
+        }
+      } catch (err) {
+        console.error('Error saving preassessment:', err);
+      } finally {
+        setSaving(false);
+      }
+      
+      router.push("/pre-assessment/description");
+    } else {
+      setIdx((p) => p + 1);
+    }
   };
 
   const back = () => {
@@ -53,7 +152,7 @@ export default function Questions() {
 
 
       <View style={styles.progressRow}>
-        <View style={[styles.progressLine, { width: `${((idx + 1) / QUESTIONS.length) * 100}%` }]} />
+        <View style={[styles.progressLine, { width: `${((idx + 1) / questions.length) * 100}%` }]} />
       </View>
 
       <Text style={styles.question}>{current.q}</Text>
@@ -83,13 +182,19 @@ export default function Questions() {
           <Text style={styles.btnOutlineText}>Back</Text>
         </Pressable>
 
-        <Pressable style={[styles.btnFilled, !canNext && { opacity: 0.5 }]} onPress={next}>
-          <Text style={styles.btnFilledText}>Next</Text>
+        <Pressable 
+          style={[styles.btnFilled, (!canNext || saving) && { opacity: 0.5 }]} 
+          onPress={next}
+          disabled={saving}
+        >
+          <Text style={styles.btnFilledText}>
+            {saving ? "Saving..." : "Next"}
+          </Text>
         </Pressable>
       </View>
 
       <Text style={styles.footerText}>
-        Question {idx + 1} of {QUESTIONS.length}
+        Question {idx + 1} of {questions.length}
       </Text>
     </View>
   );
@@ -97,35 +202,32 @@ export default function Questions() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", paddingTop: 46, paddingHorizontal: 18 },
-  backIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  topTitle: { textAlign: "center", fontSize: 10, color: colors.textGray },
-
+  
   headerRow: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-between",
-  marginBottom: 6,
-},
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
 
-backIcon: {
-  width: 36,
-  height: 36,
-  borderRadius: 18,
-  alignItems: "center",
-  justifyContent: "center",
-},
+  backIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-topTitle: {
-  fontSize: 12,
-  color: colors.textGray,
-  fontWeight: "600",
-  textAlign: "center",
-},
+  topTitle: {
+    fontSize: 12,
+    color: colors.textGray,
+    fontWeight: "600",
+    textAlign: "center",
+  },
 
-headerSpacer: {
-  width: 36, 
-},
-
+  headerSpacer: {
+    width: 36, 
+  },
 
   progressRow: { marginTop: 18, marginBottom: 10, height: 3, backgroundColor: "#EAD7E0", borderRadius: 3, overflow: "hidden" },
   progressLine: { height: 3, backgroundColor: colors.primary },
@@ -157,4 +259,8 @@ headerSpacer: {
   btnFilledText: { color: "#fff", fontWeight: "800", fontSize: 12 },
 
   footerText: { position: "absolute", bottom: 35, alignSelf: "center", fontSize: 10, color: colors.textGray },
+
+  centeredContainer: { alignItems: 'center', justifyContent: 'center' },
+  loadingText: { marginTop: 10, fontSize: 14, color: colors.textGray },
+  errorText: { fontSize: 16, color: colors.primary, marginBottom: 20 },
 });

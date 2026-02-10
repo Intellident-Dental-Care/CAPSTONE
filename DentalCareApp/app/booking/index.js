@@ -1,35 +1,15 @@
-import React, { useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, Modal, ScrollView, Image, Alert } from "react-native";
+import React, { useMemo, useState, useEffect } from "react";
+import { View, Text, StyleSheet, Pressable, Modal, ScrollView, Image, Alert, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
+import { supabase } from "../../server/supabaseService";
 
 const BRANCHES = [
   "General Trias, Cavite",
   "Dasmarinas, Cavite",
   "Bacoor, Cavite",
 ];
-
-const DOCTORS_BY_BRANCH = {
-  "General Trias, Cavite": [
-    "Dr. Alyssa R. Santos",
-    "Dr. Marco D. Villanueva",
-    "Dr. Bianca L. Reyes",
-  ],
-  "Dasmarinas, Cavite": [
-    "Dr. Julian P. Navarro",
-    "Dr. Kira M. Dela Cruz",
-    "Dr. Sophia T. Garcia",
-    "Dr. Ethan J. Mendoza",
-  ],
-  "Bacoor, Cavite": [
-    "Dr. Patricia A. Lim",
-    "Dr. Nathan C. Flores",
-    "Dr. Camille B. Bautista",
-    "Dr. Andre P. Ramos",
-    "Dr. Hannah S. Castillo",
-  ],
-};
 
 function PickerModal({ visible, title, options, onClose, onPick }) {
   return (
@@ -52,19 +32,68 @@ function PickerModal({ visible, title, options, onClose, onPick }) {
 
 export default function BookingBranchDoctor() {
   const router = useRouter();
-
   const [branch, setBranch] = useState("");
   const [doctor, setDoctor] = useState("");
-
   const [showBranch, setShowBranch] = useState(false);
   const [showDoctor, setShowDoctor] = useState(false);
 
+  const [branches, setBranches] = useState([]);
+  const [doctorsByBranch, setDoctorsByBranch] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDentists();
+  }, []);
+
+  const fetchDentists = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('dentist_list')
+        .select(`
+          *,
+          dentist_schedule!inner(branch)
+        `);
+
+      if (error) throw error;
+
+      // Group dentists by branch
+      const branchGroups = {};
+      data.forEach(dentist => {
+        const branch = dentist.dentist_schedule[0]?.branch;
+        if (branch) {
+          if (!branchGroups[branch]) {
+            branchGroups[branch] = [];
+          }
+          branchGroups[branch].push(dentist);
+        }
+      });
+
+      setBranches(Object.keys(branchGroups));
+      setDoctorsByBranch(branchGroups);
+    } catch (err) {
+      console.error('Error fetching dentists:', err);
+      Alert.alert('Error', 'Failed to load dentist data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const doctors = useMemo(() => {
     if (!branch) return [];
-    return DOCTORS_BY_BRANCH[branch] || [];
-  }, [branch]);
+    return doctorsByBranch[branch] || [];
+  }, [branch, doctorsByBranch]);
 
   const canProceed = branch && doctor;
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 10, fontSize: 14, color: colors.textGray }}>Loading dentists...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -126,7 +155,7 @@ export default function BookingBranchDoctor() {
       <PickerModal
         visible={showBranch}
         title="Select Branch"
-        options={BRANCHES}
+        options={branches}
         onClose={() => setShowBranch(false)}
         onPick={(opt) => {
           setBranch(opt);
@@ -138,9 +167,10 @@ export default function BookingBranchDoctor() {
       <PickerModal
         visible={showDoctor}
         title="Select Doctor"
-        options={doctors}
+        options={doctors.map(d => d.name)}
         onClose={() => setShowDoctor(false)}
         onPick={(opt) => {
+          const selectedDentist = doctors.find(d => d.name === opt);
           setDoctor(opt);
           setShowDoctor(false);
         }}

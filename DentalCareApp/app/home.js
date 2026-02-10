@@ -6,25 +6,46 @@ import {
   TextInput,
   Pressable,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
 import { getSession } from "./_storage/authStorage";
 import { useRouter } from "expo-router";
 import { logoutUser } from "./_storage/authStorage";
-
+import { fetchUpcomingAppointment, formatAppointmentDate, formatAppointmentTime } from "../server/upcomingAppointment";
 
 export default function Home() {
-    const router = useRouter();
-
+  const router = useRouter();
   const [fullName, setFullName] = useState("User");
+  const [upcomingAppointment, setUpcomingAppointment] = useState(null);
+  const [loadingAppointment, setLoadingAppointment] = useState(true);
 
   useEffect(() => {
     (async () => {
       const session = await getSession();
       if (session?.fullName) setFullName(session.fullName);
     })();
+    
+    loadUpcomingAppointment();
   }, []);
+
+  const loadUpcomingAppointment = async () => {
+    try {
+      setLoadingAppointment(true);
+      const { data, error } = await fetchUpcomingAppointment();
+      
+      if (error) {
+        console.error('Error loading upcoming appointment:', error);
+      }
+      
+      setUpcomingAppointment(data);
+    } catch (err) {
+      console.error('Error in loadUpcomingAppointment:', err);
+    } finally {
+      setLoadingAppointment(false);
+    }
+  };
 
   return (
     <View style={styles.screen}>
@@ -84,33 +105,52 @@ export default function Home() {
           <QuickBtn icon={<Ionicons name="medkit-outline" size={18} color={colors.primary} />} label="Services" />
         </View>
 
-        
         <Text style={styles.sectionTitle}>Upcoming Appointment</Text>
-        <View style={styles.upcomingCard}>
-          <View style={styles.upTopRow}>
-            <View style={styles.docAvatar}>
-              <Ionicons name="person" size={18} color={colors.primary} />
+        
+        {loadingAppointment ? (
+          <View style={[styles.upcomingCard, { alignItems: 'center', justifyContent: 'center', minHeight: 80 }]}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.docSub, { marginTop: 8 }]}>Loading appointment...</Text>
+          </View>
+        ) : upcomingAppointment ? (
+          <View style={styles.upcomingCard}>
+            <View style={styles.upTopRow}>
+              <View style={styles.docAvatar}>
+                <Ionicons name="person" size={18} color={colors.primary} />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text style={styles.docName}>{upcomingAppointment.doctorName}</Text>
+                <Text style={styles.docSub}>{upcomingAppointment.branch} - {upcomingAppointment.specialization}</Text>
+              </View>
             </View>
 
-            <View style={{ flex: 1 }}>
-              <Text style={styles.docName}>Dr. Dian Crizzie Mendoza</Text>
-              <Text style={styles.docSub}>GC Dental Care - Dentist</Text>
+            <View style={styles.dateRow}>
+              <View style={styles.dateChip}>
+                <Ionicons name="calendar-outline" size={14} color={colors.white} />
+                <Text style={styles.dateText}>{formatAppointmentDate(upcomingAppointment.date)}</Text>
+              </View>
+              <View style={styles.dateChip}>
+                <Ionicons name="time-outline" size={14} color={colors.white} />
+                <Text style={styles.dateText}>{formatAppointmentTime(upcomingAppointment.time)}</Text>
+              </View>
             </View>
           </View>
-
-          <View style={styles.dateRow}>
-            <View style={styles.dateChip}>
-              <Ionicons name="calendar-outline" size={14} color={colors.white} />
-              <Text style={styles.dateText}>Tues, 13 Jan 2026</Text>
-            </View>
-            <View style={styles.dateChip}>
-              <Ionicons name="time-outline" size={14} color={colors.white} />
-              <Text style={styles.dateText}>10:30 AM - 12:00 PM</Text>
-            </View>
+        ) : (
+          <View style={[styles.upcomingCard, { alignItems: 'center', justifyContent: 'center', minHeight: 80 }]}>
+            <Ionicons name="calendar-outline" size={24} color={colors.primary} />
+            <Text style={[styles.docName, { marginTop: 8 }]}>No Upcoming Appointments</Text>
+            <Text style={styles.docSub}>Book your next dental checkup</Text>
+            <Pressable 
+              style={[styles.smallChip, { backgroundColor: colors.primary, marginTop: 8 }]}
+              onPress={() => router.push("/pre-assessment")}
+            >
+              <Text style={[styles.smallChipText, { color: colors.white }]}>BOOK NOW</Text>
+            </Pressable>
           </View>
-        </View>
+        )}
 
-      
+        
         <View style={styles.rowBetween}>
           <Text style={styles.sectionTitle}>My Recent Visit</Text>
           <Pressable>

@@ -1,11 +1,12 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, Platform } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, Platform, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { colors } from "../theme/colors";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import PinkAlert from "../components/PinkAlert";
-
+import { supabase } from "../../server/supabaseService";
+import { getCurrentUser, getUserProfile } from "../../server/supabaseService";
 
 /* ---------- helpers ---------- */
 function monthShort(d) {
@@ -34,12 +35,43 @@ function buildNext7Days() {
   });
 }
 
+// Convert 12-hour format to 24-hour format for database storage
+function convertTo24Hour(time12h) {
+  const [time, modifier] = time12h.split(' ');
+  let [hours, minutes] = time.split(':');
+  
+  if (hours === '12') {
+    hours = '00';
+  }
+  
+  if (modifier === 'PM') {
+    hours = parseInt(hours, 10) + 12;
+  }
+  
+  return `${pad2(hours)}:${minutes}:00`;
+}
+
+// Convert 24-hour format to 12-hour format for display
+function convertTo12Hour(time24h) {
+  if (!time24h) return '';
+  
+  const [hours, minutes] = time24h.split(':');
+  const hour24 = parseInt(hours, 10);
+  const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+  const modifier = hour24 >= 12 ? 'PM' : 'AM';
+  
+  return `${hour12}:${minutes} ${modifier}`;
+}
+
 /* ---------- component ---------- */
 export default function BookingAppointment() {
   const router = useRouter();
   const { branch, doctor } = useLocalSearchParams();
   const [showAlert, setShowAlert] = useState(false);
-
+  const [dentistData, setDentistData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [booking, setBooking] = useState(false);
+  const [bookedTimeSlots, setBookedTimeSlots] = useState([]);
 
   // date pills (state so we can add a new one from calendar)
   const [datePills, setDatePills] = useState(() => buildNext7Days());
@@ -81,6 +113,75 @@ export default function BookingAppointment() {
   ];
   const times = timeTab === "Morning" ? timesMorning : timesAfternoon;
 
+  useEffect(() => {
+    fetchDentistData();
+  }, [doctor]);
+
+  useEffect(() => {
+    if (dentistData && selectedISO) {
+      fetchBookedTimeSlots();
+    }
+  }, [dentistData, selectedISO]);
+
+  const fetchDentistData = async () => {
+    if (!doctor) return;
+    
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('dentist_list')
+        .select(`
+          *,
+          dentist_schedule(*)
+        `)
+        .eq('name', doctor)
+        .single();
+
+      if (error) throw error;
+      setDentistData(data);
+    } catch (err) {
+      console.error('Error fetching dentist:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchBookedTimeSlots = async () => {
+    if (!dentistData || !selectedISO) return;
+
+    try {
+      console.log('Fetching booked slots for:', {
+        dentistId: dentistData.id,
+        date: selectedISO,
+        branch: branch
+      });
+
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('appointment_time, branch, dentist_id, appointment_date')
+        .eq('dentist_id', dentistData.id)
+        .eq('appointment_date', selectedISO)
+        .eq('branch', branch)
+        .in('status', ['pending', 'confirmed']); // Check both pending and confirmed bookings
+
+      if (error) throw error;
+
+      console.log('Found bookings:', data);
+
+      // Convert 24-hour times back to 12-hour format and extract time strings
+      const bookedTimes = data.map(booking => {
+        const time24h = booking.appointment_time;
+        return convertTo12Hour(time24h);
+      }).filter(Boolean); // Remove any invalid conversions
+
+      console.log('Booked time slots (12h format):', bookedTimes);
+      setBookedTimeSlots(bookedTimes);
+    } catch (err) {
+      console.error('Error fetching booked time slots:', err);
+      setBookedTimeSlots([]);
+    }
+  };
+
   const onPickDate = (event, date) => {
     // Android closes on pick/dismiss
     if (Platform.OS !== "ios") setShowCalendar(false);
@@ -112,6 +213,106 @@ export default function BookingAppointment() {
     if (Platform.OS === "ios") setShowCalendar(false);
   };
 
+  const handleBooking = async () => {
+    // Prevent duplicate bookings
+    if (booking) return;
+    setBooking(true);
+
+    try {
+      const user = await getCurrentUser();
+      const userProfile = await getUserProfile(user.id);
+      
+      // Convert selected time to 24-hour format for database storage
+      const time24h = convertTo24Hour(selectedTime);
+      
+      console.log('Creating booking:', {
+        dentistId: dentistData.id,
+        date: selectedISO,
+        time12h: selectedTime,
+        time24h: time24h,
+        branch: branch
+      });
+
+      // Check for existing booking with same details (including branch)
+      const { data: existingBooking } = await supabase
+        .from('bookings')
+        .select('id, patient_name')
+        .eq('dentist_id', dentistData.id)
+        .eq('appointment_date', selectedISO)
+        .eq('appointment_time', time24h)
+        .eq('branch', branch)
+        .in('status', ['pending', 'confirmed']);
+
+      if (existingBooking && existingBooking.length > 0) {
+        Alert.alert('Time Slot Unavailable', 'This time slot is already booked by another patient. Please select a different time.');
+        setBooking(false);
+        // Refresh booked slots to show updated availability
+        await fetchBookedTimeSlots();
+        return;
+      }
+
+      // Check if user already has a booking for this dentist on this date
+      const { data: userExistingBooking } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('dentist_id', dentistData.id)
+        .eq('appointment_date', selectedISO)
+        .eq('status', 'pending');
+
+      if (userExistingBooking && userExistingBooking.length > 0) {
+        Alert.alert('Booking Exists', 'You already have a booking with this doctor on this date.');
+        setBooking(false);
+        return;
+      }
+
+      // Get the preassessment ID from database
+      const { data: preassessmentData } = await supabase
+        .from('patient_preassessment')
+        .select('id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      const bookingData = {
+        user_id: user.id,
+        patient_name: userProfile.full_name || user.email,
+        dentist_id: dentistData.id,
+        branch: branch,
+        appointment_date: selectedISO,
+        appointment_time: time24h, // Store in 24-hour format
+        preassessment_id: preassessmentData?.id,
+        status: 'pending'
+      };
+
+      console.log('Inserting booking data:', bookingData);
+
+      const { error } = await supabase
+        .from('bookings')
+        .insert([bookingData]);
+
+      if (error) throw error;
+
+      console.log('Booking created successfully');
+      setShowAlert(true);
+    } catch (err) {
+      console.error('Error creating booking:', err);
+      Alert.alert('Error', 'Failed to create booking. Please try again.');
+    } finally {
+      setBooking(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 10, fontSize: 14, color: colors.textGray }}>Loading doctor details...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header: back left, icons right */}
@@ -133,17 +334,17 @@ export default function BookingAppointment() {
         </View>
 
         <View style={{ flex: 1 }}>
-          <Text style={styles.docName}>{doctor || "Doctor"}</Text>
-          <Text style={styles.docSub}>Orthodontics</Text>
+          <Text style={styles.docName}>{dentistData?.name || doctor || "Doctor"}</Text>
+          <Text style={styles.docSub}>{dentistData?.specialization || "Orthodontics"}</Text>
           <Text style={styles.docSub}>{branch || "Branch"}</Text>
         </View>
       </View>
 
       {/* Stats */}
       <View style={styles.statsRow}>
-        <Stat label="Experience" value="14 years" />
-        <Stat label="Patients" value="1234" />
-        <Stat label="Success Rate" value="99.9%" />
+        <Stat label="Experience" value={`${dentistData?.experience_years || 14} years`} />
+        <Stat label="Patients" value={dentistData?.total_patients || "1234"} />
+        <Stat label="Success Rate" value={`${dentistData?.success_rate || 99.9}%`} />
       </View>
 
       {/* Tabs */}
@@ -215,30 +416,61 @@ export default function BookingAppointment() {
         <View style={styles.timeGrid}>
           {times.map((t) => {
             const active = t === selectedTime;
+            const isBooked = bookedTimeSlots.includes(t);
+            
             return (
               <Pressable
                 key={t}
-                style={[styles.timeBox, active && styles.timeBoxActive]}
-                onPress={() => setSelectedTime(t)}
+                style={[
+                  styles.timeBox, 
+                  active && !isBooked && styles.timeBoxActive,
+                  isBooked && styles.timeBoxBooked
+                ]}
+                onPress={() => {
+                  if (!isBooked) {
+                    setSelectedTime(t);
+                  }
+                }}
+                disabled={isBooked}
               >
-                <Text style={[styles.timeText, active && { color: "#fff" }]}>{t}</Text>
+                <Text style={[
+                  styles.timeText, 
+                  active && !isBooked && { color: "#fff" },
+                  isBooked && styles.timeTextBooked
+                ]}>
+                  {t}
+                </Text>
+                {isBooked && (
+                  <Text style={styles.bookedLabel}>Booked</Text>
+                )}
               </Pressable>
             );
           })}
         </View>
+
+        {bookedTimeSlots.length > 0 && (
+          <Text style={styles.bookedInfo}>
+            * Grayed out times are already booked for this doctor and branch
+          </Text>
+        )}
       </ScrollView>
 
       {/* Book Now */}
-                {/* Book Now */}
-      <Pressable style={styles.bookBtn} onPress={() => setShowAlert(true)}>
-        <Text style={styles.bookText}>Book Now</Text>
+      <Pressable 
+        style={[styles.bookBtn, booking && { opacity: 0.5 }]} 
+        onPress={handleBooking}
+        disabled={booking}
+      >
+        <Text style={styles.bookText}>
+          {booking ? "Booking..." : "Book Now"}
+        </Text>
       </Pressable>
 
       {/* ✅ Pink Alert MUST be inside return */}
       <PinkAlert
         visible={showAlert}
         title="Booked!"
-        message={`You are already booked on ${selectedLabel} at ${selectedTime}.`}
+        message={`You have booked an appointment on ${selectedLabel} at ${selectedTime}.`}
         onClose={() => {
           setShowAlert(false);
           router.replace("/home");
@@ -312,7 +544,29 @@ const styles = StyleSheet.create({
   timeGrid: { marginTop: 16, flexDirection: "row", flexWrap: "wrap", gap: 12 },
   timeBox: { width: "47%", height: 44, borderRadius: 10, backgroundColor: "#EDEDED", alignItems: "center", justifyContent: "center" },
   timeBoxActive: { backgroundColor: colors.primary },
+  timeBoxBooked: { 
+    backgroundColor: "#F5F5F5", 
+    borderWidth: 1, 
+    borderColor: "#E0E0E0",
+    opacity: 0.6
+  },
   timeText: { fontSize: 10, fontWeight: "900", color: "#777" },
+  timeTextBooked: { 
+    color: "#999", 
+    fontSize: 9
+  },
+  bookedLabel: {
+    fontSize: 7,
+    color: "#999",
+    marginTop: 1
+  },
+  bookedInfo: {
+    marginTop: 12,
+    fontSize: 10,
+    color: colors.textGray,
+    textAlign: "center",
+    fontStyle: "italic"
+  },
 
   bookBtn: {
     position: "absolute",
