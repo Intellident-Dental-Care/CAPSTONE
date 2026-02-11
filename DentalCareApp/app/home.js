@@ -87,8 +87,11 @@ export default function Home() {
 
         
         <View style={styles.quickRow}>
-          <QuickBtn icon={<MaterialCommunityIcons name="stethoscope" size={18} color={colors.primary} />} label="Dentist"
-/>
+          <QuickBtn
+            icon={<MaterialCommunityIcons name="stethoscope" size={18} color={colors.primary} />}
+            label="Dentist"
+            onPress={() => router.push("/dentists")}
+          />
 
           <QuickBtn
             icon={<Ionicons name="location-outline" size={18} color={colors.primary} />}
@@ -226,7 +229,12 @@ export default function Home() {
         </View>
 
         <View style={styles.slot}>
-            <NavItem icon="person-outline" label="Profile" />
+            <NavItem
+              icon="person-outline"
+              label="Profile"
+              onPress={() => router.push("/profile")}
+            />
+
         </View>
       </View>
 
