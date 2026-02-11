@@ -11,7 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
-import { getSession, updateProfile } from "../storage/authStorage"; // if you don't have updateProfile yet, see note below
+import { getSession, updateProfile } from "../_storage/authStorage"; // if you don't have updateProfile yet, see note below
 
 export default function MyProfile() {
   const router = useRouter();

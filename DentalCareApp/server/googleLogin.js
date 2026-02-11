@@ -11,16 +11,12 @@ WebBrowser.maybeCompleteAuthSession();
 export const handleGoogleLogin = async () => {
   try {
     console.log('=== STARTING GOOGLE OAUTH (SESSION MODE) ===');
-    
-    // 1. Get your specific local development URL
-    // This creates "exp://192.168.x.x:8081" which tells the Auth Session what to wait for
+
     const localRedirectUrl = Linking.createURL('/');
     console.log('📱 Local Redirect URL:', localRedirectUrl);
 
-    // 2. Prepare the Vercel Callback
     const callbackUrl = `https://dentalcare-oauth-callback.vercel.app?return_to=${encodeURIComponent(localRedirectUrl)}`;
     
-    // 3. Get the Google Auth URL from Supabase
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -29,7 +25,7 @@ export const handleGoogleLogin = async () => {
           access_type: 'offline',
           prompt: 'consent',
         },
-        skipBrowserRedirect: true, // We need the URL, not an auto-redirect
+        skipBrowserRedirect: true, 
       },
     });
 
@@ -37,24 +33,20 @@ export const handleGoogleLogin = async () => {
 
     console.log('📱 Opening Auth Session...');
     
-    // 4. THE FIX: openAuthSessionAsync
-    // This opens the browser and WAITS. 
-    // It automatically closes the browser when it sees a redirect to 'localRedirectUrl'
+
     const result = await WebBrowser.openAuthSessionAsync(
-      data.url,       // The Google Login URL
-      localRedirectUrl // The URL to listen for (your app)
+      data.url,       
+      localRedirectUrl 
     );
 
     console.log('=== AUTH SESSION RESULT ===');
     console.log('Result type:', result.type);
     console.log('Result URL:', result.url);
 
-    // 5. Handle the Result
     if (result.type === 'success' && result.url) {
       console.log('✅ Auth Session Successful! Browser closed automatically.');
       console.log('🔗 Result URL:', result.url);
       
-      // Extract tokens from the URL returned by the session
       const params = parseUrlParams(result.url);
       
       console.log('🔍 Parsed tokens:', {
@@ -66,7 +58,6 @@ export const handleGoogleLogin = async () => {
       if (params.access_token && params.refresh_token) {
         console.log('🔓 Tokens found. Setting session...');
         
-        // Set Supabase Session
         const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
             access_token: params.access_token,
             refresh_token: params.refresh_token,
@@ -80,10 +71,8 @@ export const handleGoogleLogin = async () => {
         console.log('✅ Session set successfully');
         console.log('👤 User:', sessionData.user?.email);
 
-        // Process User Profile
         await processUserProfile(sessionData.user, 'google');
         
-        // Navigate to home
         console.log('🏠 Navigating to home...');
         router.replace("/home");
         return sessionData.user;
@@ -104,19 +93,15 @@ export const handleGoogleLogin = async () => {
   } catch (error) {
     console.log('=== GOOGLE LOGIN ERROR ===');
     console.error('Error:', error.message);
-    throw error; // Re-throw so the UI can handle it
+    throw error; 
   }
 };
 
-// --- Helper Functions ---
-
-// Extracts #access_token=...&refresh_token=... from the URL
 const parseUrlParams = (url) => {
   const params = {};
   try {
     console.log('🔍 Parsing URL for tokens:', url);
     
-    // Handle both hash (#) and query (?)
     const parts = url.split(/[#?&]/); 
     parts.forEach(part => {
       const [key, value] = part.split('=');
@@ -132,13 +117,11 @@ const parseUrlParams = (url) => {
   return params;
 };
 
-// Handles profile creation/fetching with timeout protection
 const processUserProfile = async (user, provider) => {
   try {
     console.log('👤 Processing user profile...');
     let userProfile = null;
-    
-    // Try to get existing profile with timeout
+
     const timeoutPromise = new Promise((_, reject) => 
       setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
     );
@@ -156,7 +139,6 @@ const processUserProfile = async (user, provider) => {
         userProfile = data;
         console.log('✅ Existing profile found:', data.full_name);
       } else if (error && error.code === 'PGRST116') {
-        // Create new profile if missing
         console.log('👤 Creating new user profile...');
         
         const fullName = user.user_metadata?.full_name || 
@@ -179,21 +161,19 @@ const processUserProfile = async (user, provider) => {
         ]);
         
         userProfile = { full_name: fullName, is_verified: true };
-        console.log('✅ New profile created:', fullName);
+        console.log('New profile created:', fullName);
       } else {
         throw error;
       }
       
     } catch (err) {
-      console.log('⚠️ Profile processing timed out, using fallback');
-      // Use fallback profile
+      console.log('Profile processing timed out, using fallback');
       userProfile = { 
         full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User',
         is_verified: true
       };
     }
 
-    // Store in local storage using unified storeSession function
     await storeSession({
       user,
       session: await supabase.auth.getSession(),

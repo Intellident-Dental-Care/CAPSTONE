@@ -86,39 +86,23 @@ export default function Questions() {
       if (saving) return;
       setSaving(true);
       
-      // Save preassessment data before proceeding
       try {
         const user = await getCurrentUser();
         if (user) {
-          // Check if preassessment already exists for this session
-          const { data: existing } = await supabase
+          const { data, error } = await supabase
             .from('patient_preassessment')
-            .select('id')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
+            .insert([{
+              user_id: user.id,
+              answers: state.answers,
+              description: null
+            }])
+            .select()
+            .single();
 
-          // Only create if no recent preassessment exists
-          if (!existing || existing.length === 0) {
-            const { data, error } = await supabase
-              .from('patient_preassessment')
-              .insert([{
-                user_id: user.id,
-                answers: state.answers,
-                description: null // Will be updated from description page
-              }])
-              .select()
-              .single();
-
-            if (error) {
-              console.error('Error saving preassessment:', error);
-            } else {
-              // Store preassessment ID for later use
-              dispatch({ type: "SET_PREASSESSMENT_ID", payload: data.id });
-            }
+          if (error) {
+            console.error('Error saving preassessment:', error);
           } else {
-            // Use existing preassessment ID
-            dispatch({ type: "SET_PREASSESSMENT_ID", payload: existing[0].id });
+            dispatch({ type: "SET_PREASSESSMENT_ID", payload: data.id });
           }
         }
       } catch (err) {

@@ -1,57 +1,53 @@
-import React, { createContext, useContext, useMemo, useReducer } from "react";
+import React, { createContext, useContext, useReducer } from "react";
 import { Stack } from "expo-router";
 
-const Ctx = createContext(null);
+const PreAssessmentContext = createContext();
 
-const initial = {
-  tooth: "3rd Molar",
-  answers: {},       // { [qIndex]: optionText }
-  description: "",
-  photoUri: "",      // optional
+const initialState = {
+  answers: {},
+  preassessmentId: null,
 };
 
-function reducer(state, action) {
+function preAssessmentReducer(state, action) {
   switch (action.type) {
-    case "SET_TOOTH":
-      return { ...state, tooth: action.payload };
     case "SET_ANSWER":
       return {
         ...state,
-        answers: { ...state.answers, [action.payload.qIndex]: action.payload.answer },
+        answers: {
+          ...state.answers,
+          [action.payload.qIndex]: action.payload.answer,
+        },
       };
-    case "SET_DESCRIPTION":
-      return { ...state, description: action.payload };
-    case "SET_PHOTO":
-      return { ...state, photoUri: action.payload };
+    case "SET_PREASSESSMENT_ID":
+      return {
+        ...state,
+        preassessmentId: action.payload,
+      };
     case "RESET":
-      return initial;
+      return initialState;
     default:
       return state;
   }
 }
 
 export function usePreAssessment() {
-  const v = useContext(Ctx);
-  if (!v) throw new Error("usePreAssessment must be used inside PreAssessmentLayout");
-  return v;
+  const context = useContext(PreAssessmentContext);
+  if (!context) {
+    throw new Error("usePreAssessment must be used within PreAssessmentProvider");
+  }
+  return context;
 }
 
 export default function PreAssessmentLayout() {
-  const [state, dispatch] = useReducer(reducer, initial);
-
-  const value = useMemo(() => ({ state, dispatch }), [state]);
+  const [state, dispatch] = useReducer(preAssessmentReducer, initialState);
 
   return (
-    <Ctx.Provider value={value}>
+    <PreAssessmentContext.Provider value={{ state, dispatch }}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
-        <Stack.Screen name="model" />
         <Stack.Screen name="questions" />
         <Stack.Screen name="description" />
-        <Stack.Screen name="photo" />
-        <Stack.Screen name="ai-summary" />
-        <Stack.Screen name="book-now" />
       </Stack>
-    </Ctx.Provider>
+    </PreAssessmentContext.Provider>
   );
 }

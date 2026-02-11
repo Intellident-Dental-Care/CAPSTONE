@@ -266,14 +266,24 @@ export default function BookingAppointment() {
         return;
       }
 
-      // Get the preassessment ID from database
+      // Get the most recent preassessment ID from database (within the last hour to ensure it's from current session)
+      const oneHourAgo = new Date();
+      oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+
       const { data: preassessmentData } = await supabase
         .from('patient_preassessment')
         .select('id')
         .eq('user_id', user.id)
+        .gte('created_at', oneHourAgo.toISOString())
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
+
+      if (!preassessmentData) {
+        Alert.alert('Preassessment Required', 'Please complete the pre-assessment first before booking.');
+        setBooking(false);
+        return;
+      }
 
       const bookingData = {
         user_id: user.id,
@@ -282,7 +292,7 @@ export default function BookingAppointment() {
         branch: branch,
         appointment_date: selectedISO,
         appointment_time: time24h, // Store in 24-hour format
-        preassessment_id: preassessmentData?.id,
+        preassessment_id: preassessmentData.id,
         status: 'pending'
       };
 

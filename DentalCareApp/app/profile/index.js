@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
-import { getSession, logoutUser } from "../storage/authStorage";
+import { getSession, logoutUser } from "../_storage/authStorage";
 
 export default function Profile() {
   const router = useRouter();
