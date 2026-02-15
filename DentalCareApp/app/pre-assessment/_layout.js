@@ -6,6 +6,7 @@ const PreAssessmentContext = createContext();
 const initialState = {
   answers: {},
   preassessmentId: null,
+  description: "",
 };
 
 function preAssessmentReducer(state, action) {
@@ -17,6 +18,16 @@ function preAssessmentReducer(state, action) {
           ...state.answers,
           [action.payload.qIndex]: action.payload.answer,
         },
+      };
+    case "SET_DESCRIPTION":
+      return {
+        ...state,
+        description: action.payload,
+      };
+    case "INIT_ANSWERS":
+      return {
+        ...state,
+        answers: action.payload,
       };
     case "SET_PREASSESSMENT_ID":
       return {

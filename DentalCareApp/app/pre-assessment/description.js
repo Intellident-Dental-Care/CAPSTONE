@@ -9,7 +9,7 @@ export default function Description() {
   const router = useRouter();
   const { state, dispatch } = usePreAssessment();
 
-  const canNext = state.description.trim().length > 0;
+  const canNext = state.description && state.description.trim().length > 0;
 
   return (
     <View style={styles.container}>
@@ -38,7 +38,7 @@ export default function Description() {
         placeholderTextColor={colors.textGray}
         style={styles.box}
         multiline
-        value={state.description}
+        value={state.description || ""}
         onChangeText={(t) => dispatch({ type: "SET_DESCRIPTION", payload: t })}
       />
 

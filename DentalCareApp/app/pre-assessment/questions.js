@@ -40,6 +40,10 @@ export default function Questions() {
       }));
 
       setQuestions(transformedQuestions);
+      
+      // Initialize answers array with empty strings for each question
+      const initialAnswers = new Array(transformedQuestions.length).fill("");
+      dispatch({ type: "INIT_ANSWERS", payload: initialAnswers });
     } catch (err) {
       console.error('Error fetching questions:', err);
       setError(err.message);
