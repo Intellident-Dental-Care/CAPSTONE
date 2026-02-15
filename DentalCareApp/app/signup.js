@@ -17,6 +17,10 @@ import { colors } from "./theme/colors";
 import AuthAlert from "./components/authAlert";
 import { supabase } from "../server/supabaseService";
 import { getServerUrl } from "../server/getClientSideUrl";
+import { storeSession } from "./_storage/authStorage";
+import { handleGoogleLogin } from "../server/googleLogin";
+import { handleAppleLogin } from "../server/appleLogin";
+import { handleFacebookLogin } from "../server/facebookLogin";
 
 const { height: H } = Dimensions.get("window");
 
@@ -211,6 +215,79 @@ export default function Signup() {
     }
   };
 
+  const handleSocialLogin = async (provider) => {
+    try {
+      console.log(`=== STARTING ${provider.toUpperCase()} LOGIN ===`);
+      setLoading(true);
+      setError("");
+      
+      let user;
+      
+      switch (provider) {
+        case 'google':
+          setError("Opening Google login... Please complete authentication in browser.");
+          user = await handleGoogleLogin();
+          break;
+        case 'apple':
+          setError("Opening Apple login...");
+          user = await handleAppleLogin();
+          break;
+        case 'facebook':
+          setError("Opening Facebook login...");
+          user = await handleFacebookLogin();
+          break;
+        default:
+          throw new Error('Unsupported provider');
+      }
+      
+      if (user) {
+        console.log(`🎉 ${provider} signup completed!`);
+        
+        // Fetch user profile for social login users too
+        const { data: userProfile } = await supabase
+          .from("users")
+          .select("full_name")
+          .eq("id", user.id)
+          .single();
+          
+        // Store session with full name
+        await storeSession({
+          user: user,
+          session: await supabase.auth.getSession(),
+          fullName: userProfile?.full_name || user.user_metadata?.full_name || user.email
+        });
+        
+        setError("Signup successful! Welcome to DentalCare!");
+        
+        // Navigate to home after successful social signup
+        Animated.parallel([
+          Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
+          Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
+          Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+        ]).start(() => {
+          router.back();
+          setTimeout(() => {
+            router.replace("/home");
+          }, 100);
+        });
+      }
+    } catch (error) {
+      console.error(`${provider} signup error:`, error);
+      
+      let errorMessage = `${provider.charAt(0).toUpperCase() + provider.slice(1)} signup failed. Please try again.`;
+      
+      if (error.message.includes('cancelled')) {
+        errorMessage = `${provider.charAt(0).toUpperCase() + provider.slice(1)} signup was cancelled.`;
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Signup timed out. Please complete authentication and try again.';
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.overlayRoot}>
       <Pressable style={StyleSheet.absoluteFill} onPress={close}>
@@ -310,13 +387,27 @@ export default function Signup() {
                 </View>
 
                 <View style={styles.socialRow}>
-                  <Pressable style={styles.socialBtn}>
+                  <Pressable 
+                    style={styles.socialBtn}
+                    onPress={() => handleSocialLogin('facebook')}
+                    disabled={loading}
+                  >
                     <FontAwesome name="facebook" size={18} color={colors.primary} />
                   </Pressable>
-                  <Pressable style={styles.socialBtn}>
+                  
+                  <Pressable 
+                    style={styles.socialBtn}
+                    onPress={() => handleSocialLogin('google')}
+                    disabled={loading}
+                  >
                     <AntDesign name="google" size={18} color={colors.primary} />
                   </Pressable>
-                  <Pressable style={styles.socialBtn}>
+                  
+                  <Pressable 
+                    style={styles.socialBtn}
+                    onPress={() => handleSocialLogin('apple')}
+                    disabled={loading}
+                  >
                     <Ionicons name="logo-apple" size={18} color={colors.primary} />
                   </Pressable>
                 </View>
