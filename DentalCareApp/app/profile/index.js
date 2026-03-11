@@ -4,12 +4,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
 import { getSession, logoutUser } from "../storage/authStorage";
+import ProfileSwitcherModal from "../components/ProfileSwitcherModal";
 
 export default function Profile() {
-  const router = useRouter();
+  const router = useRouter();S
 
   const [fullName, setFullName] = useState("User");
   const [email, setEmail] = useState("user@email.com");
+
+
 
   useEffect(() => {
     (async () => {
@@ -38,8 +41,15 @@ export default function Profile() {
         </Pressable>
 
         <View style={styles.topRight}>
-          <Pressable style={styles.notifPill}>
-            <Ionicons name="notifications-outline" size={16} color={colors.primary} />
+          <Pressable
+              style={styles.notifPill}
+              onPress={() => router.push("/notification")}
+              >
+              <Ionicons
+                  name="notifications-outline"
+                  size={16}
+                  color={colors.primary}
+              />
           </Pressable>
 
           <View style={styles.avatarSmall}>

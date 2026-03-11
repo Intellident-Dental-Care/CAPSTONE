@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "DentalCareApp",
-    "slug": "DentalCareApp",
+    "name": "GC Dental Care",
+    "slug": "GC Dental Care",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/gcdental.jpg",
     "scheme": "dentalcareapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -32,7 +32,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/gcdental.jpg",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",

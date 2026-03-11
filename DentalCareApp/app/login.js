@@ -116,91 +116,96 @@ export default function Login() {
       </Pressable>
 
       <Animated.View style={[styles.screen, { transform: [{ translateY }] }]}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-            <View style={styles.container}>
-              <View style={styles.top}>
-                <Pressable style={styles.backRow} onPress={close}>
-                  <Feather name="chevron-left" size={18} color={colors.textGrayLight} />
-                  <Text style={styles.backText}>Back</Text>
-                </Pressable>
+        <KeyboardAvoidingView 
+          style={{ flex: 1 }} 
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent} 
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            <View style={styles.top}>
+              <Pressable style={styles.backRow} onPress={close}>
+                <Feather name="chevron-left" size={18} color={colors.textGrayLight} />
+                <Text style={styles.backText}>Back</Text>
+              </Pressable>
 
-                <Animated.Image source={require("../assets/logo.png")} style={[styles.logoSmall, logoStyle]} />
+              <Animated.Image source={require("../assets/logo.png")} style={[styles.logoSmall, logoStyle]} />
+            </View>
+
+            <View style={styles.card}>
+              <Text style={styles.h1}>Welcome Back</Text>
+              <Text style={styles.h2}>
+                Ready to continue your dental journey?{"\n"}Your path is right here.
+              </Text>
+
+              <View style={{ height: 18 }} />
+
+              <TextInput
+                placeholder="Enter Email"
+                placeholderTextColor={colors.textGray}
+                style={styles.input}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+
+              <View style={styles.inputPass}>
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor={colors.textGray}
+                  secureTextEntry={!showPass}
+                  style={styles.passField}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <Pressable onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn}>
+                  <Feather name={showPass ? "eye" : "eye-off"} size={18} color={colors.textGray} />
+                </Pressable>
               </View>
 
-              <View style={styles.card}>
-                <Text style={styles.h1}>Welcome Back</Text>
-                <Text style={styles.h2}>
-                  Ready to continue your dental journey?{"\n"}Your path is right here.
-                </Text>
+              <AuthAlert message={error} />
 
-                <View style={{ height: 18 }} />
-
-                <TextInput
-                  placeholder="Enter Email"
-                  placeholderTextColor={colors.textGray}
-                  style={styles.input}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-
-                <View style={styles.inputPass}>
-                  <TextInput
-                    placeholder="Password"
-                    placeholderTextColor={colors.textGray}
-                    secureTextEntry={!showPass}
-                    style={styles.passField}
-                    value={password}
-                    onChangeText={setPassword}
-                  />
-                  <Pressable onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn}>
-                    <Feather name={showPass ? "eye" : "eye-off"} size={18} color={colors.textGray} />
-                  </Pressable>
-                </View>
-
-                <AuthAlert message={error} />
-
-                <View style={styles.rowBetween}>
-                  <Pressable style={styles.rememberRow} onPress={() => setRemember((r) => !r)}>
-                    <View style={[styles.fakeCheck, remember ? styles.fakeCheckChecked : null]} />
-                    <Text style={styles.smallPink}>Remember me</Text>
-                  </Pressable>
-
-                  <Pressable onPress={() => {}}>
-                    <Text style={styles.smallPink}>Forgot Password?</Text>
-                  </Pressable>
-                </View>
-
-                <Pressable style={styles.loginBtn} onPress={handleLogin} disabled={loading}>
-                  <Text style={styles.loginText}>{loading ? "Logging in..." : "Log In"}</Text>
+              <View style={styles.rowBetween}>
+                <Pressable style={styles.rememberRow} onPress={() => setRemember((r) => !r)}>
+                  <View style={[styles.fakeCheck, remember ? styles.fakeCheckChecked : null]} />
+                  <Text style={styles.smallPink}>Remember me</Text>
                 </Pressable>
 
-                <View style={styles.dividerRow}>
-                  <View style={styles.line} />
-                  <Text style={styles.dividerText}>Sign in with</Text>
-                  <View style={styles.line} />
-                </View>
+                <Pressable onPress={() => {}}>
+                  <Text style={styles.smallPink}>Forgot Password?</Text>
+                </Pressable>
+              </View>
 
-                <View style={styles.socialRow}>
-                  <Pressable style={styles.socialBtn}>
-                    <FontAwesome name="facebook" size={18} color={colors.primary} />
-                  </Pressable>
-                  <Pressable style={styles.socialBtn}>
-                    <AntDesign name="google" size={18} color={colors.primary} />
-                  </Pressable>
-                  <Pressable style={styles.socialBtn}>
-                    <Ionicons name="logo-apple" size={18} color={colors.primary} />
-                  </Pressable>
-                </View>
+              <Pressable style={styles.loginBtn} onPress={handleLogin} disabled={loading}>
+                <Text style={styles.loginText}>{loading ? "Logging in..." : "Log In"}</Text>
+              </Pressable>
 
-                <View style={styles.bottomTextRow}>
-                  <Text style={{ color: colors.textGray, fontSize: 12 }}>Don’t have an account? </Text>
-                  <Pressable onPress={() => switchTo("/signup")} disabled={loading}>
-                    <Text style={styles.linkPink}>Sign Up</Text>
-                  </Pressable>
-                </View>
+              <View style={styles.dividerRow}>
+                <View style={styles.line} />
+                <Text style={styles.dividerText}>Sign in with</Text>
+                <View style={styles.line} />
+              </View>
+
+              <View style={styles.socialRow}>
+                <Pressable style={styles.socialBtn}>
+                  <FontAwesome name="facebook" size={18} color={colors.primary} />
+                </Pressable>
+                <Pressable style={styles.socialBtn}>
+                  <AntDesign name="google" size={18} color={colors.primary} />
+                </Pressable>
+                <Pressable style={styles.socialBtn}>
+                  <Ionicons name="logo-apple" size={18} color={colors.primary} />
+                </Pressable>
+              </View>
+
+              <View style={styles.bottomTextRow}>
+                <Text style={{ color: colors.textGray, fontSize: 12 }}>Don’t have an account? </Text>
+                <Pressable onPress={() => switchTo("/signup")} disabled={loading}>
+                  <Text style={styles.linkPink}>Sign Up</Text>
+                </Pressable>
               </View>
             </View>
           </ScrollView>
@@ -211,12 +216,15 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-
   overlayRoot: { flex: 1, backgroundColor: "transparent" },
   backdrop: { flex: 1, backgroundColor: "#000" },
   screen: { position: "absolute", left: 0, right: 0, bottom: 0, height: "100%" },
 
-  container: { flex: 1, backgroundColor: colors.pinkBg },
+  scrollContent: { 
+    flexGrow: 1, 
+    backgroundColor: colors.pinkBg 
+  },
+
   top: { height: 170, paddingTop: 48, paddingHorizontal: 18 },
   backRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   backText: { fontSize: 12, color: colors.textGrayLight },
@@ -224,14 +232,15 @@ const styles = StyleSheet.create({
   logoSmall: { width: 180, height: 180, resizeMode: "contain", alignSelf: "center", marginTop: 12 },
 
   card: {
-    flex: 1,
     backgroundColor: colors.white,
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
     paddingHorizontal: 22,
     paddingTop: 26,
-    paddingBottom: 30,
+    paddingBottom: 40,
     marginTop: 60,
+    // Ensures the white background stretches to the bottom
+    minHeight: H - 170, 
   },
 
   h1: { fontSize: 27, fontWeight: "800", color: colors.primary, textAlign: "center" },

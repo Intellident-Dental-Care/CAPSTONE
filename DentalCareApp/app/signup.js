@@ -72,7 +72,6 @@ export default function Signup() {
 
   const handleSignup = async () => {
     setError("");
-
     if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
       setError("Please fill in all fields.");
       return;
@@ -80,9 +79,7 @@ export default function Signup() {
 
     const strongPassword = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
     if (!strongPassword.test(password)) {
-      setError(
-        "Password must be at least 8 characters and include 1 uppercase letter, 1 number, and 1 special character."
-      );
+      setError("Password must be at least 8 characters and include 1 uppercase letter, 1 number, and 1 special character.");
       return;
     }
 
@@ -93,11 +90,7 @@ export default function Signup() {
 
     try {
       setLoading(true);
-      const res = await createUser({
-        fullName,
-        email: email.trim(),
-        password,
-      });
+      const res = await createUser({ fullName, email: email.trim(), password });
       setLoading(false);
 
       if (!res.ok) {
@@ -105,18 +98,14 @@ export default function Signup() {
         return;
       }
 
-     
       Animated.parallel([
         Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
         Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
         Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
       ]).start(() => {
-        router.back(); 
+        router.back();
         setTimeout(() => {
-          router.push({
-            pathname: "/otp-verification",
-            params: { email: email.trim() },
-          });
+          router.push({ pathname: "/otp-verification", params: { email: email.trim() } });
         }, 60);
       });
     } catch {
@@ -137,110 +126,114 @@ export default function Signup() {
       </Pressable>
 
       <Animated.View style={[styles.screen, { transform: [{ translateY }] }]}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-            <View style={styles.container}>
-              <View style={styles.top}>
-                <Pressable style={styles.backRow} onPress={close}>
-                  <Feather name="chevron-left" size={18} color={colors.textGrayLight} />
-                  <Text style={styles.backText}>Back</Text>
-                </Pressable>
+        <KeyboardAvoidingView 
+          style={{ flex: 1 }} 
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent} 
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            <View style={styles.top}>
+              <Pressable style={styles.backRow} onPress={close}>
+                <Feather name="chevron-left" size={18} color={colors.textGrayLight} />
+                <Text style={styles.backText}>Back</Text>
+              </Pressable>
+              <Animated.Image source={require("../assets/logo.png")} style={[styles.logoSmall, logoStyle]} />
+            </View>
 
-                <Animated.Image source={require("../assets/logo.png")} style={[styles.logoSmall, logoStyle]} />
+            <View style={styles.card}>
+              <Text style={styles.h1}>Create Your Account</Text>
+              <Text style={styles.h2}>
+                Safe and Quality Dentistry.{"\n"}We take your health and safety seriously.
+              </Text>
+
+              <View style={{ height: 18 }} />
+
+              <TextInput
+                placeholder="Enter Full Name"
+                placeholderTextColor={colors.textGray}
+                style={styles.input}
+                value={fullName}
+                onChangeText={setFullName}
+              />
+
+              <View style={{ height: 12 }} />
+
+              <TextInput
+                placeholder="Enter Email"
+                placeholderTextColor={colors.textGray}
+                style={styles.input}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+
+              <View style={styles.inputPass}>
+                <TextInput
+                  placeholder="Enter Password"
+                  placeholderTextColor={colors.textGray}
+                  secureTextEntry={!showPass}
+                  style={styles.passField}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <Pressable onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn}>
+                  <Feather name={showPass ? "eye" : "eye-off"} size={18} color={colors.textGray} />
+                </Pressable>
               </View>
 
-              <View style={styles.card}>
-                <Text style={styles.h1}>Create Your Account</Text>
-                <Text style={styles.h2}>
-                  Safe and Quality Dentistry.{"\n"}We take your health and safety seriously.
-                </Text>
-
-                <View style={{ height: 18 }} />
-
+              <View style={styles.inputPass}>
                 <TextInput
-                  placeholder="Enter Full Name"
+                  placeholder="Confirm Password"
                   placeholderTextColor={colors.textGray}
-                  style={styles.input}
-                  value={fullName}
-                  onChangeText={setFullName}
+                  secureTextEntry={!showConfirmPass}
+                  style={styles.passField}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
                 />
-
-                <View style={{ height: 12 }} />
-
-                <TextInput
-                  placeholder="Enter Email"
-                  placeholderTextColor={colors.textGray}
-                  style={styles.input}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-
-                <View style={styles.inputPass}>
-                  <TextInput
-                    placeholder="Enter Password"
-                    placeholderTextColor={colors.textGray}
-                    secureTextEntry={!showPass}
-                    style={styles.passField}
-                    value={password}
-                    onChangeText={setPassword}
-                  />
-                  <Pressable onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn}>
-                    <Feather name={showPass ? "eye" : "eye-off"} size={18} color={colors.textGray} />
-                  </Pressable>
-                </View>
-
-                <View style={styles.inputPass}>
-                  <TextInput
-                    placeholder="Confirm Password"
-                    placeholderTextColor={colors.textGray}
-                    secureTextEntry={!showConfirmPass}
-                    style={styles.passField}
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                  />
-                  <Pressable onPress={() => setShowConfirmPass((p) => !p)} style={styles.eyeBtn}>
-                    <Feather name={showConfirmPass ? "eye" : "eye-off"} size={18} color={colors.textGray} />
-                  </Pressable>
-                </View>
-
-                <AuthAlert message={error} />
-
-                <View style={styles.rightRow}>
-                  <Pressable onPress={() => {}}>
-                    <Text style={styles.smallPink}>Forgot Password?</Text>
-                  </Pressable>
-                </View>
-
-                <Pressable style={styles.loginBtn} onPress={handleSignup} disabled={loading}>
-                  <Text style={styles.loginText}>{loading ? "Saving..." : "Get Started"}</Text>
+                <Pressable onPress={() => setShowConfirmPass((p) => !p)} style={styles.eyeBtn}>
+                  <Feather name={showConfirmPass ? "eye" : "eye-off"} size={18} color={colors.textGray} />
                 </Pressable>
+              </View>
 
-                <View style={styles.dividerRow}>
-                  <View style={styles.line} />
-                  <Text style={styles.dividerText}>Sign in with</Text>
-                  <View style={styles.line} />
-                </View>
+              <AuthAlert message={error} />
 
-                <View style={styles.socialRow}>
-                  <Pressable style={styles.socialBtn}>
-                    <FontAwesome name="facebook" size={18} color={colors.primary} />
-                  </Pressable>
-                  <Pressable style={styles.socialBtn}>
-                    <AntDesign name="google" size={18} color={colors.primary} />
-                  </Pressable>
-                  <Pressable style={styles.socialBtn}>
-                    <Ionicons name="logo-apple" size={18} color={colors.primary} />
-                  </Pressable>
-                </View>
+              <View style={styles.rightRow}>
+                <Pressable onPress={() => {}}>
+                  <Text style={styles.smallPink}>Forgot Password?</Text>
+                </Pressable>
+              </View>
 
-                <View style={styles.bottomTextRow}>
-                  <Text style={{ color: colors.textGray, fontSize: 12 }}>Already have an account? </Text>
-                  <Pressable onPress={() => switchTo("/login")} disabled={loading}>
-                    <Text style={styles.linkPink}>Log In</Text>
-                  </Pressable>
-                </View>
+              <Pressable style={styles.loginBtn} onPress={handleSignup} disabled={loading}>
+                <Text style={styles.loginText}>{loading ? "Saving..." : "Get Started"}</Text>
+              </Pressable>
+
+              <View style={styles.dividerRow}>
+                <View style={styles.line} />
+                <Text style={styles.dividerText}>Sign in with</Text>
+                <View style={styles.line} />
+              </View>
+
+              <View style={styles.socialRow}>
+                <Pressable style={styles.socialBtn}>
+                  <FontAwesome name="facebook" size={18} color={colors.primary} />
+                </Pressable>
+                <Pressable style={styles.socialBtn}>
+                  <AntDesign name="google" size={18} color={colors.primary} />
+                </Pressable>
+                <Pressable style={styles.socialBtn}>
+                  <Ionicons name="logo-apple" size={18} color={colors.primary} />
+                </Pressable>
+              </View>
+
+              <View style={styles.bottomTextRow}>
+                <Text style={{ color: colors.textGray, fontSize: 12 }}>Already have an account? </Text>
+                <Pressable onPress={() => switchTo("/login")} disabled={loading}>
+                  <Text style={styles.linkPink}>Log In</Text>
+                </Pressable>
               </View>
             </View>
           </ScrollView>
@@ -254,23 +247,27 @@ const styles = StyleSheet.create({
   overlayRoot: { flex: 1, backgroundColor: "transparent" },
   backdrop: { flex: 1, backgroundColor: "#000" },
   screen: { position: "absolute", left: 0, right: 0, bottom: 0, height: "100%" },
+  
+  scrollContent: { 
+    flexGrow: 1, 
+    backgroundColor: colors.pinkBg 
+  },
 
-  container: { flex: 1, backgroundColor: colors.pinkBg },
   top: { height: 170, paddingTop: 48, paddingHorizontal: 18 },
   backRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   backText: { fontSize: 12, color: colors.textGrayLight },
-
   logoSmall: { width: 180, height: 180, resizeMode: "contain", alignSelf: "center", marginTop: 12 },
 
   card: {
-    flex: 1,
     backgroundColor: colors.white,
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
     paddingHorizontal: 22,
     paddingTop: 26,
-    paddingBottom: 30,
+    paddingBottom: 60, 
     marginTop: 60,
+    // Forces the card to cover the remaining screen height
+    minHeight: H - 170, 
   },
 
   h1: { fontSize: 20, fontWeight: "800", color: colors.primary, textAlign: "center" },

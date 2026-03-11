@@ -12,6 +12,7 @@ import { colors } from "./theme/colors";
 import { getSession } from "./storage/authStorage";
 import { useRouter } from "expo-router";
 import { logoutUser } from "./storage/authStorage";
+import ProfileSwitcherModal from "./components/ProfileSwitcherModal";
 
 
 export default function Home() {
@@ -26,6 +27,20 @@ export default function Home() {
     })();
   }, []);
 
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+
+  const [selectedProfile, setSelectedProfile] = useState({
+    id: "1",
+    name: "Dian",
+    icon: "person",
+  });
+
+  const profiles = [
+    { id: "1", name: "Dian", icon: "person" },
+    { id: "2", name: "Mom", icon: "person" },
+    { id: "3", name: "Guest", icon: "person" },
+  ];
+
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -37,19 +52,31 @@ export default function Home() {
           </View>
 
           <View style={styles.headerRight}>
-            <Pressable style={styles.iconCircle}>
-              <Ionicons name="notifications-outline" size={18} color={colors.primary} />
-            </Pressable>
+            <Pressable
+                style={styles.iconCircle}
+                onPress={() => router.push("/notification")}
+              >
+                <Ionicons
+                  name="notifications-outline"
+                  size={18}
+                  color={colors.primary}
+                />
+              </Pressable>
 
             <Pressable
                 style={styles.avatarCircle}
-                onPress={async () => {
-                    await logoutUser();              
-                    router.replace("/get-started");  
-                }}
+                onPress={() => setProfileModalVisible(true)}
                 >
                 <Ionicons name="person" size={18} color={colors.primary} />
             </Pressable>
+
+            <ProfileSwitcherModal
+              visible={profileModalVisible}
+              onClose={() => setProfileModalVisible(false)}
+              profiles={profiles}
+              selectedProfile={selectedProfile}
+              onSelectProfile={(profile) => setSelectedProfile(profile)}
+            />
 
           </View>
         </View>
@@ -67,7 +94,7 @@ export default function Home() {
         
         <View style={styles.quickRow}>
           <QuickBtn
-            icon={<MaterialCommunityIcons name="stethoscope" size={18} color={colors.primary} />}
+            icon={<Ionicons name="medical-outline" size={22} color={colors.primary} />}
             label="Dentist"
             onPress={() => router.push("/dentists")}
           />
@@ -77,14 +104,43 @@ export default function Home() {
             label="Branches"
             onPress={() => router.push("/branches")}
           />
-          <QuickBtn icon={<MaterialCommunityIcons name="tooth-outline" size={18} color={colors.primary} />} label="3D Model" />
-          <QuickBtn
-            icon={<Ionicons name="document-text-outline" size={18} color={colors.primary} />}
-            label="Pre Assessment"
-            onPress={() => router.push("/pre-assessment")}
+
+          <QuickBtn icon={<MaterialCommunityIcons name="tooth-outline" size={18} color={colors.primary} />} 
+          label="3D Model" 
+          onPress={() => router.push("/tooth-3d")}
           />
 
-          <QuickBtn icon={<Ionicons name="medkit-outline" size={18} color={colors.primary} />} label="Services" />
+          <QuickBtn
+            icon={<Ionicons name="calendar-outline" size={20} color={colors.primary} />}
+            label="Appointments"
+             onPress={() => router.push("/appointments")}
+          />
+
+          <QuickBtn icon={<Ionicons name="medkit-outline" size={18} color={colors.primary} />} 
+          label="Services" 
+          onPress={() => router.push("/services")}
+          />
+        </View>
+
+                {/* Queue Card */}
+        <View style={styles.queueCard}>
+          <View style={styles.queueTopRow}>
+            <Text style={styles.queueTitle}>Current Queue</Text>
+
+            <Pressable style={styles.refreshBtn} onPress={() => { /* refresh logic here */ }}>
+              <Ionicons name="refresh" size={12} color={colors.white} />
+              <Text style={styles.refreshText}>Refresh Now</Text>
+            </Pressable>
+          </View>
+
+          <Text style={styles.queueNumber}>#27</Text>
+          <Text style={styles.queueSub}>Your position in queue</Text>
+
+          <View style={styles.queueProgressTrack}>
+            <View style={styles.queueProgressFill} />
+          </View>
+
+          <Text style={styles.queueWait}>Estimated wait: 1 hour and 25 minutes</Text>
         </View>
 
         
@@ -185,7 +241,11 @@ export default function Home() {
         <View style={styles.centerSlot} />
 
         <View style={styles.slot}>
-            <NavItem icon="heart-outline" label="History" />
+          <NavItem
+            icon="heart-outline"
+            label="History"
+            onPress={() => router.push("/history")}
+          />
         </View>
 
         <View style={styles.slot}>
@@ -331,6 +391,84 @@ const styles = StyleSheet.create({
   quickLabel: { marginTop: 6, fontSize: 9, color: colors.textGray, textAlign: "center" },
 
   sectionTitle: { marginTop: 16, fontSize: 13, fontWeight: "800", color: "#777" },
+
+  queueCard: {
+  marginTop: 14,
+  borderRadius: 18,
+  backgroundColor: colors.primary, // pink card
+  padding: 14,
+  shadowColor: "#000",
+  shadowOpacity: 0.18,
+  shadowRadius: 10,
+  elevation: 4,
+},
+
+queueTopRow: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+},
+
+queueTitle: {
+  fontSize: 12,
+  fontWeight: "800",
+  color: colors.white,
+},
+
+refreshBtn: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  paddingHorizontal: 10,
+  paddingVertical: 6,
+  borderRadius: 12,
+  backgroundColor: "rgba(255,255,255,0.2)",
+},
+
+refreshText: {
+  fontSize: 9,
+  fontWeight: "800",
+  color: colors.white,
+},
+
+queueNumber: {
+  marginTop: 10,
+  fontSize: 40,
+  fontWeight: "900",
+  color: colors.white,
+  textAlign: "center",
+},
+
+queueSub: {
+  marginTop: 2,
+  fontSize: 10,
+  color: "rgba(255,255,255,0.85)",
+  textAlign: "center",
+  fontWeight: "700",
+},
+
+queueProgressTrack: {
+  marginTop: 12,
+  height: 6,
+  borderRadius: 99,
+  backgroundColor: "rgba(255,255,255,0.35)",
+  overflow: "hidden",
+},
+
+queueProgressFill: {
+  width: "80%", // change this to control the filled progress
+  height: "100%",
+  borderRadius: 99,
+  backgroundColor: colors.white,
+},
+
+queueWait: {
+  marginTop: 10,
+  fontSize: 10,
+  color: colors.white,
+  textAlign: "center",
+  fontWeight: "800",
+},
 
   upcomingCard: { marginTop: 10, borderRadius: 18, backgroundColor: "#FFD6E6", padding: 14 },
   upTopRow: { flexDirection: "row", gap: 10, alignItems: "center" },
