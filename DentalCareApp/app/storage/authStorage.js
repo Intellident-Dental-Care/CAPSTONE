@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const USERS_KEY = "@dc_users";
 const SESSION_KEY = "@dc_session_user";
+const PATIENT_PROFILES_KEY = "@dc_patient_profiles";
 
 async function readJSON(key, fallback) {
   const raw = await AsyncStorage.getItem(key);
@@ -36,8 +37,9 @@ export async function createUser({ fullName, email, password }) {
     id: Date.now().toString(),
     fullName: fullName.trim(),
     email: cleanEmail,
-    password, 
-    onboardingSeen: false, 
+    password,
+    onboardingSeen: false,
+    patientSetupDone: false,
     createdAt: new Date().toISOString(),
   };
 
@@ -55,13 +57,28 @@ export async function loginUser(email, password) {
   if (!user) return { ok: false, message: "Email not found." };
   if (user.password !== password) return { ok: false, message: "Incorrect password." };
 
-  await writeJSON(SESSION_KEY, { id: user.id, email: user.email, fullName: user.fullName });
+  const patientProfile = await getPatientProfileByEmail(user.email);
 
-  return { ok: true, user };
+  await writeJSON(SESSION_KEY, {
+    id: user.id,
+    email: user.email,
+    fullName: user.fullName,
+    patientSetupDone: !!patientProfile?.patientSetupDone,
+  });
+
+  return {
+    ok: true,
+    user,
+    needsPatientSetup: !patientProfile?.patientSetupDone,
+  };
 }
 
 export async function getSession() {
   return await readJSON(SESSION_KEY, null);
+}
+
+export async function setSession(sessionData) {
+  await writeJSON(SESSION_KEY, sessionData);
 }
 
 export async function logoutUser() {
@@ -70,6 +87,155 @@ export async function logoutUser() {
 
 export async function setOnboardingSeenForUser(userId) {
   const users = await getUsers();
-  const updated = users.map((u) => (u.id === userId ? { ...u, onboardingSeen: true } : u));
+  const updated = users.map((u) =>
+    u.id === userId ? { ...u, onboardingSeen: true } : u
+  );
   await setUsers(updated);
+}
+
+export async function getPatientProfiles() {
+  return await readJSON(PATIENT_PROFILES_KEY, {});
+}
+
+export async function getPatientProfileByEmail(email) {
+  if (!email) return null;
+  const profiles = await getPatientProfiles();
+  return profiles[email.toLowerCase()] || null;
+}
+
+export async function savePatientProfile(profileData) {
+  const session = await getSession();
+  if (!session?.email) {
+    return { ok: false, message: "No logged-in user found." };
+  }
+
+  const emailKey = session.email.toLowerCase();
+  const profiles = await getPatientProfiles();
+
+  const savedProfile = {
+    ...profiles[emailKey],
+    ...profileData,
+    email: session.email,
+    patientSetupDone: true,
+    updatedAt: new Date().toISOString(),
+  };
+
+  profiles[emailKey] = savedProfile;
+  await writeJSON(PATIENT_PROFILES_KEY, profiles);
+
+  const users = await getUsers();
+  const updatedUsers = users.map((u) =>
+    u.email.toLowerCase() === emailKey
+      ? {
+          ...u,
+          fullName: profileData.fullName || u.fullName,
+          patientSetupDone: true,
+        }
+      : u
+  );
+  await setUsers(updatedUsers);
+
+  await setSession({
+    ...session,
+    fullName: profileData.fullName || session.fullName,
+    patientSetupDone: true,
+  });
+
+  return { ok: true, profile: savedProfile };
+}
+
+export async function updatePatientProfile(profileData) {
+  const session = await getSession();
+  if (!session?.email) {
+    return { ok: false, message: "No logged-in user found." };
+  }
+
+  const emailKey = session.email.toLowerCase();
+  const profiles = await getPatientProfiles();
+  const existingProfile = profiles[emailKey] || {};
+
+  const updatedProfile = {
+    ...existingProfile,
+    ...profileData,
+    email: session.email,
+    patientSetupDone: true,
+    updatedAt: new Date().toISOString(),
+  };
+
+  profiles[emailKey] = updatedProfile;
+  await writeJSON(PATIENT_PROFILES_KEY, profiles);
+
+  const users = await getUsers();
+  const updatedUsers = users.map((u) =>
+    u.email.toLowerCase() === emailKey
+      ? {
+          ...u,
+          fullName: profileData.fullName || u.fullName,
+        }
+      : u
+  );
+  await setUsers(updatedUsers);
+
+  await setSession({
+    ...session,
+    fullName: profileData.fullName || session.fullName,
+    patientSetupDone: true,
+  });
+
+  return { ok: true, profile: updatedProfile };
+}
+
+export async function hasPatientSetup(email) {
+  const profile = await getPatientProfileByEmail(email);
+  return !!profile?.patientSetupDone;
+}
+
+export async function clearAllAuthStorage() {
+  await AsyncStorage.multiRemove([
+    USERS_KEY,
+    SESSION_KEY,
+    PATIENT_PROFILES_KEY,
+  ]);
+}
+
+export async function updateProfile(profileData) {
+  const session = await getSession();
+  if (!session?.email) {
+    return { ok: false, message: "No logged-in user found." };
+  }
+
+  const emailKey = session.email.toLowerCase();
+
+  const users = await getUsers();
+  const updatedUsers = users.map((u) =>
+    u.email.toLowerCase() === emailKey
+      ? {
+          ...u,
+          fullName: profileData.fullName ?? u.fullName,
+        }
+      : u
+  );
+  await setUsers(updatedUsers);
+
+  const currentSession = await getSession();
+  await setSession({
+    ...currentSession,
+    fullName: profileData.fullName ?? currentSession?.fullName,
+    email: currentSession?.email,
+  });
+
+  const profiles = await getPatientProfiles();
+  const existingProfile = profiles[emailKey] || {};
+
+  profiles[emailKey] = {
+    ...existingProfile,
+    ...profileData,
+    email: currentSession?.email,
+    patientSetupDone: true,
+    updatedAt: new Date().toISOString(),
+  };
+
+  await writeJSON(PATIENT_PROFILES_KEY, profiles);
+
+  return { ok: true, profile: profiles[emailKey] };
 }

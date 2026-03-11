@@ -85,7 +85,8 @@ export default function Login() {
         return;
       }
 
-      const firstTime = !res.user.onboardingSeen;
+      const firstTimeOnboarding = !res.user.onboardingSeen;
+      const needsPatientSetup = res.needsPatientSetup;
 
       Animated.parallel([
         Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
@@ -94,8 +95,13 @@ export default function Login() {
       ]).start(() => {
         router.back();
         setTimeout(() => {
-          if (firstTime) router.replace("/onboarding");
-          else router.replace("/home");
+          if (firstTimeOnboarding) {
+            router.replace("/onboarding");
+          } else if (needsPatientSetup) {
+            router.replace("/patient-first-setup");
+          } else {
+            router.replace("/home");
+          }
         }, 60);
       });
     } catch {
@@ -116,12 +122,12 @@ export default function Login() {
       </Pressable>
 
       <Animated.View style={[styles.screen, { transform: [{ translateY }] }]}>
-        <KeyboardAvoidingView 
-          style={{ flex: 1 }} 
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <ScrollView 
-            contentContainerStyle={styles.scrollContent} 
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             bounces={false}
           >
@@ -131,7 +137,10 @@ export default function Login() {
                 <Text style={styles.backText}>Back</Text>
               </Pressable>
 
-              <Animated.Image source={require("../assets/logo.png")} style={[styles.logoSmall, logoStyle]} />
+              <Animated.Image
+                source={require("../assets/logo.png")}
+                style={[styles.logoSmall, logoStyle]}
+              />
             </View>
 
             <View style={styles.card}>
@@ -220,16 +229,22 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: "#000" },
   screen: { position: "absolute", left: 0, right: 0, bottom: 0, height: "100%" },
 
-  scrollContent: { 
-    flexGrow: 1, 
-    backgroundColor: colors.pinkBg 
+  scrollContent: {
+    flexGrow: 1,
+    backgroundColor: colors.pinkBg,
   },
 
   top: { height: 170, paddingTop: 48, paddingHorizontal: 18 },
   backRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   backText: { fontSize: 12, color: colors.textGrayLight },
 
-  logoSmall: { width: 180, height: 180, resizeMode: "contain", alignSelf: "center", marginTop: 12 },
+  logoSmall: {
+    width: 180,
+    height: 180,
+    resizeMode: "contain",
+    alignSelf: "center",
+    marginTop: 12,
+  },
 
   card: {
     backgroundColor: colors.white,
@@ -239,7 +254,7 @@ const styles = StyleSheet.create({
     paddingTop: 26,
     paddingBottom: 40,
     marginTop: 60,
-    minHeight: H - 170, 
+    minHeight: H - 170,
   },
 
   h1: { fontSize: 27, fontWeight: "800", color: colors.primary, textAlign: "center" },
@@ -270,7 +285,12 @@ const styles = StyleSheet.create({
   passField: { flex: 1, fontSize: 12, color: colors.textDark },
   eyeBtn: { paddingLeft: 10, paddingVertical: 6 },
 
-  rowBetween: { marginTop: 10, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  rowBetween: {
+    marginTop: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   rememberRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   fakeCheck: { width: 12, height: 12, borderRadius: 3, borderWidth: 1, borderColor: colors.primary },
   fakeCheckChecked: { backgroundColor: colors.primary },
@@ -288,7 +308,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  
+
   loginText: { color: colors.white, fontSize: 13, fontWeight: "800" },
 
   dividerRow: { marginTop: 30, flexDirection: "row", alignItems: "center", gap: 10 },
@@ -296,8 +316,21 @@ const styles = StyleSheet.create({
   dividerText: { fontSize: 10, color: colors.textGray },
 
   socialRow: { marginTop: 30, flexDirection: "row", justifyContent: "center", gap: 16 },
-  socialBtn: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: colors.line, alignItems: "center", justifyContent: "center" },
+  socialBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-  bottomTextRow: { marginTop: 16, flexDirection: "row", justifyContent: "center", alignItems: "center" },
+  bottomTextRow: {
+    marginTop: 16,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   linkPink: { color: colors.primary, fontSize: 12, fontWeight: "700" },
 });
