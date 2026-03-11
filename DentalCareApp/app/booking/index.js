@@ -1,8 +1,24 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, Modal, ScrollView, Image, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Modal,
+  ScrollView,
+  Image,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { colors } from "../theme/colors";
+
+const SERVICES = [
+  "Teeth Cleaning",
+  "Tooth Extraction",
+  "Dental Filling",
+  "Braces Consultation",
+  "Teeth Whitening",
+];
 
 const BRANCHES = [
   "General Trias, Cavite",
@@ -33,13 +49,22 @@ const DOCTORS_BY_BRANCH = {
 
 function PickerModal({ visible, title, options, onClose, onPick }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={() => {}}>
           <Text style={styles.modalTitle}>{title}</Text>
           <ScrollView style={{ maxHeight: 320 }}>
             {options.map((opt) => (
-              <Pressable key={opt} style={styles.modalItem} onPress={() => onPick(opt)}>
+              <Pressable
+                key={opt}
+                style={styles.modalItem}
+                onPress={() => onPick(opt)}
+              >
                 <Text style={styles.modalItemText}>{opt}</Text>
               </Pressable>
             ))}
@@ -52,10 +77,15 @@ function PickerModal({ visible, title, options, onClose, onPick }) {
 
 export default function BookingBranchDoctor() {
   const router = useRouter();
+  const { service: passedService } = useLocalSearchParams();
 
+  const [service, setService] = useState(
+    typeof passedService === "string" ? passedService : ""
+  );
   const [branch, setBranch] = useState("");
   const [doctor, setDoctor] = useState("");
 
+  const [showService, setShowService] = useState(false);
   const [showBranch, setShowBranch] = useState(false);
   const [showDoctor, setShowDoctor] = useState(false);
 
@@ -64,16 +94,14 @@ export default function BookingBranchDoctor() {
     return DOCTORS_BY_BRANCH[branch] || [];
   }, [branch]);
 
-  const canProceed = branch && doctor;
+  const canProceed = service && branch && doctor;
 
   return (
     <View style={styles.container}>
-    
       <Pressable style={styles.backBtn} onPress={() => router.back()}>
         <Ionicons name="chevron-back" size={20} color={colors.primary} />
       </Pressable>
 
-     
       <View style={styles.imageWrap}>
         <Image
           source={require("../../assets/index_assessment.jpg")}
@@ -82,21 +110,36 @@ export default function BookingBranchDoctor() {
       </View>
 
       <Text style={styles.h1}>Appointment Booking</Text>
-      <Text style={styles.h2}>Select a branch and doctor to proceed{"\n"}with your appointment.</Text>
+      <Text style={styles.h2}>
+        Select a service, branch, and doctor to proceed{"\n"}
+        with your appointment.
+      </Text>
 
       <View style={{ height: 16 }} />
 
-      {/* Branch dropdown */}
-      <Pressable style={styles.dropdown} onPress={() => setShowBranch(true)}>
+      <Pressable style={styles.dropdown} onPress={() => setShowService(true)}>
+        <Text style={[styles.dropdownText, !service && { color: "#AAA" }]}>
+          {service || "Service"}
+        </Text>
+        <Ionicons name="chevron-down" size={16} color="#888" />
+      </Pressable>
+
+      <Pressable
+        style={[styles.dropdown, { marginTop: 12 }]}
+        onPress={() => setShowBranch(true)}
+      >
         <Text style={[styles.dropdownText, !branch && { color: "#AAA" }]}>
           {branch || "Branch"}
         </Text>
         <Ionicons name="chevron-down" size={16} color="#888" />
       </Pressable>
 
-      {/* Doctor dropdown */}
       <Pressable
-        style={[styles.dropdown, { marginTop: 12 }, !branch && { opacity: 0.55 }]}
+        style={[
+          styles.dropdown,
+          { marginTop: 12 },
+          !branch && { opacity: 0.55 },
+        ]}
         onPress={() => {
           if (!branch) return;
           setShowDoctor(true);
@@ -108,21 +151,30 @@ export default function BookingBranchDoctor() {
         <Ionicons name="chevron-down" size={16} color="#888" />
       </Pressable>
 
-      {/* Proceed */}
       <Pressable
         style={[styles.proceedBtn, !canProceed && { opacity: 0.5 }]}
         onPress={() => {
           if (!canProceed) return;
           router.push({
             pathname: "/booking/appointment",
-            params: { branch, doctor },
+            params: { service, branch, doctor },
           });
         }}
       >
         <Text style={styles.proceedText}>Proceed</Text>
       </Pressable>
 
-      {/* Modals */}
+      <PickerModal
+        visible={showService}
+        title="Select Service"
+        options={SERVICES}
+        onClose={() => setShowService(false)}
+        onPick={(opt) => {
+          setService(opt);
+          setShowService(false);
+        }}
+      />
+
       <PickerModal
         visible={showBranch}
         title="Select Branch"
@@ -130,7 +182,7 @@ export default function BookingBranchDoctor() {
         onClose={() => setShowBranch(false)}
         onPick={(opt) => {
           setBranch(opt);
-          setDoctor(""); // reset doctor when branch changes
+          setDoctor("");
           setShowBranch(false);
         }}
       />
@@ -150,11 +202,25 @@ export default function BookingBranchDoctor() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", paddingTop: 46, paddingHorizontal: 18 },
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingTop: 46,
+    paddingHorizontal: 18,
+  },
 
-  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-  imageWrap: { marginTop: 10 },
+  imageWrap: {
+    marginTop: 10,
+  },
+
   heroImage: {
     height: 360,
     width: "100%",
@@ -162,8 +228,19 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
 
-  h1: { marginTop: 16, fontSize: 22, fontWeight: "900", color: colors.primary },
-  h2: { marginTop: 6, fontSize: 11, color: colors.textGray, lineHeight: 16 },
+  h1: {
+    marginTop: 16,
+    fontSize: 22,
+    fontWeight: "900",
+    color: colors.primary,
+  },
+
+  h2: {
+    marginTop: 6,
+    fontSize: 11,
+    color: colors.textGray,
+    lineHeight: 16,
+  },
 
   dropdown: {
     height: 44,
@@ -175,7 +252,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  dropdownText: { fontSize: 12, color: "#666", fontWeight: "700" },
+
+  dropdownText: {
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "700",
+  },
 
   proceedBtn: {
     position: "absolute",
@@ -192,7 +274,12 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  proceedText: { color: "#fff", fontSize: 12, fontWeight: "900" },
+
+  proceedText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "900",
+  },
 
   modalBackdrop: {
     flex: 1,
@@ -200,12 +287,29 @@ const styles = StyleSheet.create({
     padding: 18,
     justifyContent: "center",
   },
+
   modalCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
     padding: 14,
   },
-  modalTitle: { fontSize: 14, fontWeight: "900", color: colors.primary, marginBottom: 10 },
-  modalItem: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee" },
-  modalItemText: { fontSize: 12, color: "#444", fontWeight: "700" },
+
+  modalTitle: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: colors.primary,
+    marginBottom: 10,
+  },
+
+  modalItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+
+  modalItemText: {
+    fontSize: 12,
+    color: "#444",
+    fontWeight: "700",
+  },
 });

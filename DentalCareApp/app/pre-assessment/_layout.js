@@ -5,26 +5,38 @@ const Ctx = createContext(null);
 
 const initial = {
   tooth: "3rd Molar",
-  answers: {},       
+  answers: {},
   description: "",
-  photoUri: "",     
+  photoUri: "",
+  suggestedService: "",
 };
 
 function reducer(state, action) {
   switch (action.type) {
     case "SET_TOOTH":
       return { ...state, tooth: action.payload };
+
     case "SET_ANSWER":
       return {
         ...state,
-        answers: { ...state.answers, [action.payload.qIndex]: action.payload.answer },
+        answers: {
+          ...state.answers,
+          [action.payload.qIndex]: action.payload.answer,
+        },
       };
+
     case "SET_DESCRIPTION":
       return { ...state, description: action.payload };
+
     case "SET_PHOTO":
       return { ...state, photoUri: action.payload };
+
+    case "SET_SUGGESTED_SERVICE":
+      return { ...state, suggestedService: action.payload };
+
     case "RESET":
       return initial;
+
     default:
       return state;
   }
@@ -32,7 +44,9 @@ function reducer(state, action) {
 
 export function usePreAssessment() {
   const v = useContext(Ctx);
-  if (!v) throw new Error("usePreAssessment must be used inside PreAssessmentLayout");
+  if (!v) {
+    throw new Error("usePreAssessment must be used inside PreAssessmentLayout");
+  }
   return v;
 }
 

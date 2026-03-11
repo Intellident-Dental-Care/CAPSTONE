@@ -6,6 +6,7 @@ import {
   TextInput,
   Pressable,
   ScrollView,
+  Modal,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
@@ -19,6 +20,26 @@ import {
   switchActiveProfile,
 } from "./storage/authStorage";
 
+const SERVICES = [
+  "Teeth Cleaning",
+  "Tooth Extraction",
+  "Dental Filling",
+  "Braces Consultation",
+  "Teeth Whitening",
+];
+
+const BRANCHES = [
+  "GC Dental Care - Dasma Branch",
+  "GC Dental Care - Imus Branch",
+  "GC Dental Care - Bacoor Branch",
+];
+
+const DOCTORS = [
+  "Dr. Mendoza",
+  "Dr. Guillermo",
+  "Dr. Amparo",
+];
+
 export default function Home() {
   const router = useRouter();
 
@@ -26,6 +47,12 @@ export default function Home() {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [profiles, setProfiles] = useState([]);
+
+  const [flowModalVisible, setFlowModalVisible] = useState(false);
+  const [flowStep, setFlowStep] = useState("start");
+  const [selectedService, setSelectedService] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState("");
+  const [selectedDoctor, setSelectedDoctor] = useState("");
 
   const loadProfiles = async () => {
     const active = await getActiveProfile();
@@ -57,6 +84,34 @@ export default function Home() {
     await logoutUser();
     router.replace("/get-started");
   };
+
+  const openFlowModal = () => {
+    setSelectedService("");
+    setSelectedBranch("");
+    setSelectedDoctor("");
+    setFlowStep("start");
+    setFlowModalVisible(true);
+  };
+
+  const closeFlowModal = () => {
+    setFlowModalVisible(false);
+    setFlowStep("start");
+    setSelectedService("");
+    setSelectedBranch("");
+    setSelectedDoctor("");
+  };
+
+  const handleChoosePreAssessment = () => {
+    closeFlowModal();
+    router.push("/pre-assessment");
+  };
+
+  const handleChooseBooking = () => {
+    closeFlowModal();
+    router.push("/booking");
+  };
+
+  
 
   return (
     <View style={styles.screen}>
@@ -109,31 +164,61 @@ export default function Home() {
 
         <View style={styles.quickRow}>
           <QuickBtn
-            icon={<Ionicons name="medical-outline" size={22} color={colors.primary} />}
+            icon={
+              <Ionicons
+                name="medical-outline"
+                size={22}
+                color={colors.primary}
+              />
+            }
             label="Dentist"
             onPress={() => router.push("/dentists")}
           />
 
           <QuickBtn
-            icon={<Ionicons name="location-outline" size={18} color={colors.primary} />}
+            icon={
+              <Ionicons
+                name="location-outline"
+                size={18}
+                color={colors.primary}
+              />
+            }
             label="Branches"
             onPress={() => router.push("/branches")}
           />
 
           <QuickBtn
-            icon={<MaterialCommunityIcons name="tooth-outline" size={18} color={colors.primary} />}
+            icon={
+              <MaterialCommunityIcons
+                name="tooth-outline"
+                size={18}
+                color={colors.primary}
+              />
+            }
             label="3D Model"
             onPress={() => router.push("/tooth-3d")}
           />
 
           <QuickBtn
-            icon={<Ionicons name="calendar-outline" size={20} color={colors.primary} />}
+            icon={
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color={colors.primary}
+              />
+            }
             label="Appointments"
             onPress={() => router.push("/appointments")}
           />
 
           <QuickBtn
-            icon={<Ionicons name="medkit-outline" size={18} color={colors.primary} />}
+            icon={
+              <Ionicons
+                name="medkit-outline"
+                size={18}
+                color={colors.primary}
+              />
+            }
             label="Services"
             onPress={() => router.push("/services")}
           />
@@ -156,7 +241,9 @@ export default function Home() {
             <View style={styles.queueProgressFill} />
           </View>
 
-          <Text style={styles.queueWait}>Estimated wait: 1 hour and 25 minutes</Text>
+          <Text style={styles.queueWait}>
+            Estimated wait: 1 hour and 25 minutes
+          </Text>
         </View>
 
         <Text style={styles.sectionTitle}>Upcoming Appointment</Text>
@@ -174,7 +261,11 @@ export default function Home() {
 
           <View style={styles.dateRow}>
             <View style={styles.dateChip}>
-              <Ionicons name="calendar-outline" size={14} color={colors.white} />
+              <Ionicons
+                name="calendar-outline"
+                size={14}
+                color={colors.white}
+              />
               <Text style={styles.dateText}>Tues, 13 Jan 2026</Text>
             </View>
             <View style={styles.dateChip}>
@@ -191,7 +282,11 @@ export default function Home() {
           </Pressable>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 12 }}
+        >
           <RecentCard
             title="Dr. Mendoza"
             clinic="GC Dental Care - Dentist"
@@ -209,7 +304,9 @@ export default function Home() {
           />
         </ScrollView>
 
-        <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Treatment Plan</Text>
+        <Text style={[styles.sectionTitle, { marginTop: 18 }]}>
+          Treatment Plan
+        </Text>
 
         <TreatmentItem
           title="Teeth Whitening"
@@ -268,9 +365,50 @@ export default function Home() {
         </View>
       </View>
 
-      <Pressable style={styles.fab}>
+      <Pressable style={styles.fab} onPress={openFlowModal}>
         <Ionicons name="add" size={26} color={colors.white} />
       </Pressable>
+
+      <Modal
+        visible={flowModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeFlowModal}
+      >
+        <Pressable style={styles.modalOverlay} onPress={closeFlowModal}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            {flowStep === "start" && (
+              <>
+                <Text style={styles.modalTitle}>What would you like to do?</Text>
+                <Text style={styles.modalSubtitle}>
+                  Choose if you want to do pre-assessment first or proceed to
+                  booking.
+                </Text>
+
+                <Pressable
+                  style={styles.optionButton}
+                  onPress={handleChoosePreAssessment}
+                >
+                  <Text style={styles.optionText}>Do Pre-Assessment First</Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.optionButton}
+                  onPress={handleChooseBooking}
+                >
+                  <Text style={styles.optionText}>Proceed to Booking</Text>
+                </Pressable>
+
+                <Pressable style={styles.cancelBtn} onPress={closeFlowModal}>
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </Pressable>
+              </>
+            )}
+
+            
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -322,8 +460,12 @@ function TreatmentItem({ title, sub, status, rightA, rightB }) {
         <Pressable style={styles.smallChip}>
           <Text style={styles.smallChipText}>{rightA}</Text>
         </Pressable>
-        <Pressable style={[styles.smallChip, { backgroundColor: colors.primary }]}>
-          <Text style={[styles.smallChipText, { color: colors.white }]}>{rightB}</Text>
+        <Pressable
+          style={[styles.smallChip, { backgroundColor: colors.primary }]}
+        >
+          <Text style={[styles.smallChipText, { color: colors.white }]}>
+            {rightB}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -750,5 +892,63 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 10,
     elevation: 6,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+
+  modalCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+  },
+
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.primary,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+
+  modalSubtitle: {
+    fontSize: 12,
+    color: colors.textGray,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+
+  optionButton: {
+    backgroundColor: "#FFE9F1",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 10,
+    alignItems: "center",
+  },
+
+  optionText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.primary,
+    textAlign: "center",
+  },
+
+  cancelBtn: {
+    marginTop: 4,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+
+  cancelText: {
+    fontSize: 13,
+    color: colors.textGray,
+    fontWeight: "600",
   },
 });
