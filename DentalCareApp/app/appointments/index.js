@@ -8,6 +8,7 @@ import {
   TextInput,
   FlatList,
   Pressable,
+  Modal,
 } from "react-native";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -21,7 +22,7 @@ const MOCK_APPOINTMENTS = [
     dentist: "Dr. Santos",
     date: "2026-02-25",
     time: "10:30 AM",
-    status: "upcoming", // upcoming | completed | cancelled
+    status: "upcoming",
   },
   {
     id: "A-1002",
@@ -65,21 +66,21 @@ function getStatusUI(status) {
       return {
         label: "Upcoming",
         icon: "time-outline",
-        color: "#F4B400",        
+        color: "#F4B400",
         bg: "#FFF4CC",
       };
     case "completed":
       return {
         label: "Completed",
         icon: "checkmark-circle-outline",
-        color: "#2E7D32",       
+        color: "#2E7D32",
         bg: "#E6F4EA",
       };
     case "cancelled":
       return {
         label: "Cancelled",
         icon: "close-circle-outline",
-        color: "#eb0d0d",      
+        color: "#eb0d0d",
         bg: "#fcccc7",
       };
     default:
@@ -103,7 +104,26 @@ export default function AppointmentsScreen() {
   const router = useRouter();
 
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("all"); 
+  const [filter, setFilter] = useState("all");
+  const [flowModalVisible, setFlowModalVisible] = useState(false);
+
+  const openFlowModal = () => {
+    setFlowModalVisible(true);
+  };
+
+  const closeFlowModal = () => {
+    setFlowModalVisible(false);
+  };
+
+  const handleChoosePreAssessment = () => {
+    closeFlowModal();
+    router.push("/pre-assessment");
+  };
+
+  const handleChooseBooking = () => {
+    closeFlowModal();
+    router.push("/booking");
+  };
 
   const data = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -111,8 +131,9 @@ export default function AppointmentsScreen() {
     return MOCK_APPOINTMENTS
       .filter((a) => {
         if (filter === "all") return true;
-        if (filter === "upcoming")
+        if (filter === "upcoming") {
           return a.status === "upcoming" && isUpcoming(a.date);
+        }
         return a.status === filter;
       })
       .filter((a) => {
@@ -150,35 +171,30 @@ export default function AppointmentsScreen() {
         style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
         onPress={() => router.push(`/appointments/${item.id}`)}
       >
-        {/* Left date pill */}
         <View style={styles.datePill}>
           <Text style={styles.pillMonth}>{pill.mon}</Text>
           <Text style={styles.pillDay}>{pill.day}</Text>
         </View>
 
-        {/* Main content */}
         <View style={styles.cardBody}>
           <View style={styles.rowTop}>
-            {/* Main title = Procedure */}
             <Text style={styles.procedureTitle} numberOfLines={1}>
               {item.procedure}
             </Text>
 
-            {/* Status badge */}
             <View style={[styles.badge, { backgroundColor: statusUI.bg }]}>
-                <Ionicons
-                    name={statusUI.icon}
-                    size={14}
-                    color={statusUI.color}
-                    style={{ marginRight: 6 }}
-                />
-                <Text style={[styles.badgeText, { color: statusUI.color }]}>
-                    {statusUI.label}
-                </Text>
-                </View>
+              <Ionicons
+                name={statusUI.icon}
+                size={14}
+                color={statusUI.color}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.badgeText, { color: statusUI.color }]}>
+                {statusUI.label}
+              </Text>
+            </View>
           </View>
 
-          {/* Procedure label changed to something else: "Treatment" */}
           <Text style={styles.subLine} numberOfLines={1}>
             Treatment: {item.treatment}
           </Text>
@@ -207,7 +223,11 @@ export default function AppointmentsScreen() {
 
           <View style={styles.footerRow}>
             <Text style={styles.appId}>#{item.id}</Text>
-            <Feather name="chevron-right" size={18} color={colors.muted || "#777"} />
+            <Feather
+              name="chevron-right"
+              size={18}
+              color={colors.muted || "#777"}
+            />
           </View>
         </View>
       </Pressable>
@@ -216,20 +236,18 @@ export default function AppointmentsScreen() {
 
   return (
     <View style={styles.container}>
-    
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
         </Pressable>
 
         <Text style={styles.headerTitle}>Appointments</Text>
 
-        <Pressable style={styles.addBtn} onPress={() => router.push("/appointments/add")}>
-            <Ionicons name="add" size={22} color={colors.primary} />
+        <Pressable style={styles.addBtn} onPress={openFlowModal}>
+          <Ionicons name="add" size={22} color={colors.primary} />
         </Pressable>
       </View>
 
-      {/* Search */}
       <View style={styles.searchWrap}>
         <Ionicons
           name="search-outline"
@@ -254,7 +272,6 @@ export default function AppointmentsScreen() {
         )}
       </View>
 
-      {/* Filters */}
       <View style={styles.chipsRow}>
         <Chip value="all" label="All" />
         <Chip value="upcoming" label="Upcoming" />
@@ -262,7 +279,6 @@ export default function AppointmentsScreen() {
         <Chip value="cancelled" label="Cancelled" />
       </View>
 
-      {/* List */}
       <FlatList
         data={data}
         keyExtractor={(item) => item.id}
@@ -277,10 +293,47 @@ export default function AppointmentsScreen() {
               color={colors.muted || "#777"}
             />
             <Text style={styles.emptyTitle}>No appointments found</Text>
-            <Text style={styles.emptySub}>Try a different search or filter.</Text>
+            <Text style={styles.emptySub}>
+              Try a different search or filter.
+            </Text>
           </View>
         }
       />
+
+      <Modal
+        visible={flowModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeFlowModal}
+      >
+        <Pressable style={styles.modalOverlay} onPress={closeFlowModal}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <Text style={styles.modalTitle}>What would you like to do?</Text>
+            <Text style={styles.modalSubtitle}>
+              Choose if you want to do pre-assessment first or proceed to
+              booking.
+            </Text>
+
+            <Pressable
+              style={styles.optionButton}
+              onPress={handleChoosePreAssessment}
+            >
+              <Text style={styles.optionText}>Do Pre-Assessment First</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.optionButton}
+              onPress={handleChooseBooking}
+            >
+              <Text style={styles.optionText}>Proceed to Booking</Text>
+            </Pressable>
+
+            <Pressable style={styles.cancelBtn} onPress={closeFlowModal}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -292,7 +345,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
 
-  /* Header */
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -300,6 +352,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: 18,
   },
+
   backBtn: {
     width: 40,
     height: 40,
@@ -307,24 +360,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
   addBtn: {
-  width: 36,
-  height: 36,
-  borderRadius: 10,
-  alignItems: "center",
-  justifyContent: "center",
-  backgroundColor: colors.card || "#F5F7FB",
-},
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.card || "#F5F7FB",
+  },
+
   headerTitle: {
     fontSize: 18,
     fontWeight: "900",
     color: colors.text || "#111",
   },
+
   rightSpacer: {
     width: 40,
   },
 
-  /* Search */
   searchWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -335,40 +390,43 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card || "#F5F7FB",
     marginBottom: 10,
   },
+
   searchInput: {
     flex: 1,
     fontSize: 14,
     color: colors.text || "#111",
   },
 
-  /* Chips */
   chipsRow: {
     flexDirection: "row",
     gap: 8,
     marginBottom: 12,
     flexWrap: "wrap",
   },
+
   chip: {
-  width: 80,              
-  paddingVertical: 8,
-  borderRadius: 999,
-  backgroundColor: colors.card || "#F5F7FB",
-  alignItems: "center",              
-  justifyContent: "center",
-},
+    width: 80,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: colors.card || "#F5F7FB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   chipActive: {
     backgroundColor: (colors.primary || "#2E7CF6") + "20",
   },
+
   chipText: {
     fontSize: 12,
     color: colors.muted || "#777",
     fontWeight: "700",
   },
+
   chipTextActive: {
     color: colors.primary || "#2E7CF6",
   },
 
-  /* Card */
   card: {
     flexDirection: "row",
     borderRadius: 18,
@@ -376,6 +434,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card || "#F5F7FB",
     marginBottom: 12,
   },
+
   datePill: {
     width: 58,
     borderRadius: 14,
@@ -384,11 +443,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: (colors.primary || "#2E7CF6") + "18",
   },
+
   pillMonth: {
     fontSize: 12,
     fontWeight: "900",
     color: colors.primary || "#2E7CF6",
   },
+
   pillDay: {
     fontSize: 22,
     fontWeight: "900",
@@ -398,92 +459,158 @@ const styles = StyleSheet.create({
   cardBody: {
     flex: 1,
     marginLeft: 12,
+    justifyContent: "space-between",
   },
+
   rowTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 8,
   },
 
   procedureTitle: {
-    fontSize: 16,
+    flex: 1,
+    fontSize: 15,
     fontWeight: "900",
     color: colors.text || "#111",
-    flex: 1,
-    marginRight: 10,
+    marginRight: 8,
   },
 
   badge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
+
   badgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "800",
-    color: colors.primary || "#2E7CF6",
   },
 
   subLine: {
     marginTop: 4,
-    fontSize: 13,
+    fontSize: 12,
     color: colors.muted || "#777",
-    fontWeight: "700",
+    fontWeight: "600",
   },
 
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 10,
+    flexWrap: "wrap",
   },
+
   metaItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
   },
+
   metaText: {
+    marginLeft: 6,
     fontSize: 12,
     color: colors.muted || "#777",
-    fontWeight: "700",
+    fontWeight: "600",
   },
+
   metaDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 99,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: colors.muted || "#777",
     marginHorizontal: 10,
-    opacity: 0.6,
   },
 
   footerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     marginTop: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
+
   appId: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.muted || "#777",
     fontWeight: "700",
   },
 
-  /* Empty state */
   empty: {
     alignItems: "center",
-    paddingVertical: 40,
+    justifyContent: "center",
+    paddingVertical: 42,
   },
+
   emptyTitle: {
     marginTop: 10,
     fontSize: 16,
-    fontWeight: "900",
+    fontWeight: "800",
     color: colors.text || "#111",
   },
+
   emptySub: {
     marginTop: 4,
-    fontSize: 13,
+    fontSize: 12,
     color: colors.muted || "#777",
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+
+  modalCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+  },
+
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.primary,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+
+  modalSubtitle: {
+    fontSize: 12,
+    color: colors.textGray,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+
+  optionButton: {
+    backgroundColor: "#FFE9F1",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 10,
+    alignItems: "center",
+  },
+
+  optionText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.primary,
+    textAlign: "center",
+  },
+
+  cancelBtn: {
+    marginTop: 4,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+
+  cancelText: {
+    fontSize: 13,
+    color: colors.textGray,
+    fontWeight: "600",
   },
 });
