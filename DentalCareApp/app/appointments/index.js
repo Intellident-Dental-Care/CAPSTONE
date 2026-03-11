@@ -65,21 +65,21 @@ function getStatusUI(status) {
       return {
         label: "Upcoming",
         icon: "time-outline",
-        color: "#F4B400",        // yellow
+        color: "#F4B400",        
         bg: "#FFF4CC",
       };
     case "completed":
       return {
         label: "Completed",
         icon: "checkmark-circle-outline",
-        color: "#2E7D32",        // green
+        color: "#2E7D32",       
         bg: "#E6F4EA",
       };
     case "cancelled":
       return {
         label: "Cancelled",
         icon: "close-circle-outline",
-        color: "#eb0d0d",        // red
+        color: "#eb0d0d",      
         bg: "#fcccc7",
       };
     default:
@@ -103,7 +103,7 @@ export default function AppointmentsScreen() {
   const router = useRouter();
 
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("all"); // all | upcoming | completed | cancelled
+  const [filter, setFilter] = useState("all"); 
 
   const data = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -216,7 +216,7 @@ export default function AppointmentsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header same pattern: back left, title centered */}
+    
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={22} color={colors.primary} />
@@ -349,11 +349,11 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   chip: {
-  width: 80,              // same width for all
+  width: 80,              
   paddingVertical: 8,
   borderRadius: 999,
   backgroundColor: colors.card || "#F5F7FB",
-  alignItems: "center",   // center text horizontally
+  alignItems: "center",              
   justifyContent: "center",
 },
   chipActive: {

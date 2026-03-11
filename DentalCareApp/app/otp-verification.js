@@ -8,14 +8,14 @@ import { markOtpVerified } from "./storage/otpStorage";
 const OTP_LEN = 6;
 const RESEND_SECONDS = 60;
 
-// ✅ FIXED OTP for demo
+
 const FIXED_OTP = "123456";
 
 export default function OtpVerification() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
-  // optional display (you can pass email from signup)
+ 
   const email = typeof params?.email === "string" ? params.email : "";
   const displayTo = email ? email : "+00-1234-567-8912";
 
@@ -30,7 +30,7 @@ export default function OtpVerification() {
   const code = otp.join("");
 
 
-  // ✅ countdown timer
+ 
   useEffect(() => {
     if (secondsLeft <= 0) return;
     const t = setInterval(() => setSecondsLeft((s) => s - 1), 1000);
@@ -58,7 +58,6 @@ export default function OtpVerification() {
   const handleKeyPress = (e, index) => {
     if (e.nativeEvent.key !== "Backspace") return;
 
-    // if current is empty, go previous and clear it
     if (!otp[index] && index > 0) {
       const next = [...otp];
       next[index - 1] = "";
@@ -71,7 +70,6 @@ export default function OtpVerification() {
  useEffect(() => {
   if (!isComplete || submitting) return;
   submitOtp(code);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [isComplete]);
 
 
@@ -82,10 +80,10 @@ export default function OtpVerification() {
     Keyboard.dismiss();
 
     try {
-      // small delay for nicer UX
+     
       await new Promise((r) => setTimeout(r, 350));
 
-      // ✅ FIXED OTP check
+      
       if (otpCode !== FIXED_OTP) {
         setSubmitting(false);
         setError("Invalid OTP. Try 123456.");
@@ -93,10 +91,10 @@ export default function OtpVerification() {
         return;
       }
 
-      // mark verified for this email (local only)
+      
       await markOtpVerified(email);
 
-      // You said: after signup + OTP, user should LOGIN first
+     
       router.replace("/login");
     } catch (e) {
       setSubmitting(false);
@@ -107,10 +105,9 @@ export default function OtpVerification() {
   const resendOtp = async () => {
     if (secondsLeft > 0) return;
 
-    // ✅ for demo, just restart timer
+ 
     setSecondsLeft(RESEND_SECONDS);
 
-    // optional: show a hint
     setError("Demo OTP is 123456.");
   };
 
@@ -120,7 +117,7 @@ export default function OtpVerification() {
         <Ionicons name="chevron-back" size={22} color={colors.primary} />
       </Pressable>
 
-      {/* pink illustration placeholder */}
+   
       <View style={styles.illustration} />
 
       <Text style={styles.title}>OTP Verification</Text>
@@ -149,7 +146,6 @@ export default function OtpVerification() {
 
       {!!error && <Text style={styles.error}>{error}</Text>}
 
-      {/* optional submit button (auto-submit already works) */}
       <Pressable
         style={[styles.submitBtn, (!isComplete || submitting) && { opacity: 0.6 }]}
         onPress={() => isComplete && submitOtp(code)}
@@ -172,7 +168,7 @@ export default function OtpVerification() {
         </Text>
       </Text>
 
-      {/* optional hint for demo */}
+  
       <Text style={styles.demoHint}>Demo OTP: 123456</Text>
     </View>
   );

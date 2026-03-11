@@ -68,12 +68,12 @@ export default function BookingBranchDoctor() {
 
   return (
     <View style={styles.container}>
-      {/* Back should go back to AI Assessment */}
+    
       <Pressable style={styles.backBtn} onPress={() => router.back()}>
         <Ionicons name="chevron-back" size={20} color={colors.primary} />
       </Pressable>
 
-      {/* Image (use your index_assessment.jpg like your design) */}
+     
       <View style={styles.imageWrap}>
         <Image
           source={require("../../assets/index_assessment.jpg")}

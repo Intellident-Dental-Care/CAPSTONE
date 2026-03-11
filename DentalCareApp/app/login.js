@@ -239,7 +239,6 @@ const styles = StyleSheet.create({
     paddingTop: 26,
     paddingBottom: 40,
     marginTop: 60,
-    // Ensures the white background stretches to the bottom
     minHeight: H - 170, 
   },
 

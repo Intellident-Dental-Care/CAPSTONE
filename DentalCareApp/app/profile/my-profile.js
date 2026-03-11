@@ -61,7 +61,7 @@ export default function MyProfile() {
         {/* Avatar */}
         <View style={styles.avatarWrap}>
           <View style={styles.avatarCircle}>
-            {/* ✅ replace with your real photo later */}
+          
             <Image
               source={require("../../assets/profile_sample.jpg")}
               style={styles.avatarImg}

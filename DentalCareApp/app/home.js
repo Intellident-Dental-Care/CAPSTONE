@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   queueCard: {
   marginTop: 14,
   borderRadius: 18,
-  backgroundColor: colors.primary, // pink card
+  backgroundColor: colors.primary, 
   padding: 14,
   shadowColor: "#000",
   shadowOpacity: 0.18,

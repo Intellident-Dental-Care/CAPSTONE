@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
 import { usePreAssessment } from "./_layout";
 
-/** Same questions used earlier (so we can show the question text) */
+
 const QUESTIONS = [
   "Do you feel tooth pain when biting or chewing?",
   "Do you experience sensitivity to cold drinks?",
@@ -32,7 +32,7 @@ export default function AISummary() {
 
   return (
     <View style={styles.container}>
-      {/* Header row aligned */}
+     
       <View style={styles.headerRow}>
         <Pressable style={styles.backIcon} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={20} color={colors.primary} />
@@ -50,7 +50,7 @@ export default function AISummary() {
 
       <Text style={styles.tooth}>Tooth: {state.tooth}</Text>
 
-      {/* ✅ Only this part scrolls, and it will STOP above the footer */}
+      
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -93,7 +93,7 @@ export default function AISummary() {
         </View>
       </ScrollView>
 
-      {/* ✅ Footer is NOT absolute so scroll content never goes behind it */}
+      
       <View style={styles.footer}>
         <Pressable style={styles.btnOutline} onPress={() => router.replace("/home")}>
           <Text style={styles.btnOutlineText}>Back to Home</Text>
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   tooth: { marginTop: 8, marginLeft: 20, fontSize: 12, color: colors.textGray, fontWeight: "700" },
 
   scroll: { flex: 1, marginTop: 10 },
-  scrollContent: { paddingBottom: 12 }, // ✅ small padding only (footer is separate)
+  scrollContent: { paddingBottom: 12 }, 
 
   section: { marginTop: 8, fontSize: 12, fontWeight: "900", color: colors.textGray },
 

@@ -5,9 +5,9 @@ const Ctx = createContext(null);
 
 const initial = {
   tooth: "3rd Molar",
-  answers: {},       // { [qIndex]: optionText }
+  answers: {},       
   description: "",
-  photoUri: "",      // optional
+  photoUri: "",     
 };
 
 function reducer(state, action) {

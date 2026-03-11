@@ -82,10 +82,10 @@ export default function BookingAppointment() {
   const times = timeTab === "Morning" ? timesMorning : timesAfternoon;
 
   const onPickDate = (event, date) => {
-    // Android closes on pick/dismiss
+    
     if (Platform.OS !== "ios") setShowCalendar(false);
 
-    // cancelled
+    
     if (event?.type === "dismissed" || !date) return;
 
     date.setHours(0, 0, 0, 0);
@@ -94,27 +94,27 @@ export default function BookingAppointment() {
     const iso = toISODate(date);
     const label = formatMonthDay(date);
 
-    // select it
+    
     setSelectedISO(iso);
     setSelectedLabel(label);
 
-    // add as a new pill (if not exists), keep sorted, keep only 7
+    
     setDatePills((prev) => {
       const exists = prev.some((p) => p.iso === iso);
       if (exists) return prev;
 
       const next = [...prev, { iso, label }].sort((a, b) => a.iso.localeCompare(b.iso));
-      if (next.length > 7) next.shift(); // keep 7 pills only
+      if (next.length > 7) next.shift(); 
       return next;
     });
 
-    // close iOS too
+    
     if (Platform.OS === "ios") setShowCalendar(false);
   };
 
   return (
     <View style={styles.container}>
-      {/* Header: back left, icons right */}
+     
       <View style={styles.headerRow}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={20} color={colors.primary} />
@@ -189,7 +189,7 @@ export default function BookingAppointment() {
             mode="date"
             display={Platform.OS === "ios" ? "spinner" : "calendar"}
             onChange={onPickDate}
-            accentColor={colors.primary} // iOS accent
+            accentColor={colors.primary} 
           />
         )}
 
@@ -229,12 +229,12 @@ export default function BookingAppointment() {
       </ScrollView>
 
       {/* Book Now */}
-                {/* Book Now */}
+              
       <Pressable style={styles.bookBtn} onPress={() => setShowAlert(true)}>
         <Text style={styles.bookText}>Book Now</Text>
       </Pressable>
 
-      {/* ✅ Pink Alert MUST be inside return */}
+      
       <PinkAlert
         visible={showAlert}
         title="Booked!"
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
 
   section: { marginTop: 16, marginBottom: 12, fontSize: 14, fontWeight: "900", color: colors.primary },
 
-  // perfect circles
+  
   datePill: {
     width: 60,
     height: 60,

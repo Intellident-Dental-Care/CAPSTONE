@@ -266,7 +266,6 @@ const styles = StyleSheet.create({
     paddingTop: 26,
     paddingBottom: 60, 
     marginTop: 60,
-    // Forces the card to cover the remaining screen height
     minHeight: H - 170, 
   },
 

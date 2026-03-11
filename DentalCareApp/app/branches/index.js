@@ -53,18 +53,18 @@ export default function Branches() {
 
   return (
     <View style={styles.container}>
-      {/* Back button (top-left like your design) */}
+     
       <Pressable style={styles.backBtn} onPress={() => router.back()}>
         <Ionicons name="chevron-back" size={22} color={colors.primary} />
       </Pressable>
 
-      {/* Center title + subtitle */}
+     
       <Text style={styles.title}>GC Dental Branches</Text>
       <Text style={styles.subtitle}>
         Select a branch and tap the arrow below to{"\n"}view directions.
       </Text>
 
-      {/*  Map centered with side spacing */}
+      
       <View style={styles.mapWrap}>
         <MapView style={StyleSheet.absoluteFill} initialRegion={initialRegion}>
           {BRANCHES.map((b) => (

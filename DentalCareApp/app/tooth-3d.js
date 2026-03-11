@@ -82,14 +82,13 @@ export default function Tooth3D() {
         Select a tooth to review its complete dental record, including previous treatments and assessments.
       </Text>
 
-      {/* Image (you already have this file) */}
       <Image
         source={require("../assets/tooth_model.png")}
         style={styles.image}
         resizeMode="contain"
       />
 
-      {/* Timeline like Summary Card */}
+
       <Text style={styles.section}>Dental Record Timeline</Text>
 
       <View style={styles.summaryBox}>
@@ -113,7 +112,7 @@ export default function Tooth3D() {
         ))}
       </View>
 
-      {/* bottom spacing */}
+   
       <View style={{ height: 24 }} />
     </ScrollView>
   );
@@ -172,7 +171,7 @@ const styles = StyleSheet.create({
     color: colors.textGray ?? "#666",
   },
 
-  // Summary-like card (gray with pink left border)
+
   summaryBox: {
     marginTop: 10,
     borderRadius: 14,
@@ -182,7 +181,7 @@ const styles = StyleSheet.create({
     borderLeftColor: colors.primary,
   },
 
-  // Timeline rows
+
   timeRow: {
     flexDirection: "row",
     gap: 10,

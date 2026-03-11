@@ -209,7 +209,7 @@ export default function Dentists() {
 
     const d = item.item;
 
-    // ✅ no big gap: first card under the first title gets smaller top spacing
+    
     const isFirstCardUnderFirstTitle = index === 1;
 
     return (
@@ -238,7 +238,7 @@ export default function Dentists() {
 
   return (
     <View style={styles.screen}>
-      {/* ✅ FIXED TOP (does not scroll) */}
+     
       <View style={styles.fixedTop}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
@@ -250,7 +250,7 @@ export default function Dentists() {
           <View style={{ width: 36 }} />
         </View>
 
-        {/* search bar like services */}
+        
         <View style={styles.searchWrap}>
           <TextInput
             value={q}
@@ -288,7 +288,6 @@ export default function Dentists() {
         </ScrollView>
       </View>
 
-      {/* ✅ ONLY LIST SCROLLS */}
       <FlatList
         style={{ flex: 1 }}
         data={listData}
@@ -328,7 +327,7 @@ const styles = StyleSheet.create({
 
   headerTitle: { fontSize: 18, fontWeight: "900", color: colors.primary },
 
-  // ✅ search like services
+
   searchWrap: {
     height: 42,
     borderRadius: 18,
@@ -365,14 +364,14 @@ const styles = StyleSheet.create({
 
   pillText: { fontSize: 10, fontWeight: "800", color: colors.primary },
 
-  // ✅ list padding so titles/cards align with header
+
   listContent: {
     paddingTop: 8,
     paddingBottom: 30,
     paddingHorizontal: 16,
   },
 
-  // ✅ titles (no extra padding/margin that causes big gap)
+
   sectionTitle: {
     marginTop: 6,
     marginBottom: 6,
@@ -381,7 +380,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 
-  // ✅ spacing controlled here (not inside DentistCard)
+
   cardWrap: {
     marginBottom: 12,
   },

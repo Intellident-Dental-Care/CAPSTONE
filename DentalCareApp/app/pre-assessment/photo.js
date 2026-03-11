@@ -16,7 +16,7 @@ export default function Photo() {
       
               <Text style={styles.topTitle}>Pre Assessment Questions</Text>
       
-              {/* spacer to keep title centered */}
+             
               <View style={styles.headerSpacer} />
             </View>
 
@@ -50,7 +50,7 @@ export default function Photo() {
           <Text style={styles.btnOutlineText}>Back</Text>
         </Pressable>
 
-        {/* ✅ allowed even if no photo */}
+       
         <Pressable style={styles.btnFilled} onPress={() => router.push("/pre-assessment/ai-summary")}>
           <Text style={styles.btnFilledText}>Next</Text>
         </Pressable>
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
  },
 
     headerSpacer: {
-    width: 36, // same width as backIcon
+    width: 36, 
  },
 
     topTitle: {

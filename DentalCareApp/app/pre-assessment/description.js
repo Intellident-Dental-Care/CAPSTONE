@@ -20,7 +20,7 @@ export default function Description() {
 
         <Text style={styles.topTitle}>Pre Assessment Questions</Text>
 
-        {/* spacer to keep title centered */}
+       
         <View style={styles.headerSpacer} />
       </View>
 
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
  },
 
     headerSpacer: {
-    width: 36, // same width as backIcon
+    width: 36, 
  },
 
     topTitle: {

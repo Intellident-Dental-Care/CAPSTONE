@@ -242,7 +242,7 @@ export default function Services() {
 
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
-  const [liked, setLiked] = useState({}); // ✅ favorites map
+  const [liked, setLiked] = useState({}); 
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -286,7 +286,7 @@ export default function Services() {
 
     return (
       <View style={styles.card}>
-        {/* ✅ pointerEvents none so image won't block heart taps */}
+        
         <Image
           source={svc.image}
           style={styles.cardImg}
@@ -295,7 +295,7 @@ export default function Services() {
         />
 
         <View style={styles.cardBody}>
-          {/* ✅ clickable heart */}
+        
           <Pressable
             style={styles.heartBtn}
             hitSlop={12}
@@ -329,7 +329,7 @@ export default function Services() {
 
   return (
     <View style={styles.screen}>
-      {/* ✅ FIXED TOP */}
+    
       <View style={styles.fixedTop}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
@@ -368,7 +368,7 @@ export default function Services() {
         </ScrollView>
       </View>
 
-      {/* ✅ ONLY LIST SCROLLS */}
+  
       <FlatList
         style={{ flex: 1 }}
         data={listData}
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
 
   cardBody: { flex: 1, padding: 12, position: "relative", minHeight: 110 },
 
-  // ✅ IMPORTANT: zIndex/elevation so heart stays clickable
+
   heartBtn: {
     position: "absolute",
     top: 10,
