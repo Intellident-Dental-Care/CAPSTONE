@@ -4,32 +4,54 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../theme/colors";
-import { getSession, logoutUser } from "../storage/authStorage";
+import {
+  getActiveProfile,
+  getProfilesForCurrentAccount,
+  logoutUser,
+  switchActiveProfile,
+} from "../storage/authStorage";
+import ProfileSwitcherModal from "../components/ProfileSwitcherModal";
 
 export default function Profile() {
   const router = useRouter();
 
   const [fullName, setFullName] = useState("User");
   const [email, setEmail] = useState("user@email.com");
+  const [profiles, setProfiles] = useState([]);
+  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+
+  const loadProfiles = async () => {
+    const active = await getActiveProfile();
+    const allProfiles = await getProfilesForCurrentAccount();
+
+    setSelectedProfile(active);
+    setProfiles(allProfiles);
+    setFullName(active?.fullName || "User");
+    setEmail(active?.email || "user@email.com");
+  };
 
   useFocusEffect(
     useCallback(() => {
-      let isActive = true;
-
-      (async () => {
-        const session = await getSession();
-
-        if (!isActive) return;
-
-        setFullName(session?.fullName || "User");
-        setEmail(session?.email || "user@email.com");
-      })();
-
-      return () => {
-        isActive = false;
-      };
+      loadProfiles();
     }, [])
   );
+
+  const handleSelectProfile = async (profile) => {
+    await switchActiveProfile(profile.id);
+    await loadProfiles();
+  };
+
+  const handleAddProfile = () => {
+    setProfileModalVisible(false);
+    router.push("/patient-first-setup?mode=add-profile");
+  };
+
+  const handleLogout = async () => {
+    setProfileModalVisible(false);
+    await logoutUser();
+    router.replace("/get-started");
+  };
 
   const Row = ({ icon, label, onPress }) => (
     <Pressable style={styles.row} onPress={onPress}>
@@ -60,9 +82,12 @@ export default function Profile() {
             />
           </Pressable>
 
-          <View style={styles.avatarSmall}>
+          <Pressable
+            style={styles.avatarSmall}
+            onPress={() => setProfileModalVisible(true)}
+          >
             <Ionicons name="person" size={16} color={colors.primary} />
-          </View>
+          </Pressable>
         </View>
       </View>
 
@@ -89,20 +114,17 @@ export default function Profile() {
         <Row icon="notifications-outline" label="Notifications" onPress={() => {}} />
         <Row icon="chatbubble-ellipses-outline" label="FAQ" onPress={() => {}} />
         <Row icon="information-circle-outline" label="About" onPress={() => {}} />
-
-        <Pressable
-          style={[styles.row, { marginTop: 14 }]}
-          onPress={async () => {
-            await logoutUser();
-            router.replace("/get-started");
-          }}
-        >
-          <View style={styles.rowLeft}>
-            <Ionicons name="log-out-outline" size={18} color={colors.primary} />
-            <Text style={styles.rowText}>Sign Out</Text>
-          </View>
-        </Pressable>
       </View>
+
+      <ProfileSwitcherModal
+        visible={profileModalVisible}
+        onClose={() => setProfileModalVisible(false)}
+        profiles={profiles}
+        selectedProfile={selectedProfile}
+        onSelectProfile={handleSelectProfile}
+        onAddProfile={handleAddProfile}
+        onLogout={handleLogout}
+      />
     </View>
   );
 }

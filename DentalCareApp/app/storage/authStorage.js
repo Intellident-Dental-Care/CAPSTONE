@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const USERS_KEY = "@dc_users";
 const SESSION_KEY = "@dc_session_user";
-const PATIENT_PROFILES_KEY = "@dc_patient_profiles";
+const ACCOUNT_PROFILES_KEY = "@dc_account_profiles";
 
 async function readJSON(key, fallback) {
   const raw = await AsyncStorage.getItem(key);
@@ -11,6 +11,10 @@ async function readJSON(key, fallback) {
 
 async function writeJSON(key, value) {
   await AsyncStorage.setItem(key, JSON.stringify(value));
+}
+
+function normalizeEmail(email) {
+  return (email || "").trim().toLowerCase();
 }
 
 export async function getUsers() {
@@ -23,12 +27,13 @@ async function setUsers(users) {
 
 export async function findUserByEmail(email) {
   const users = await getUsers();
-  return users.find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
+  const cleanEmail = normalizeEmail(email);
+  return users.find((u) => u.email.toLowerCase() === cleanEmail) || null;
 }
 
 export async function createUser({ fullName, email, password }) {
   const users = await getUsers();
-  const cleanEmail = email.trim().toLowerCase();
+  const cleanEmail = normalizeEmail(email);
 
   const exists = users.some((u) => u.email.toLowerCase() === cleanEmail);
   if (exists) return { ok: false, message: "Email already exists." };
@@ -39,7 +44,6 @@ export async function createUser({ fullName, email, password }) {
     email: cleanEmail,
     password,
     onboardingSeen: false,
-    patientSetupDone: false,
     createdAt: new Date().toISOString(),
   };
 
@@ -51,25 +55,28 @@ export async function createUser({ fullName, email, password }) {
 
 export async function loginUser(email, password) {
   const users = await getUsers();
-  const cleanEmail = email.trim().toLowerCase();
+  const cleanEmail = normalizeEmail(email);
 
   const user = users.find((u) => u.email.toLowerCase() === cleanEmail);
   if (!user) return { ok: false, message: "Email not found." };
   if (user.password !== password) return { ok: false, message: "Incorrect password." };
 
-  const patientProfile = await getPatientProfileByEmail(user.email);
+  const accountProfiles = await getAccountProfilesByEmail(user.email);
+  const firstProfile = accountProfiles[0] || null;
 
   await writeJSON(SESSION_KEY, {
     id: user.id,
     email: user.email,
-    fullName: user.fullName,
-    patientSetupDone: !!patientProfile?.patientSetupDone,
+    accountName: user.fullName,
+    onboardingSeen: !!user.onboardingSeen,
+    activeProfileId: firstProfile?.id || null,
+    activeProfileName: firstProfile?.fullName || user.fullName,
   });
 
   return {
     ok: true,
     user,
-    needsPatientSetup: !patientProfile?.patientSetupDone,
+    needsPatientSetup: accountProfiles.length === 0,
   };
 }
 
@@ -93,14 +100,57 @@ export async function setOnboardingSeenForUser(userId) {
   await setUsers(updated);
 }
 
-export async function getPatientProfiles() {
-  return await readJSON(PATIENT_PROFILES_KEY, {});
+export async function getAllAccountProfiles() {
+  return await readJSON(ACCOUNT_PROFILES_KEY, {});
 }
 
-export async function getPatientProfileByEmail(email) {
-  if (!email) return null;
-  const profiles = await getPatientProfiles();
-  return profiles[email.toLowerCase()] || null;
+export async function getAccountProfilesByEmail(email) {
+  const allProfiles = await getAllAccountProfiles();
+  const cleanEmail = normalizeEmail(email);
+  return allProfiles[cleanEmail] || [];
+}
+
+export async function saveAccountProfilesByEmail(email, profiles) {
+  const allProfiles = await getAllAccountProfiles();
+  const cleanEmail = normalizeEmail(email);
+  allProfiles[cleanEmail] = profiles;
+  await writeJSON(ACCOUNT_PROFILES_KEY, allProfiles);
+}
+
+export async function getProfilesForCurrentAccount() {
+  const session = await getSession();
+  if (!session?.email) return [];
+  return await getAccountProfilesByEmail(session.email);
+}
+
+export async function getActiveProfile() {
+  const session = await getSession();
+  if (!session?.email || !session?.activeProfileId) return null;
+
+  const profiles = await getAccountProfilesByEmail(session.email);
+  return profiles.find((p) => p.id === session.activeProfileId) || null;
+}
+
+export async function switchActiveProfile(profileId) {
+  const session = await getSession();
+  if (!session?.email) {
+    return { ok: false, message: "No logged-in user found." };
+  }
+
+  const profiles = await getAccountProfilesByEmail(session.email);
+  const profile = profiles.find((p) => p.id === profileId);
+
+  if (!profile) {
+    return { ok: false, message: "Profile not found." };
+  }
+
+  await setSession({
+    ...session,
+    activeProfileId: profile.id,
+    activeProfileName: profile.fullName,
+  });
+
+  return { ok: true, profile };
 }
 
 export async function savePatientProfile(profileData) {
@@ -109,133 +159,87 @@ export async function savePatientProfile(profileData) {
     return { ok: false, message: "No logged-in user found." };
   }
 
-  const emailKey = session.email.toLowerCase();
-  const profiles = await getPatientProfiles();
+  const profiles = await getAccountProfilesByEmail(session.email);
 
-  const savedProfile = {
-    ...profiles[emailKey],
-    ...profileData,
+  const newProfile = {
+    id: Date.now().toString(),
+    fullName: profileData.fullName?.trim() || "Profile",
+    dob: profileData.dob || "",
+    age: profileData.age || "",
+    mobile: profileData.mobile || "",
     email: session.email,
-    patientSetupDone: true,
+    medicalHistory: profileData.medicalHistory || {},
+    createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 
-  profiles[emailKey] = savedProfile;
-  await writeJSON(PATIENT_PROFILES_KEY, profiles);
-
-  const users = await getUsers();
-  const updatedUsers = users.map((u) =>
-    u.email.toLowerCase() === emailKey
-      ? {
-          ...u,
-          fullName: profileData.fullName || u.fullName,
-          patientSetupDone: true,
-        }
-      : u
-  );
-  await setUsers(updatedUsers);
+  const updatedProfiles = [...profiles, newProfile];
+  await saveAccountProfilesByEmail(session.email, updatedProfiles);
 
   await setSession({
     ...session,
-    fullName: profileData.fullName || session.fullName,
-    patientSetupDone: true,
+    activeProfileId: newProfile.id,
+    activeProfileName: newProfile.fullName,
   });
 
-  return { ok: true, profile: savedProfile };
+  return { ok: true, profile: newProfile };
 }
 
-export async function updatePatientProfile(profileData) {
+export async function updateProfile(profileData) {
   const session = await getSession();
-  if (!session?.email) {
-    return { ok: false, message: "No logged-in user found." };
+  if (!session?.email || !session?.activeProfileId) {
+    return { ok: false, message: "No active profile found." };
   }
 
-  const emailKey = session.email.toLowerCase();
-  const profiles = await getPatientProfiles();
-  const existingProfile = profiles[emailKey] || {};
+  const profiles = await getAccountProfilesByEmail(session.email);
 
-  const updatedProfile = {
-    ...existingProfile,
-    ...profileData,
-    email: session.email,
-    patientSetupDone: true,
-    updatedAt: new Date().toISOString(),
-  };
+  let updatedProfile = null;
 
-  profiles[emailKey] = updatedProfile;
-  await writeJSON(PATIENT_PROFILES_KEY, profiles);
+  const updatedProfiles = profiles.map((p) => {
+    if (p.id !== session.activeProfileId) return p;
 
-  const users = await getUsers();
-  const updatedUsers = users.map((u) =>
-    u.email.toLowerCase() === emailKey
-      ? {
-          ...u,
-          fullName: profileData.fullName || u.fullName,
-        }
-      : u
-  );
-  await setUsers(updatedUsers);
+    updatedProfile = {
+      ...p,
+      ...profileData,
+      fullName: profileData.fullName ?? p.fullName,
+      dob: profileData.dob ?? p.dob,
+      age: profileData.age ?? p.age,
+      mobile: profileData.mobile ?? p.mobile,
+      email: session.email,
+      medicalHistory: profileData.medicalHistory ?? p.medicalHistory,
+      updatedAt: new Date().toISOString(),
+    };
+
+    return updatedProfile;
+  });
+
+  await saveAccountProfilesByEmail(session.email, updatedProfiles);
 
   await setSession({
     ...session,
-    fullName: profileData.fullName || session.fullName,
-    patientSetupDone: true,
+    activeProfileName: updatedProfile?.fullName || session.activeProfileName,
   });
 
   return { ok: true, profile: updatedProfile };
 }
 
+export async function getPatientProfileByEmail(email) {
+  const session = await getSession();
+  if (!session?.activeProfileId) return null;
+
+  const profiles = await getAccountProfilesByEmail(email);
+  return profiles.find((p) => p.id === session.activeProfileId) || null;
+}
+
 export async function hasPatientSetup(email) {
-  const profile = await getPatientProfileByEmail(email);
-  return !!profile?.patientSetupDone;
+  const profiles = await getAccountProfilesByEmail(email);
+  return profiles.length > 0;
 }
 
 export async function clearAllAuthStorage() {
   await AsyncStorage.multiRemove([
     USERS_KEY,
     SESSION_KEY,
-    PATIENT_PROFILES_KEY,
+    ACCOUNT_PROFILES_KEY,
   ]);
-}
-
-export async function updateProfile(profileData) {
-  const session = await getSession();
-  if (!session?.email) {
-    return { ok: false, message: "No logged-in user found." };
-  }
-
-  const emailKey = session.email.toLowerCase();
-
-  const users = await getUsers();
-  const updatedUsers = users.map((u) =>
-    u.email.toLowerCase() === emailKey
-      ? {
-          ...u,
-          fullName: profileData.fullName ?? u.fullName,
-        }
-      : u
-  );
-  await setUsers(updatedUsers);
-
-  const currentSession = await getSession();
-  await setSession({
-    ...currentSession,
-    fullName: profileData.fullName ?? currentSession?.fullName,
-    email: currentSession?.email,
-  });
-
-  const profiles = await getPatientProfiles();
-  const existingProfile = profiles[emailKey] || {};
-
-  profiles[emailKey] = {
-    ...existingProfile,
-    ...profileData,
-    email: currentSession?.email,
-    patientSetupDone: true,
-    updatedAt: new Date().toISOString(),
-  };
-
-  await writeJSON(PATIENT_PROFILES_KEY, profiles);
-
-  return { ok: true, profile: profiles[emailKey] };
 }

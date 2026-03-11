@@ -8,9 +8,7 @@ import {
   FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
-import { logoutUser } from "../storage/authStorage";
 
 export default function ProfileSwitcherModal({
   visible,
@@ -18,9 +16,9 @@ export default function ProfileSwitcherModal({
   profiles = [],
   selectedProfile,
   onSelectProfile,
+  onAddProfile,
+  onLogout,
 }) {
-  const router = useRouter();
-
   return (
     <Modal
       visible={visible}
@@ -46,18 +44,23 @@ export default function ProfileSwitcherModal({
               >
                 <View style={styles.profileIconWrap}>
                   <Ionicons
-                    name={item.icon || "person"}
+                    name="person"
                     size={18}
                     color={colors.primary}
                   />
                 </View>
 
-                <Text style={styles.profileName}>{item.name}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.profileName}>{item.fullName}</Text>
+                  <Text style={styles.profileSubText}>
+                    {item.email || "Patient Profile"}
+                  </Text>
+                </View>
 
                 {selectedProfile?.id === item.id && (
                   <Ionicons
-                    name="checkmark"
-                    size={18}
+                    name="checkmark-circle"
+                    size={20}
                     color={colors.primary}
                   />
                 )}
@@ -68,14 +71,11 @@ export default function ProfileSwitcherModal({
             }
           />
 
-          <Pressable
-            style={styles.actionBtn}
-            onPress={async () => {
-              onClose?.();
-              await logoutUser();
-              router.replace("/get-started");
-            }}
-          >
+          <Pressable style={styles.actionBtn} onPress={onAddProfile}>
+            <Text style={styles.addText}>Add Profile</Text>
+          </Pressable>
+
+          <Pressable style={styles.actionBtn} onPress={onLogout}>
             <Text style={styles.logoutText}>Logout</Text>
           </Pressable>
 
@@ -131,10 +131,15 @@ const styles = StyleSheet.create({
   },
 
   profileName: {
-    flex: 1,
     fontSize: 14,
     color: "#444",
-    fontWeight: "600",
+    fontWeight: "700",
+  },
+
+  profileSubText: {
+    marginTop: 2,
+    fontSize: 10,
+    color: "#888",
   },
 
   emptyText: {
@@ -151,6 +156,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     backgroundColor: "#F7F7F7",
+  },
+
+  addText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.primary,
   },
 
   logoutText: {

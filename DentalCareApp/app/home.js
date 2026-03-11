@@ -9,46 +9,54 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
-import { getSession } from "./storage/authStorage";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import ProfileSwitcherModal from "./components/ProfileSwitcherModal";
+import {
+  getActiveProfile,
+  getProfilesForCurrentAccount,
+  logoutUser,
+  switchActiveProfile,
+} from "./storage/authStorage";
 
 export default function Home() {
   const router = useRouter();
 
   const [fullName, setFullName] = useState("User");
   const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [profiles, setProfiles] = useState([]);
 
-  const [selectedProfile, setSelectedProfile] = useState({
-    id: "1",
-    name: "Dian",
-    icon: "person",
-  });
+  const loadProfiles = async () => {
+    const active = await getActiveProfile();
+    const allProfiles = await getProfilesForCurrentAccount();
 
-  const profiles = [
-    { id: "1", name: "Dian", icon: "person" },
-    { id: "2", name: "Mom", icon: "person" },
-    { id: "3", name: "Guest", icon: "person" },
-  ];
+    setSelectedProfile(active);
+    setProfiles(allProfiles);
+    setFullName(active?.fullName || "User");
+  };
 
   useFocusEffect(
     useCallback(() => {
-      let isActive = true;
-
-      (async () => {
-        const session = await getSession();
-
-        if (!isActive) return;
-
-        setFullName(session?.fullName || "User");
-      })();
-
-      return () => {
-        isActive = false;
-      };
+      loadProfiles();
     }, [])
   );
+
+  const handleSelectProfile = async (profile) => {
+    await switchActiveProfile(profile.id);
+    await loadProfiles();
+  };
+
+  const handleAddProfile = () => {
+    setProfileModalVisible(false);
+    router.push("/patient-first-setup?mode=add-profile");
+  };
+
+  const handleLogout = async () => {
+    setProfileModalVisible(false);
+    await logoutUser();
+    router.replace("/get-started");
+  };
 
   return (
     <View style={styles.screen}>
@@ -83,7 +91,9 @@ export default function Home() {
               onClose={() => setProfileModalVisible(false)}
               profiles={profiles}
               selectedProfile={selectedProfile}
-              onSelectProfile={(profile) => setSelectedProfile(profile)}
+              onSelectProfile={handleSelectProfile}
+              onAddProfile={handleAddProfile}
+              onLogout={handleLogout}
             />
           </View>
         </View>
