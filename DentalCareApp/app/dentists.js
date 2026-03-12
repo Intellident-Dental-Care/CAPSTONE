@@ -1,20 +1,41 @@
+// app/dentists.js  (or app/dentist.js — use the file name you actually have)
+// ✅ Fixed: NO huge gap when there are NO favorites
+// ✅ Favorites section appears only when user hearts a dentist
+// ✅ Header + Search + Tabs are FIXED (only list scrolls)
+// ✅ Search bar style matches Services (white + light border)
+
 import React, { useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, Image } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  TextInput,
+  FlatList,
+  Image,
+  ScrollView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "./theme/colors";
 
-const BRANCHES = ["All", "General Trias, Cavite", "Dasmarinas, Cavite", "Bacoor, Cavite"];
+const BRANCHES = [
+  "All",
+  "General Trias, Cavite",
+  "Dasmarinas, Cavite",
+  "Bacoor, Cavite",
+];
 
 const DENTISTS = [
-  // General Trias (3)
+  // General Trias
   {
     id: "gt-1",
     name: "Dr. Bianca L. Reyes",
     branch: "General Trias, Cavite",
     specialty: "Orthodontics",
     specialties: "Specialties | Braces, Invisalign, Whitening",
-    availability: "Earliest Availability | Tue, Jan 13 - 10:00 AM - GC Dental General Trias",
+    availability:
+      "Earliest Availability | Tue, Jan 13 - 10:00 AM - GC Dental General Trias",
     photo: null,
   },
   {
@@ -23,7 +44,8 @@ const DENTISTS = [
     branch: "General Trias, Cavite",
     specialty: "Dentist",
     specialties: "Specialties | Cleaning, Pasta, Whitening",
-    availability: "Earliest Availability | Wed, Jan 14 - 1:00 PM - GC Dental General Trias",
+    availability:
+      "Earliest Availability | Wed, Jan 14 - 1:00 PM - GC Dental General Trias",
     photo: null,
   },
   {
@@ -32,18 +54,20 @@ const DENTISTS = [
     branch: "General Trias, Cavite",
     specialty: "Dentist",
     specialties: "Specialties | Extraction, Cleaning, Whitening",
-    availability: "Earliest Availability | Fri, Jan 16 - 9:30 AM - GC Dental General Trias",
+    availability:
+      "Earliest Availability | Fri, Jan 16 - 9:30 AM - GC Dental General Trias",
     photo: null,
   },
 
-  // Dasmarinas (4)
+  // Dasmarinas
   {
     id: "ds-1",
     name: "Dr. Dian Crizzie Mendoza",
     branch: "Dasmarinas, Cavite",
     specialty: "Orthodontics",
     specialties: "Specialties | Braces, Invisalign, Whitening",
-    availability: "Earliest Availability | Tue, Jan 13 - 10:00 AM - GC Dental Dasmarinas",
+    availability:
+      "Earliest Availability | Tue, Jan 13 - 10:00 AM - GC Dental Dasmarinas",
     photo: null,
   },
   {
@@ -52,120 +76,72 @@ const DENTISTS = [
     branch: "Dasmarinas, Cavite",
     specialty: "Orthodontics",
     specialties: "Specialties | Braces, Invisalign, Whitening",
-    availability: "Earliest Availability | Tue, Jan 13 - 10:00 AM - GC Dental Dasmarinas",
-    photo: null,
-  },
-  {
-    id: "ds-3",
-    name: "Dr. Jambie Amparo",
-    branch: "Dasmarinas, Cavite",
-    specialty: "Orthodontics",
-    specialties: "Specialties | Braces, Invisalign, Whitening",
-    availability: "Earliest Availability | Tue, Jan 13 - 10:00 AM - GC Dental Dasmarinas",
-    photo: null,
-  },
-  {
-    id: "ds-4",
-    name: "Dr. Kaye L. Navarro",
-    branch: "Dasmarinas, Cavite",
-    specialty: "Dentist",
-    specialties: "Specialties | Cleaning, Pasta, Whitening",
-    availability: "Earliest Availability | Thu, Jan 15 - 2:00 PM - GC Dental Dasmarinas",
+    availability:
+      "Earliest Availability | Tue, Jan 13 - 10:00 AM - GC Dental Dasmarinas",
     photo: null,
   },
 
-  // Bacoor (5)
+  // Bacoor
   {
     id: "bc-1",
     name: "Dr. Patricia M. Cruz",
     branch: "Bacoor, Cavite",
     specialty: "Dentist",
     specialties: "Specialties | Cleaning, Extraction, Whitening",
-    availability: "Earliest Availability | Mon, Jan 12 - 11:00 AM - GC Dental Bacoor",
+    availability:
+      "Earliest Availability | Mon, Jan 12 - 11:00 AM - GC Dental Bacoor",
     photo: null,
   },
   {
     id: "bc-2",
-    name: "Dr. Lance P. Aquino",
-    branch: "Bacoor, Cavite",
-    specialty: "Dentist",
-    specialties: "Specialties | Pasta, Cleaning, Whitening",
-    availability: "Earliest Availability | Tue, Jan 13 - 3:00 PM - GC Dental Bacoor",
-    photo: null,
-  },
-  {
-    id: "bc-3",
     name: "Dr. Rhea T. Morales",
     branch: "Bacoor, Cavite",
     specialty: "Orthodontics",
     specialties: "Specialties | Braces, Invisalign",
-    availability: "Earliest Availability | Wed, Jan 14 - 9:00 AM - GC Dental Bacoor",
-    photo: null,
-  },
-  {
-    id: "bc-4",
-    name: "Dr. Miguel A. Ramos",
-    branch: "Bacoor, Cavite",
-    specialty: "Dentist",
-    specialties: "Specialties | Extraction, Cleaning",
-    availability: "Earliest Availability | Thu, Jan 15 - 10:30 AM - GC Dental Bacoor",
-    photo: null,
-  },
-  {
-    id: "bc-5",
-    name: "Dr. Sofia D. Lim",
-    branch: "Bacoor, Cavite",
-    specialty: "Dentist",
-    specialties: "Specialties | Whitening, Cleaning",
-    availability: "Earliest Availability | Fri, Jan 16 - 1:30 PM - GC Dental Bacoor",
+    availability:
+      "Earliest Availability | Wed, Jan 14 - 9:00 AM - GC Dental Bacoor",
     photo: null,
   },
 ];
 
-function FilterPill({ label, active, onPress }) {
-  return (
-    <Pressable onPress={onPress} style={[styles.pill, active && styles.pillActive]}>
-      <Text style={[styles.pillText, active && { color: "#fff" }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 function DentistCard({ item, liked, onToggleLike, onBook }) {
   return (
-    <View style={styles.cardWrap}>
-      <View style={styles.card}>
-        {/* LEFT PHOTO: full height */}
-        <View style={styles.photo}>
-          {item.photo ? (
-            <Image source={item.photo} style={styles.photoImg} />
-          ) : (
-            <Ionicons name="person" size={28} color={colors.primary} />
-          )}
+    <View style={styles.card}>
+      <View style={styles.photo}>
+        {item.photo ? (
+          <Image source={item.photo} style={styles.photoImg} />
+        ) : (
+          <Ionicons name="person" size={28} color={colors.primary} />
+        )}
+      </View>
+
+      <View style={styles.info}>
+        <View style={styles.topRow}>
+          <Text style={styles.name} numberOfLines={1}>
+            {item.name}
+          </Text>
+
+          <Pressable onPress={onToggleLike} style={styles.heartBtn}>
+            <Ionicons
+              name={liked ? "heart" : "heart-outline"}
+              size={18}
+              color={colors.primary}
+            />
+          </Pressable>
         </View>
 
-        {/* RIGHT CONTENT */}
-        <View style={styles.info}>
-          {/* top row: name + heart */}
-          <View style={styles.topRow}>
-            <Text style={styles.name} numberOfLines={1}>
-              {item.name}
-            </Text>
+        <Text style={styles.role}>{item.specialty}</Text>
+        <Text style={styles.small} numberOfLines={1}>
+          {item.specialties}
+        </Text>
+        <Text style={styles.small} numberOfLines={2}>
+          {item.availability}
+        </Text>
 
-            <Pressable onPress={onToggleLike} style={styles.heartBtn}>
-              <Ionicons name={liked ? "heart" : "heart-outline"} size={18} color={colors.primary} />
-            </Pressable>
-          </View>
-
-          <Text style={styles.role}>{item.specialty}</Text>
-          <Text style={styles.small}>{item.specialties}</Text>
-          <Text style={styles.small}>{item.availability}</Text>
-
-          {/* book button pinned right */}
-          <View style={styles.bookRow}>
-            <Pressable style={styles.bookBtn} onPress={onBook}>
-              <Text style={styles.bookText}>BOOK NOW</Text>
-            </Pressable>
-          </View>
+        <View style={styles.bookRow}>
+          <Pressable style={styles.bookBtn} onPress={onBook}>
+            <Text style={styles.bookText}>BOOK NOW</Text>
+          </Pressable>
         </View>
       </View>
     </View>
@@ -174,76 +150,153 @@ function DentistCard({ item, liked, onToggleLike, onBook }) {
 
 export default function Dentists() {
   const router = useRouter();
+
   const [q, setQ] = useState("");
   const [branch, setBranch] = useState("All");
   const [likedMap, setLikedMap] = useState({});
 
+  // filter based on search + branch
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     return DENTISTS.filter((d) => {
       const okBranch = branch === "All" ? true : d.branch === branch;
-      const okSearch = !query ? true : d.name.toLowerCase().includes(query);
-      return okBranch && okSearch;
+      if (!okBranch) return false;
+
+      if (!query) return true;
+
+      const text = `${d.name} ${d.specialty} ${d.specialties} ${d.availability} ${d.branch}`.toLowerCase();
+      return text.includes(query);
     });
   }, [q, branch]);
 
+  // favorites + non-favorites based on current filter
+  const favorites = useMemo(
+    () => filtered.filter((x) => !!likedMap[x.id]),
+    [filtered, likedMap]
+  );
+  const nonFavorites = useMemo(
+    () => filtered.filter((x) => !likedMap[x.id]),
+    [filtered, likedMap]
+  );
+
+  // build list with section titles
+  const listData = useMemo(() => {
+    const out = [];
+
+    if (favorites.length > 0) {
+      out.push({ type: "title", id: "t-fav", label: "Favorites" });
+      favorites.forEach((x) =>
+        out.push({ type: "card", id: `fav-${x.id}`, item: x })
+      );
+    }
+
+    out.push({ type: "title", id: "t-all", label: "All Dentists" });
+    nonFavorites.forEach((x) =>
+      out.push({ type: "card", id: `all-${x.id}`, item: x })
+    );
+
+    return out;
+  }, [favorites, nonFavorites]);
+
+  const renderRow = ({ item, index }) => {
+    if (item.type === "title") {
+      return (
+        <Text style={[styles.sectionTitle, index === 0 && { marginTop: 0 }]}>
+          {item.label}
+        </Text>
+      );
+    }
+
+    const d = item.item;
+
+    
+    const isFirstCardUnderFirstTitle = index === 1;
+
+    return (
+      <View
+        style={[
+          styles.cardWrap,
+          isFirstCardUnderFirstTitle && { marginTop: 6 },
+        ]}
+      >
+        <DentistCard
+          item={d}
+          liked={!!likedMap[d.id]}
+          onToggleLike={() =>
+            setLikedMap((p) => ({ ...p, [d.id]: !p[d.id] }))
+          }
+          onBook={() =>
+            router.push({
+              pathname: "/booking",
+              params: { branch: d.branch, doctor: d.name },
+            })
+          }
+        />
+      </View>
+    );
+  };
+
   return (
     <View style={styles.screen}>
-      {/* header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={colors.primary} />
-        </Pressable>
+     
+      <View style={styles.fixedTop}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          </Pressable>
 
-        <Text style={styles.headerTitle}>Dentist</Text>
+          <Text style={styles.headerTitle}>Dentist</Text>
 
-        <View style={{ width: 36 }} />
-      </View>
-
-      {/* search row */}
-      <View style={styles.searchRow}>
-        <View style={styles.searchWrap}>
-          <TextInput
-            placeholder="Search"
-            placeholderTextColor={colors.textGray}
-            value={q}
-            onChangeText={setQ}
-            style={styles.searchInput}
-          />
-          <Ionicons name="search" size={16} color={colors.primary} />
+          <View style={{ width: 36 }} />
         </View>
 
         
+        <View style={styles.searchWrap}>
+          <TextInput
+            value={q}
+            onChangeText={setQ}
+            placeholder="Search"
+            placeholderTextColor="#aaa"
+            style={styles.searchInput}
+          />
+          <Ionicons name="search-outline" size={18} color={colors.primary} />
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.pillsRow}
+        >
+          {BRANCHES.map((b) => {
+            const active = branch === b;
+            return (
+              <Pressable
+                key={b}
+                onPress={() => setBranch(b)}
+                style={[styles.pill, active && styles.pillActive]}
+              >
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={[styles.pillText, active && { color: "#fff" }]}
+                >
+                  {b}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
-      {/* branch filter pills */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsRow}>
-        {BRANCHES.map((b) => (
-          <FilterPill key={b} label={b} active={branch === b} onPress={() => setBranch(b)} />
-        ))}
-      </ScrollView>
-
-      {/* list */}
-      <ScrollView contentContainerStyle={{ paddingBottom: 30, alignItems: "s" }} showsVerticalScrollIndicator={false}>
-        {filtered.map((item) => (
-          <DentistCard
-            key={item.id}
-            item={item}
-            liked={!!likedMap[item.id]}
-            onToggleLike={() => setLikedMap((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
-            onBook={() =>
-              router.push({
-                pathname: "/booking",
-                params: { branch: item.branch, doctor: item.name },
-              })
-            }
-          />
-        ))}
-
-        {filtered.length === 0 && (
-          <Text style={{ textAlign: "center", color: colors.textGray, marginTop: 20 }}>No dentist found.</Text>
-        )}
-      </ScrollView>
+      <FlatList
+        style={{ flex: 1 }}
+        data={listData}
+        keyExtractor={(x) => x.id}
+        renderItem={renderRow}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={<Text style={styles.emptyText}>No dentist found.</Text>}
+      />
     </View>
   );
 }
@@ -251,45 +304,92 @@ export default function Dentists() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#fff", paddingTop: 46 },
 
+  fixedTop: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingBottom: 6,
+  },
+
   header: {
     height: 54,
-    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff",
   },
-  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   headerTitle: { fontSize: 18, fontWeight: "900", color: colors.primary },
 
-  searchRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, marginTop: 6 },
+
   searchWrap: {
-    flex: 1,
-    height: 40,
-    borderRadius: 20,
+    height: 42,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: "rgba(0,0,0,0.08)",
     paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    backgroundColor: "#fff",
+    marginTop: 8,
   },
-  searchInput: { flex: 1, fontSize: 12, color: colors.textDark, paddingRight: 10 },
-  filterBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#FFE9F1", alignItems: "center", justifyContent: "center" },
 
-  pillsRow: { paddingHorizontal: 25, paddingTop: 12, paddingBottom: 12, gap: 10 },
-  pill: { paddingHorizontal: 12, height: 32, borderRadius: 16, backgroundColor: "#FFE9F1", alignItems: "center", justifyContent: "center" },
+  searchInput: {
+    flex: 1,
+    marginRight: 8,
+    fontSize: 13,
+    color: "#333",
+  },
+
+  pillsRow: { paddingTop: 12, paddingBottom: 12, gap: 10 },
+
+  pill: {
+    width: 160,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFE9F1",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+  },
+
   pillActive: { backgroundColor: colors.primary },
+
   pillText: { fontSize: 10, fontWeight: "800", color: colors.primary },
 
-  cardWrap: { paddingHorizontal: 16, marginTop: 12 },
 
+  listContent: {
+    paddingTop: 8,
+    paddingBottom: 30,
+    paddingHorizontal: 16,
+  },
+
+
+  sectionTitle: {
+    marginTop: 6,
+    marginBottom: 6,
+    fontSize: 12,
+    fontWeight: "900",
+    color: colors.primary,
+  },
+
+
+  cardWrap: {
+    marginBottom: 12,
+  },
 
   card: {
     height: 120,
     backgroundColor: "#FFD6E6",
     borderRadius: 14,
-    overflow: "hidden", 
+    overflow: "hidden",
     flexDirection: "row",
     shadowColor: "#000",
     shadowOpacity: 0.1,
@@ -297,7 +397,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
-  
   photo: {
     width: 92,
     height: "100%",
@@ -305,23 +404,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
   photoImg: { width: "100%", height: "100%", resizeMode: "cover" },
 
   info: { flex: 1, padding: 12 },
 
   topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+
   heartBtn: { paddingLeft: 10, paddingVertical: 4 },
 
   name: { fontSize: 12, fontWeight: "900", color: colors.primary, flex: 1, paddingRight: 10 },
+
   role: { marginTop: 2, fontSize: 10, color: "#666", fontWeight: "700" },
+
   small: { marginTop: 2, fontSize: 9, color: "#777" },
 
- 
-  bookRow: {
-    marginTop: 8,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-  },
+  bookRow: { marginTop: 8, flexDirection: "row", justifyContent: "flex-end" },
+
   bookBtn: {
     height: 22,
     paddingHorizontal: 16,
@@ -330,5 +429,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
   bookText: { fontSize: 9, color: "#fff", fontWeight: "900" },
+
+  emptyText: {
+    marginTop: 20,
+    textAlign: "center",
+    color: colors.textGray,
+    fontWeight: "700",
+  },
 });

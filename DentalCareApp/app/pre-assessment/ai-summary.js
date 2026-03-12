@@ -1,11 +1,17 @@
-import React, { useMemo } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, Image } from "react-native";
+import React, { useMemo, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Image,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
 import { usePreAssessment } from "./_layout";
 
-/** Same questions used earlier (so we can show the question text) */
 const QUESTIONS = [
   "Do you feel tooth pain when biting or chewing?",
   "Do you experience sensitivity to cold drinks?",
@@ -21,7 +27,7 @@ const QUESTIONS = [
 
 export default function AISummary() {
   const router = useRouter();
-  const { state } = usePreAssessment();
+  const { state, dispatch } = usePreAssessment();
 
   const qaList = useMemo(() => {
     return QUESTIONS.map((qText, i) => {
@@ -30,9 +36,18 @@ export default function AISummary() {
     });
   }, [state.answers]);
 
+  const suggestedService = "Tooth Cleaning";
+  const suggestedPrice = "Starting Price: 10000000";
+
+  useEffect(() => {
+    dispatch({
+      type: "SET_SUGGESTED_SERVICE",
+      payload: suggestedService,
+    });
+  }, [dispatch, suggestedService]);
+
   return (
     <View style={styles.container}>
-      {/* Header row aligned */}
       <View style={styles.headerRow}>
         <Pressable style={styles.backIcon} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={20} color={colors.primary} />
@@ -45,12 +60,14 @@ export default function AISummary() {
       <Text style={styles.h1}>AI ASSESSMENT</Text>
 
       <View style={styles.teethBox}>
-        <Image source={require("../../assets/tooth_model.png")} style={styles.toothImage} />
+        <Image
+          source={require("../../assets/tooth_model.png")}
+          style={styles.toothImage}
+        />
       </View>
 
       <Text style={styles.tooth}>Tooth: {state.tooth}</Text>
 
-      {/* ✅ Only this part scrolls, and it will STOP above the footer */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -77,29 +94,43 @@ export default function AISummary() {
 
           <Text style={styles.qLine}>
             <Text style={styles.qLabel}>Question: </Text>
-            Kindly describe any symptoms or discomfort you are currently experiencing.
+            Kindly describe any symptoms or discomfort you are currently
+            experiencing.
           </Text>
+
           <Text style={styles.aLine}>
             <Text style={styles.aLabel}>    Answer: </Text>
             {state.description?.trim() ? state.description.trim() : "-"}
           </Text>
         </View>
 
-        <Text style={[styles.section, { marginTop: 18 }]}>Suggested Treatment and Price</Text>
+        <Text style={[styles.section, { marginTop: 18 }]}>
+          Suggested Treatment and Price
+        </Text>
 
         <View style={styles.treatBox}>
-          <Text style={styles.treatTitle}>Tooth Cleaning</Text>
-          <Text style={styles.treatSub}>Starting Price: 10000000</Text>
+          <Text style={styles.treatTitle}>{suggestedService}</Text>
+          <Text style={styles.treatSub}>{suggestedPrice}</Text>
         </View>
       </ScrollView>
 
-      {/* ✅ Footer is NOT absolute so scroll content never goes behind it */}
       <View style={styles.footer}>
-        <Pressable style={styles.btnOutline} onPress={() => router.replace("/home")}>
+        <Pressable
+          style={styles.btnOutline}
+          onPress={() => router.replace("/home")}
+        >
           <Text style={styles.btnOutlineText}>Back to Home</Text>
         </Pressable>
 
-        <Pressable style={styles.btnFilled} onPress={() => router.push("/booking")}>
+        <Pressable
+          style={styles.btnFilled}
+          onPress={() =>
+            router.push({
+              pathname: "/booking",
+              params: { service: suggestedService },
+            })
+          }
+        >
           <Text style={styles.btnFilledText}>Book Now</Text>
         </Pressable>
       </View>
@@ -121,6 +152,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 6,
   },
+
   backIcon: {
     width: 36,
     height: 36,
@@ -128,74 +160,152 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerSpacer: { width: 36 },
-  topTitle: { fontSize: 12, color: colors.textGray, fontWeight: "600", textAlign: "center" },
 
-  h1: { marginTop: 10, fontSize: 25, fontWeight: "900", color: colors.primary },
+  headerSpacer: {
+    width: 36,
+  },
 
-  teethBox: { marginTop: 14, height: 180, alignItems: "center", justifyContent: "center" },
-  toothImage: { width: 220, height: 160, resizeMode: "contain" },
-  tooth: { marginTop: 8, marginLeft: 20, fontSize: 12, color: colors.textGray, fontWeight: "700" },
+  topTitle: {
+    fontSize: 12,
+    color: colors.textGray,
+    fontWeight: "600",
+    textAlign: "center",
+  },
 
-  scroll: { flex: 1, marginTop: 10 },
-  scrollContent: { paddingBottom: 12 }, // ✅ small padding only (footer is separate)
+  h1: {
+    marginTop: 10,
+    fontSize: 25,
+    fontWeight: "900",
+    color: colors.primary,
+  },
 
-  section: { marginTop: 8, fontSize: 12, fontWeight: "900", color: colors.textGray },
+  teethBox: {
+    marginTop: 14,
+    height: 180,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  toothImage: {
+    width: 220,
+    height: 160,
+    resizeMode: "contain",
+  },
+
+  tooth: {
+    marginTop: 8,
+    marginLeft: 20,
+    fontSize: 12,
+    color: colors.textGray,
+    fontWeight: "700",
+  },
+
+  scroll: {
+    marginTop: 16,
+    flex: 1,
+  },
+
+  scrollContent: {
+    paddingBottom: 24,
+  },
+
+  section: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.primary,
+    marginBottom: 10,
+  },
 
   summaryBox: {
-    marginTop: 10,
-    borderRadius: 14,
     backgroundColor: "#F6F6F6",
-    padding: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+    borderRadius: 18,
+    padding: 14,
   },
-  qaBlock: { marginBottom: 12 },
 
-  qLine: { fontSize: 11, color: "#777", fontWeight: "800", lineHeight: 16 },
-  aLine: { marginTop: 4, fontSize: 11, color: "#999", lineHeight: 16 },
+  qaBlock: {
+    marginBottom: 12,
+  },
 
-  qLabel: { color: colors.primary, fontWeight: "900" },
-  aLabel: { color: "#666", fontWeight: "900" },
+  qLine: {
+    fontSize: 11,
+    color: "#444",
+    lineHeight: 17,
+  },
+
+  aLine: {
+    marginTop: 4,
+    fontSize: 11,
+    color: "#666",
+    lineHeight: 17,
+  },
+
+  qLabel: {
+    fontWeight: "800",
+    color: colors.primary,
+  },
+
+  aLabel: {
+    fontWeight: "800",
+    color: colors.primary,
+  },
 
   treatBox: {
-    marginTop: 10,
-    borderRadius: 14,
-    backgroundColor: "#F6F6F6",
-    padding: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+    backgroundColor: "#FFE9F1",
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 10,
   },
-  treatTitle: { fontSize: 11, fontWeight: "900", color: colors.primary },
-  treatSub: { marginTop: 4, fontSize: 10, color: "#888" },
+
+  treatTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: colors.primary,
+  },
+
+  treatSub: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "700",
+  },
 
   footer: {
     flexDirection: "row",
+    justifyContent: "space-between",
     gap: 12,
-    paddingVertical: 12,
-    marginBottom: 30,
-    marginTop: 10
+    paddingTop: 12,
+    paddingBottom: 16,
   },
 
   btnOutline: {
     flex: 1,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
     borderColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fff",
   },
-  btnOutlineText: { color: colors.primary, fontWeight: "800", fontSize: 11 },
+
+  btnOutlineText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: "800",
+  },
 
   btnFilled: {
     flex: 1,
-    height: 40,
-    borderRadius: 20,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
-  btnFilledText: { color: "#fff", fontWeight: "800", fontSize: 12 },
+
+  btnFilledText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "800",
+  },
 });

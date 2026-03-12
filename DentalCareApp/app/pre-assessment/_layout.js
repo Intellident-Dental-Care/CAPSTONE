@@ -3,14 +3,17 @@ import { Stack } from "expo-router";
 
 const PreAssessmentContext = createContext();
 
-const initialState = {
-  answers: {},
-  preassessmentId: null,
+const initial = {
+  tooth: "3rd Molar",
+  answers: {},       // { [qIndex]: optionText }
   description: "",
+  photoUri: "",      // optional
 };
 
 function preAssessmentReducer(state, action) {
   switch (action.type) {
+    case "SET_TOOTH":
+      return { ...state, tooth: action.payload };
     case "SET_ANSWER":
       return {
         ...state,
@@ -19,34 +22,22 @@ function preAssessmentReducer(state, action) {
           [action.payload.qIndex]: action.payload.answer,
         },
       };
+
     case "SET_DESCRIPTION":
-      return {
-        ...state,
-        description: action.payload,
-      };
-    case "INIT_ANSWERS":
-      return {
-        ...state,
-        answers: action.payload,
-      };
-    case "SET_PREASSESSMENT_ID":
-      return {
-        ...state,
-        preassessmentId: action.payload,
-      };
+      return { ...state, description: action.payload };
+    case "SET_PHOTO":
+      return { ...state, photoUri: action.payload };
     case "RESET":
-      return initialState;
+      return initial;
     default:
       return state;
   }
 }
 
 export function usePreAssessment() {
-  const context = useContext(PreAssessmentContext);
-  if (!context) {
-    throw new Error("usePreAssessment must be used within PreAssessmentProvider");
-  }
-  return context;
+  const v = useContext(Ctx);
+  if (!v) throw new Error("usePreAssessment must be used inside PreAssessmentLayout");
+  return v;
 }
 
 export default function PreAssessmentLayout() {
