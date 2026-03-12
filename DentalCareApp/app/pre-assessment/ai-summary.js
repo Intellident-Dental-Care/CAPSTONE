@@ -127,7 +127,7 @@ export default function AISummary() {
           onPress={() =>
             router.push({
               pathname: "/booking",
-              params: { service: suggestedService },
+              params: { service: suggestedService, preassessmentId: state.preassessmentId },
             })
           }
         >

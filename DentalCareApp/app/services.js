@@ -1,5 +1,5 @@
 // app/services.js
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,232 +9,18 @@ import {
   FlatList,
   Image,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "./theme/colors";
+import { supabase } from "../server/supabaseService";
 
 // ✅ images based on your folder structure
-const IMAGES = {
-  a: require("../assets/landing1.jpg"),
-  b: require("../assets/landing2.jpg"),
-  c: require("../assets/landing3.jpg"),
-};
-
-const CATEGORIES = [
-  "All",
-  "Appliance & Ortho Related",
-  "Prosthodontics & Esthetics",
-  "Retainers",
-  "Pediatric Services",
-  "General Services",
-  "Self-Ligating Braces",
-  "Other Services",
-];
-
-const SERVICES = [
-  // Other Services
-  {
-    id: "svc-001",
-    category: "Other Services",
-    name: "Root Canal Treatment",
-    desc: "Treats infected tooth pulp to relieve pain and save the tooth.",
-    image: IMAGES.a,
-  },
-  {
-    id: "svc-002",
-    category: "Other Services",
-    name: "Post and Core for RCT",
-    desc: "Builds support for a crown after a root canal-treated tooth.",
-    image: IMAGES.b,
-  },
-  {
-    id: "svc-003",
-    category: "Other Services",
-    name: "Lip Repositioning",
-    desc: "Helps reduce a gummy smile by adjusting lip position.",
-    image: IMAGES.a,
-  },
-  {
-    id: "svc-004",
-    category: "Other Services",
-    name: "Gingivectomy",
-    desc: "Removes excess gum tissue to improve gum health and appearance.",
-    image: IMAGES.c,
-  },
-  {
-    id: "svc-005",
-    category: "Other Services",
-    name: "Dental Consultation",
-    desc: "Professional evaluation of your teeth, gums, and oral concerns.",
-    image: IMAGES.b,
-  },
-  {
-    id: "svc-006",
-    category: "Other Services",
-    name: "Dental Certificate",
-    desc: "Official certificate for school, work, or medical requirements.",
-    image: IMAGES.c,
-  },
-  {
-    id: "svc-007",
-    category: "Other Services",
-    name: "Teeth Whitening",
-    desc: "Brightens teeth and removes stains for a cleaner, whiter smile.",
-    image: IMAGES.a,
-  },
-  {
-    id: "svc-008",
-    category: "Other Services",
-    name: "Periapical X-Ray",
-    desc: "X-ray used to check tooth roots and surrounding bone structures.",
-    image: IMAGES.b,
-  },
-  {
-    id: "svc-009",
-    category: "Other Services",
-    name: "Frenectomy",
-    desc: "Release/removal of frenum to improve movement and comfort.",
-    image: IMAGES.c,
-  },
-  {
-    id: "svc-010",
-    category: "Other Services",
-    name: "TMJ Consultation",
-    desc: "Assesses jaw pain, clicking, headaches, and bite issues.",
-    image: IMAGES.a,
-  },
-  {
-    id: "svc-011",
-    category: "Other Services",
-    name: "Dental Implant",
-    desc: "Replaces missing teeth using a titanium implant and crown.",
-    image: IMAGES.b,
-  },
-  {
-    id: "svc-012",
-    category: "Other Services",
-    name: "Bone Grafting",
-    desc: "Adds bone support for implants or improved jaw stability.",
-    image: IMAGES.b,
-  },
-
-  // Appliance & Ortho Related
-  {
-    id: "svc-013",
-    category: "Appliance & Ortho Related",
-    name: "TMJ Splint",
-    desc: "Custom splint to reduce jaw stress and TMJ pain.",
-    image: IMAGES.a,
-  },
-  {
-    id: "svc-014",
-    category: "Appliance & Ortho Related",
-    name: "Space Maintainer Appliance",
-    desc: "Keeps space for permanent teeth after early tooth loss.",
-    image: IMAGES.c,
-  },
-  {
-    id: "svc-015",
-    category: "Appliance & Ortho Related",
-    name: "Expander",
-    desc: "Widening device to improve bite alignment and jaw space.",
-    image: IMAGES.b,
-  },
-  {
-    id: "svc-016",
-    category: "Appliance & Ortho Related",
-    name: "Temporary Anchorage Device",
-    desc: "Small device to help move teeth precisely during orthodontics.",
-    image: IMAGES.c,
-  },
-
-  // Prosthodontics & Esthetics
-  {
-    id: "svc-021",
-    category: "Prosthodontics & Esthetics",
-    name: "Ordinary Dentures Acrylic",
-    desc: "Traditional acrylic dentures for missing teeth replacement.",
-    image: IMAGES.a,
-  },
-  {
-    id: "svc-027",
-    category: "Prosthodontics & Esthetics",
-    name: "Fixed Bridge / Jacket / Crown",
-    desc: "Restores damaged or missing teeth using fixed prosthetics.",
-    image: IMAGES.b,
-  },
-  {
-    id: "svc-029",
-    category: "Prosthodontics & Esthetics",
-    name: "Veneers",
-    desc: "Thin shells placed on front teeth to improve smile appearance.",
-    image: IMAGES.a,
-  },
-
-  // Retainers
-  {
-    id: "svc-030",
-    category: "Retainers",
-    name: "Invisible Retainers",
-    desc: "Clear retainers to keep teeth aligned after braces.",
-    image: IMAGES.b,
-  },
-
-  // Pediatric Services
-  {
-    id: "svc-033",
-    category: "Pediatric Services",
-    name: "Consultation (Kids)",
-    desc: "Dental check-up designed for children’s oral health needs.",
-    image: IMAGES.a,
-  },
-
-  // General Services
-  {
-    id: "svc-039",
-    category: "General Services",
-    name: "Oral Prophylaxis (Cleaning)",
-    desc: "Routine cleaning to remove plaque and tartar build-up.",
-    image: IMAGES.c,
-  },
-  {
-    id: "svc-040",
-    category: "General Services",
-    name: "Tooth Restoration (Pasta)",
-    desc: "Filling procedure to restore tooth damaged by cavities.",
-    image: IMAGES.a,
-  },
-  {
-    id: "svc-041",
-    category: "General Services",
-    name: "Tooth Extraction (Bunot)",
-    desc: "Removal of tooth due to decay, damage, or crowding.",
-    image: IMAGES.b,
-  },
-
-  // Self-Ligating Braces
-  {
-    id: "svc-042",
-    category: "Self-Ligating Braces",
-    name: "Local Self-Ligating",
-    desc: "Self-ligating braces option for efficient tooth alignment.",
-    image: IMAGES.c,
-  },
-  {
-    id: "svc-043",
-    category: "Self-Ligating Braces",
-    name: "Damon Self-Ligating",
-    desc: "Damon system braces designed for faster, comfortable treatment.",
-    image: IMAGES.a,
-  },
-  {
-    id: "svc-044",
-    category: "Self-Ligating Braces",
-    name: "Ceramic Self-Ligating",
-    desc: "Clear/ceramic self-ligating braces for a more aesthetic look.",
-    image: IMAGES.b,
-  },
+const IMAGES = [
+  require("../assets/landing1.jpg"),
+  require("../assets/landing2.jpg"),
+  require("../assets/landing3.jpg"),
 ];
 
 export default function Services() {
@@ -242,18 +28,51 @@ export default function Services() {
 
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
-  const [liked, setLiked] = useState({}); 
+  const [liked, setLiked] = useState({});
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('dental_services')
+          .select('id, name, category, subcategory, price_display')
+          .eq('is_active', true)
+          .order('display_order', { ascending: true });
+        if (error) throw error;
+        setServices(
+          (data || []).map((s, i) => ({
+            id: s.id,
+            category: s.category,
+            name: s.name,
+            desc: s.price_display || s.category,
+            image: IMAGES[i % IMAGES.length],
+          }))
+        );
+      } catch (err) {
+        console.error('Error fetching services:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const categories = useMemo(() => {
+    const cats = [...new Set(services.map((s) => s.category))];
+    return ['All', ...cats];
+  }, [services]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return SERVICES.filter((s) => {
+    return services.filter((s) => {
       const categoryOk = activeCategory === "All" ? true : s.category === activeCategory;
       if (!q) return categoryOk;
 
       const text = `${s.name} ${s.desc} ${s.category}`.toLowerCase();
       return categoryOk && text.includes(q);
     });
-  }, [query, activeCategory]);
+  }, [query, activeCategory, services]);
 
   const favorites = useMemo(() => filtered.filter((x) => !!liked[x.id]), [filtered, liked]);
   const nonFavorites = useMemo(() => filtered.filter((x) => !liked[x.id]), [filtered, liked]);
@@ -351,7 +170,7 @@ export default function Services() {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          {CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const active = cat === activeCategory;
             return (
               <Pressable
@@ -376,7 +195,13 @@ export default function Services() {
         renderItem={renderRow}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={<Text style={styles.emptyText}>No services found.</Text>}
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+          ) : (
+            <Text style={styles.emptyText}>No services found.</Text>
+          )
+        }
       />
     </View>
   );

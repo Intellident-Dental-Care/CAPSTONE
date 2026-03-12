@@ -6,7 +6,8 @@ import { colors } from "../theme/colors";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import PinkAlert from "../components/PinkAlert";
 import { supabase } from "../../server/supabaseService";
-import { getCurrentUser, getUserProfile } from "../../server/supabaseService";
+import { getCurrentUser } from "../../server/supabaseService";
+import { getCurrentActiveProfileForSession, getPatientProfileByProfileId } from "../_storage/authStorage";
 
 /* ---------- helpers ---------- */
 function monthShort(d) {
@@ -66,7 +67,7 @@ function convertTo12Hour(time24h) {
 /* ---------- component ---------- */
 export default function BookingAppointment() {
   const router = useRouter();
-  const { branch, doctor } = useLocalSearchParams();
+  const { branch, doctor, preassessmentId, service } = useLocalSearchParams();
   const [showAlert, setShowAlert] = useState(false);
   const [dentistData, setDentistData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -214,26 +215,33 @@ export default function BookingAppointment() {
   };
 
   const handleBooking = async () => {
-    // Prevent duplicate bookings
     if (booking) return;
     setBooking(true);
 
     try {
       const user = await getCurrentUser();
-      const userProfile = await getUserProfile(user.id);
-      
-      // Convert selected time to 24-hour format for database storage
+
+      // Get active profile for patient name and profile_id
+      const activeProfile = await getCurrentActiveProfileForSession();
+      const patientProfile = activeProfile
+        ? await getPatientProfileByProfileId(activeProfile.id)
+        : null;
+      const patientName =
+        patientProfile?.fullName || activeProfile?.name || user?.email || "";
+      const profileId = activeProfile?.id || null;
+
       const time24h = convertTo24Hour(selectedTime);
-      
+
       console.log('Creating booking:', {
         dentistId: dentistData.id,
         date: selectedISO,
         time12h: selectedTime,
         time24h: time24h,
-        branch: branch
+        branch: branch,
+        profileId,
       });
 
-      // Check for existing booking with same details (including branch)
+      // Check for existing booking at same slot
       const { data: existingBooking } = await supabase
         .from('bookings')
         .select('id, patient_name')
@@ -246,40 +254,31 @@ export default function BookingAppointment() {
       if (existingBooking && existingBooking.length > 0) {
         Alert.alert('Time Slot Unavailable', 'This time slot is already booked by another patient. Please select a different time.');
         setBooking(false);
-        // Refresh booked slots to show updated availability
         await fetchBookedTimeSlots();
         return;
       }
 
-      // Check if user already has a booking for this dentist on this date
-      const { data: userExistingBooking } = await supabase
+      // Check if this profile already has a booking with this doctor on this date
+      let dupQuery = supabase
         .from('bookings')
         .select('id')
-        .eq('user_id', user.id)
         .eq('dentist_id', dentistData.id)
         .eq('appointment_date', selectedISO)
         .eq('status', 'pending');
 
+      dupQuery = profileId
+        ? dupQuery.eq('profile_id', profileId)
+        : dupQuery.eq('user_id', user.id);
+
+      const { data: userExistingBooking } = await dupQuery;
       if (userExistingBooking && userExistingBooking.length > 0) {
         Alert.alert('Booking Exists', 'You already have a booking with this doctor on this date.');
         setBooking(false);
         return;
       }
 
-      // Get the most recent preassessment ID from database (within the last hour to ensure it's from current session)
-      const oneHourAgo = new Date();
-      oneHourAgo.setHours(oneHourAgo.getHours() - 1);
-
-      const { data: preassessmentData } = await supabase
-        .from('patient_preassessment')
-        .select('id')
-        .eq('user_id', user.id)
-        .gte('created_at', oneHourAgo.toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (!preassessmentData) {
+      // Use preassessmentId passed from the pre-assessment flow
+      if (!preassessmentId) {
         Alert.alert('Preassessment Required', 'Please complete the pre-assessment first before booking.');
         setBooking(false);
         return;
@@ -287,12 +286,14 @@ export default function BookingAppointment() {
 
       const bookingData = {
         user_id: user.id,
-        patient_name: userProfile.full_name || user.email,
+        profile_id: profileId,
+        patient_name: patientName,
+        service: service || null,
         dentist_id: dentistData.id,
         branch: branch,
         appointment_date: selectedISO,
-        appointment_time: time24h, // Store in 24-hour format
-        preassessment_id: preassessmentData.id,
+        appointment_time: time24h,
+        preassessment_id: preassessmentId,
         status: 'pending'
       };
 

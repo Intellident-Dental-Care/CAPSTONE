@@ -240,10 +240,37 @@ export const getProfilesByEmail = async (email) => {
     const cleanEmail = (email || "").trim().toLowerCase();
     if (!cleanEmail) return [];
 
+    // Return local cache immediately when populated
     const raw = await AsyncStorage.getItem(PROFILES_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
+    const local = parsed[cleanEmail] || [];
+    if (local.length > 0) return local;
 
-    return parsed[cleanEmail] || [];
+    // Local is empty — try bootstrapping from Supabase (e.g. fresh install / new device)
+    try {
+      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+      if (supabaseUser?.id) {
+        const { data } = await supabase
+          .from("user_profiles")
+          .select("id, name, icon, email, needs_patient_setup")
+          .eq("user_id", supabaseUser.id)
+          .order("created_at", { ascending: true });
+        if (data?.length) {
+          const supaProfiles = data.map((p) => ({
+            id: p.id,
+            name: p.name,
+            icon: p.icon || "person",
+            email: p.email || cleanEmail,
+            needsPatientSetup: p.needs_patient_setup,
+          }));
+          parsed[cleanEmail] = supaProfiles;
+          await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(parsed));
+          return supaProfiles;
+        }
+      }
+    } catch (_) {}
+
+    return [];
   } catch (error) {
     console.log("getProfilesByEmail error:", error);
     return [];
@@ -284,8 +311,29 @@ export const addProfileToEmail = async (email, profileName) => {
       return { success: false, message: "Profile name already exists." };
     }
 
+    // Use a local fallback ID; replaced by the Supabase UUID when available
+    let profileId = Date.now().toString();
+
+    try {
+      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+      if (supabaseUser?.id) {
+        const { data, error } = await supabase
+          .from("user_profiles")
+          .insert({
+            user_id: supabaseUser.id,
+            name: cleanProfileName,
+            email: cleanEmail,
+            icon: "person",
+            needs_patient_setup: true,
+          })
+          .select("id")
+          .single();
+        if (!error && data?.id) profileId = data.id;
+      }
+    } catch (_) {}
+
     const newProfile = {
-      id: Date.now().toString(),
+      id: profileId,
       name: cleanProfileName,
       icon: "person",
       email: cleanEmail,
@@ -342,8 +390,30 @@ export const ensureDefaultProfileForEmail = async (email, fallbackName = "User")
     let profiles = await getProfilesByEmail(cleanEmail);
 
     if (profiles.length === 0) {
+      let profileId = Date.now().toString();
+
+      // Create the default profile row in Supabase when a Supabase session exists
+      try {
+        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+        if (supabaseUser?.id) {
+          const { data, error } = await supabase
+            .from("user_profiles")
+            .insert({
+              user_id: supabaseUser.id,
+              name: fallbackName,
+              email: cleanEmail,
+              icon: "person",
+              needs_patient_setup: true,
+              is_active: true,
+            })
+            .select("id")
+            .single();
+          if (!error && data?.id) profileId = data.id;
+        }
+      } catch (_) {}
+
       const defaultProfile = {
-        id: Date.now().toString(),
+        id: profileId,
         name: fallbackName,
         icon: "person",
         email: cleanEmail,
@@ -452,6 +522,26 @@ export const savePatientProfileByProfileId = async (profileId, payload) => {
 
     await AsyncStorage.setItem(PATIENT_PROFILES_KEY, JSON.stringify(existingProfiles));
 
+    // Sync patient details to Supabase user_profiles row
+    try {
+      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+      if (supabaseUser?.id) {
+        await supabase
+          .from("user_profiles")
+          .update({
+            full_name: payload.fullName || null,
+            dob: payload.dob || null,
+            age: payload.age || null,
+            mobile: payload.mobile || null,
+            email: payload.email || null,
+            medical_history: payload.medicalHistory || {},
+            needs_patient_setup: false,
+          })
+          .eq("id", cleanProfileId)
+          .eq("user_id", supabaseUser.id);
+      }
+    } catch (_) {}
+
     return { success: true, profile: existingProfiles[cleanProfileId] };
   } catch (error) {
     console.log("savePatientProfileByProfileId error:", error);
@@ -464,8 +554,40 @@ export const getPatientProfileByProfileId = async (profileId) => {
     const cleanProfileId = (profileId || "").trim();
     if (!cleanProfileId) return null;
 
+    // Return local cache immediately when populated
     const profiles = await getPatientProfiles();
-    return profiles[cleanProfileId] || null;
+    const local = profiles[cleanProfileId] || null;
+    if (local) return local;
+
+    // Cache miss — fetch from Supabase (e.g. fresh install / switched device)
+    try {
+      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+      if (supabaseUser?.id) {
+        const { data } = await supabase
+          .from("user_profiles")
+          .select("id, full_name, dob, age, mobile, email, medical_history")
+          .eq("id", cleanProfileId)
+          .eq("user_id", supabaseUser.id)
+          .single();
+        if (data) {
+          const mapped = {
+            profileId: data.id,
+            fullName: data.full_name || "",
+            dob: data.dob || "",
+            age: data.age || "",
+            mobile: data.mobile || "",
+            email: data.email || "",
+            medicalHistory: data.medical_history || {},
+          };
+          // Write back to local cache
+          profiles[cleanProfileId] = mapped;
+          await AsyncStorage.setItem(PATIENT_PROFILES_KEY, JSON.stringify(profiles));
+          return mapped;
+        }
+      }
+    } catch (_) {}
+
+    return null;
   } catch (error) {
     console.log("getPatientProfileByProfileId error:", error);
     return null;
@@ -489,6 +611,25 @@ export const updatePatientProfileByProfileId = async (profileId, updates) => {
     };
 
     await AsyncStorage.setItem(PATIENT_PROFILES_KEY, JSON.stringify(profiles));
+
+    // Sync updated patient details to Supabase
+    try {
+      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+      if (supabaseUser?.id) {
+        await supabase
+          .from("user_profiles")
+          .update({
+            full_name: updates.fullName || null,
+            dob: updates.dob || null,
+            age: updates.age || null,
+            mobile: updates.mobile || null,
+            email: updates.email || null,
+            medical_history: updates.medicalHistory || existing.medicalHistory || {},
+          })
+          .eq("id", cleanProfileId)
+          .eq("user_id", supabaseUser.id);
+      }
+    } catch (_) {}
 
     return { success: true, profile: profiles[cleanProfileId] };
   } catch (error) {
@@ -518,6 +659,18 @@ export const setPatientSetupDoneForProfile = async (email, profileId) => {
         needsPatientSetup: false,
       });
     }
+
+    // Mark setup done in Supabase
+    try {
+      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+      if (supabaseUser?.id) {
+        await supabase
+          .from("user_profiles")
+          .update({ needs_patient_setup: false })
+          .eq("id", cleanProfileId)
+          .eq("user_id", supabaseUser.id);
+      }
+    } catch (_) {}
   } catch (error) {
     console.log("setPatientSetupDoneForProfile error:", error);
   }

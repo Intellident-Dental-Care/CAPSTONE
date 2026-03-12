@@ -12,7 +12,7 @@ import { colors } from "../theme/colors";
 import {
   getCurrentActiveProfileForSession,
   getPatientProfileByProfileId,
-} from "../storage/authStorage";
+} from "../_storage/authStorage";
 
 function Row({ label, value }) {
   return (

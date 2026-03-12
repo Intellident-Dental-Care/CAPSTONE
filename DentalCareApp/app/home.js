@@ -11,8 +11,11 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
-import { getSession, logoutUser } from "./storage/authStorage";
+import { getSession, logoutUser, getCurrentActiveProfileForSession } from "./_storage/authStorage";
+import { profileIndexCache, appointmentCache, APPOINTMENT_CACHE_TTL_MS } from "./_storage/profileCache";
+import { fetchUpcomingAppointment, formatAppointmentDate, formatAppointmentTime } from "../server/upcomingAppointment";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 
 // Dummy component to prevent crashing if you haven't created this yet
 function ProfileSwitcherModal({ visible, onClose }) {
@@ -23,8 +26,8 @@ function ProfileSwitcherModal({ visible, onClose }) {
 export default function Home() {
   const router = useRouter();
 
-  // --- States ---
-  const [fullName, setFullName] = useState("User");
+  // Seed from cache so revisits don't flash "User" while loading
+  const [fullName, setFullName] = useState(profileIndexCache.fullName || "User");
   
   // These were missing, so I added placeholder states to prevent crashes
   const [loadingAppointment, setLoadingAppointment] = useState(false);
@@ -35,12 +38,39 @@ export default function Home() {
   const [flowModalVisible, setFlowModalVisible] = useState(false);
   const [flowStep, setFlowStep] = useState("start");
 
-  useEffect(() => {
-    (async () => {
-      const session = await getSession();
-      if (session?.fullName) setFullName(session.fullName);
-    })();
-  }, []);
+  // Re-read the active profile name every time the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const activeProfile = await getCurrentActiveProfileForSession();
+        if (activeProfile?.name) {
+          setFullName(activeProfile.name);
+        } else {
+          const session = await getSession();
+          if (session?.fullName) setFullName(session.fullName);
+        }
+
+        const cacheKey = activeProfile?.id || "__no_profile__";
+        const cached = appointmentCache[cacheKey];
+        const now = Date.now();
+        const isStale = !cached || (now - cached.fetchedAt) > APPOINTMENT_CACHE_TTL_MS;
+
+        // Immediately show cached data (no loading flash on revisit)
+        if (cached) {
+          setUpcomingAppointment(cached.data);
+        }
+
+        // Only hit the network if there's no cache or cache is stale
+        if (isStale) {
+          if (!cached) setLoadingAppointment(true);
+          const { data } = await fetchUpcomingAppointment(activeProfile?.id || null);
+          appointmentCache[cacheKey] = { data, fetchedAt: Date.now() };
+          setUpcomingAppointment(data);
+          setLoadingAppointment(false);
+        }
+      })();
+    }, [])
+  );
 
   // --- Placeholder Functions ---
   const handleSelectProfile = (profile) => setSelectedProfile(profile);
@@ -185,11 +215,11 @@ export default function Home() {
             <View style={styles.dateRow}>
               <View style={styles.dateChip}>
                 <Ionicons name="calendar-outline" size={14} color={colors.white} />
-                <Text style={styles.dateText}>Tues, 13 Jan 2026</Text>
+                <Text style={styles.dateText}>{formatAppointmentDate(upcomingAppointment.date)}</Text>
               </View>
               <View style={styles.dateChip}>
                 <Ionicons name="time-outline" size={14} color={colors.white} />
-                <Text style={styles.dateText}>10:30 AM - 12:00 PM</Text>
+                <Text style={styles.dateText}>{formatAppointmentTime(upcomingAppointment.time)}</Text>
               </View>
             </View>
           </View>

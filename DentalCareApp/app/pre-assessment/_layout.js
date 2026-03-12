@@ -8,6 +8,7 @@ const initial = {
   answers: {},       // { [qIndex]: optionText }
   description: "",
   photoUri: "",      // optional
+  preassessmentId: null,
 };
 
 function preAssessmentReducer(state, action) {
@@ -27,6 +28,8 @@ function preAssessmentReducer(state, action) {
       return { ...state, description: action.payload };
     case "SET_PHOTO":
       return { ...state, photoUri: action.payload };
+    case "SET_PREASSESSMENT_ID":
+      return { ...state, preassessmentId: action.payload };
     case "RESET":
       return initial;
     default:
@@ -35,13 +38,13 @@ function preAssessmentReducer(state, action) {
 }
 
 export function usePreAssessment() {
-  const v = useContext(Ctx);
+  const v = useContext(PreAssessmentContext);
   if (!v) throw new Error("usePreAssessment must be used inside PreAssessmentLayout");
   return v;
 }
 
 export default function PreAssessmentLayout() {
-  const [state, dispatch] = useReducer(preAssessmentReducer, initialState);
+  const [state, dispatch] = useReducer(preAssessmentReducer, initial);
 
   return (
     <PreAssessmentContext.Provider value={{ state, dispatch }}>

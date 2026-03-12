@@ -6,6 +6,7 @@ import { colors } from "../theme/colors";
 import { usePreAssessment } from "./_layout";
 import { supabase } from "../../server/supabaseService";
 import { getCurrentUser } from "../../server/supabaseService";
+import { getCurrentActiveProfileForSession } from "../_storage/authStorage";
 
 export default function Questions() {
   const router = useRouter();
@@ -92,11 +93,13 @@ export default function Questions() {
       
       try {
         const user = await getCurrentUser();
+        const activeProfile = await getCurrentActiveProfileForSession();
         if (user) {
           const { data, error } = await supabase
             .from('patient_preassessment')
             .insert([{
               user_id: user.id,
+              profile_id: activeProfile?.id || null,
               answers: state.answers,
               description: null
             }])

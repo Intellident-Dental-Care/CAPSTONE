@@ -18,7 +18,7 @@ import {
   savePatientProfileByProfileId,
   setPatientSetupDoneForProfile,
   setPatientSetupDoneForUser,
-} from "./storage/authStorage";
+} from "./_storage/authStorage";
 
 function calculateAge(dobValue) {
   if (!dobValue) return "";
@@ -152,7 +152,7 @@ export default function PatientFirstSetup() {
       const session = await getSession();
       const activeProfile = await getCurrentActiveProfileForSession();
 
-      if (session?.email) setEmail(session.email);
+      if (session?.user?.email) setEmail(session.user.email);
 
       if (activeProfile?.id) {
         setProfileId(activeProfile.id);

@@ -1,6 +1,6 @@
 // FILE PATH: app/appointments/index.js
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,49 +9,24 @@ import {
   FlatList,
   Pressable,
   Modal,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "./../theme/colors";
+import { supabase } from "../../server/supabaseService";
+import { getCurrentActiveProfileForSession } from "../_storage/authStorage";
+import { appointmentsListCache, APPOINTMENT_CACHE_TTL_MS } from "../_storage/profileCache";
 
-const MOCK_APPOINTMENTS = [
-  {
-    id: "A-1001",
-    procedure: "Teeth Cleaning",
-    treatment: "Prophylaxis",
-    dentist: "Dr. Santos",
-    date: "2026-02-25",
-    time: "10:30 AM",
-    status: "upcoming",
-  },
-  {
-    id: "A-1002",
-    procedure: "Tooth Extraction",
-    treatment: "Surgical Removal",
-    dentist: "Dr. Reyes",
-    date: "2026-02-20",
-    time: "03:00 PM",
-    status: "completed",
-  },
-  {
-    id: "A-1003",
-    procedure: "Braces Adjustment",
-    treatment: "Ortho Follow-up",
-    dentist: "Dr. Santos",
-    date: "2026-02-26",
-    time: "01:00 PM",
-    status: "upcoming",
-  },
-  {
-    id: "A-1004",
-    procedure: "Dental Consultation",
-    treatment: "Initial Check-up",
-    dentist: "Dr. Cruz",
-    date: "2026-02-18",
-    time: "11:00 AM",
-    status: "cancelled",
-  },
-];
+function fmt12h(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':');
+  const hr = parseInt(h, 10);
+  const ampm = hr >= 12 ? 'PM' : 'AM';
+  const hr12 = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
+  return `${hr12}:${m} ${ampm}`;
+}
 
 function formatDatePill(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
@@ -106,6 +81,76 @@ export default function AppointmentsScreen() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [flowModalVisible, setFlowModalVisible] = useState(false);
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAppointments();
+    }, [])
+  );
+
+  const fetchAppointments = async () => {
+    try {
+      const activeProfile = await getCurrentActiveProfileForSession();
+      const profileId = activeProfile?.id || null;
+      const cacheKey = profileId || '__no_profile__';
+      const cached = appointmentsListCache[cacheKey];
+      const now = Date.now();
+      const isStale = !cached || (now - cached.fetchedAt) > APPOINTMENT_CACHE_TTL_MS;
+
+      // Seed from cache immediately — no loading flash on revisit
+      if (cached) {
+        setAppointments(cached.data);
+        setLoading(false);
+      }
+
+      // Only hit the network when there's no cache or it's stale
+      if (!isStale) return;
+
+      if (!cached) setLoading(true);
+
+      let dbQuery = supabase
+        .from('bookings')
+        .select('*, dentist_list(name, specialization)')
+        .order('appointment_date', { ascending: false });
+
+      if (profileId) {
+        dbQuery = dbQuery.eq('profile_id', profileId);
+      } else {
+        const { data: authData } = await supabase.auth.getUser();
+        const user = authData?.user;
+        if (!user) { setLoading(false); return; }
+        dbQuery = dbQuery.eq('user_id', user.id);
+      }
+
+      const { data, error } = await dbQuery;
+      if (error) throw error;
+
+      const statusMap = {
+        pending: 'upcoming',
+        confirmed: 'upcoming',
+        completed: 'completed',
+        cancelled: 'cancelled',
+      };
+      const mapped = (data || []).map((b) => ({
+        id: b.id,
+        procedure: b.service || 'Dental Appointment',
+        treatment: b.dentist_list?.specialization || 'General Dentistry',
+        dentist: b.dentist_list?.name || 'Unknown',
+        date: b.appointment_date,
+        time: fmt12h(b.appointment_time),
+        status: statusMap[b.status] || 'upcoming',
+      }));
+
+      appointmentsListCache[cacheKey] = { data: mapped, fetchedAt: Date.now() };
+      setAppointments(mapped);
+    } catch (err) {
+      console.error('Error fetching appointments:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const openFlowModal = () => {
     setFlowModalVisible(true);
@@ -128,7 +173,7 @@ export default function AppointmentsScreen() {
   const data = useMemo(() => {
     const q = query.trim().toLowerCase();
 
-    return MOCK_APPOINTMENTS
+    return appointments
       .filter((a) => {
         if (filter === "all") return true;
         if (filter === "upcoming") {
@@ -146,7 +191,7 @@ export default function AppointmentsScreen() {
         );
       })
       .sort((a, b) => (a.date > b.date ? 1 : -1));
-  }, [query, filter]);
+  }, [query, filter, appointments]);
 
   const Chip = ({ value, label }) => {
     const active = filter === value;
@@ -286,17 +331,23 @@ export default function AppointmentsScreen() {
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons
-              name="calendar-outline"
-              size={34}
-              color={colors.muted || "#777"}
-            />
-            <Text style={styles.emptyTitle}>No appointments found</Text>
-            <Text style={styles.emptySub}>
-              Try a different search or filter.
-            </Text>
-          </View>
+          loading ? (
+            <View style={styles.empty}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : (
+            <View style={styles.empty}>
+              <Ionicons
+                name="calendar-outline"
+                size={34}
+                color={colors.muted || "#777"}
+              />
+              <Text style={styles.emptyTitle}>No appointments found</Text>
+              <Text style={styles.emptySub}>
+                Try a different search or filter.
+              </Text>
+            </View>
+          )
         }
       />
 

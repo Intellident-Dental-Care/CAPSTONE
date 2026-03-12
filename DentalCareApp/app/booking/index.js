@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,19 +7,12 @@ import {
   Modal,
   ScrollView,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { colors } from "../theme/colors";
 import { supabase } from "../../server/supabaseService";
-
-const SERVICES = [
-  "Teeth Cleaning",
-  "Tooth Extraction",
-  "Dental Filling",
-  "Braces Consultation",
-  "Teeth Whitening",
-];
 
 const BRANCHES = [
   "General Trias, Cavite",
@@ -57,7 +50,7 @@ function PickerModal({ visible, title, options, onClose, onPick }) {
 
 export default function BookingBranchDoctor() {
   const router = useRouter();
-  const { service: passedService } = useLocalSearchParams();
+  const { service: passedService, preassessmentId } = useLocalSearchParams();
   const [service, setService] = useState(
     typeof passedService === "string" ? passedService : ""
   );
@@ -69,11 +62,27 @@ export default function BookingBranchDoctor() {
 
   const [branches, setBranches] = useState([]);
   const [doctorsByBranch, setDoctorsByBranch] = useState({});
+  const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchDentists();
+    fetchServices();
   }, []);
+
+  const fetchServices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('dental_services')
+        .select('name, category, subcategory')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+      if (error) throw error;
+      setServices(data.map((s) => s.name));
+    } catch (err) {
+      console.error('Error fetching services:', err);
+    }
+  };
 
   const fetchDentists = async () => {
     try {
@@ -186,7 +195,7 @@ export default function BookingBranchDoctor() {
           if (!canProceed) return;
           router.push({
             pathname: "/booking/appointment",
-            params: { service, branch, doctor },
+            params: { service, branch, doctor, preassessmentId },
           });
         }}
       >
@@ -196,7 +205,7 @@ export default function BookingBranchDoctor() {
       <PickerModal
         visible={showService}
         title="Select Service"
-        options={SERVICES}
+        options={services}
         onClose={() => setShowService(false)}
         onPick={(opt) => {
           setService(opt);

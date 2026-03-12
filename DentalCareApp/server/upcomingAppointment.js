@@ -1,7 +1,7 @@
 import { supabase } from './supabaseService';
 import { getCurrentUser } from './supabaseService';
 
-export const fetchUpcomingAppointment = async () => {
+export const fetchUpcomingAppointment = async (profileId) => {
   try {
     const user = await getCurrentUser();
     
@@ -17,18 +17,26 @@ export const fetchUpcomingAppointment = async () => {
     console.log('Current date:', today);
     console.log('Current time:', currentTime);
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('bookings')
       .select(`
         *,
         dentist_list!inner(name, specialization)
       `)
-      .eq('user_id', user.id)
       .eq('status', 'pending')
       .or(`appointment_date.gt.${today},and(appointment_date.eq.${today},appointment_time.gt.${currentTime})`)
       .order('appointment_date', { ascending: true })
       .order('appointment_time', { ascending: true })
       .limit(1);
+
+    // Filter by profile if provided, otherwise fall back to user_id
+    if (profileId) {
+      query = query.eq('profile_id', profileId);
+    } else {
+      query = query.eq('user_id', user.id);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching upcoming appointment:', error);

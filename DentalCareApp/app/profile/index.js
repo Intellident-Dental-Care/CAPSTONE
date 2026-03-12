@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../theme/colors";
+import { supabase } from "../../server/supabaseService";
 import {
   getSession,
   getProfilesByEmail,
@@ -13,36 +14,46 @@ import {
   addProfileToEmail,
   logoutUser,
 } from "../_storage/authStorage";
+import {
+  profileIndexCache,
+  myProfileCache,
+  clearAllProfileCaches,
+} from "../_storage/profileCache";
 import ProfileSwitcherModal from "../components/ProfileSwitcherModal";
 
 export default function Profile() {
   const router = useRouter();
 
-  const [fullName, setFullName] = useState("User");
-  const [email, setEmail] = useState("user@email.com");
-  const [profiles, setProfiles] = useState([]);
-  const [selectedProfile, setSelectedProfile] = useState(null);
+  // Initialise from cache so revisits render real data with zero async work
+  const [fullName, setFullName] = useState(profileIndexCache.fullName);
+  const [email, setEmail] = useState(profileIndexCache.email);
+  const [profiles, setProfiles] = useState(profileIndexCache.profiles);
+  const [selectedProfile, setSelectedProfile] = useState(profileIndexCache.selectedProfile);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
-  const [loggedInEmail, setLoggedInEmail] = useState("");
+  const [loggedInEmail, setLoggedInEmail] = useState(profileIndexCache.loggedInEmail);
 
-  const loadProfiles = async () => {
+  const loadProfiles = async (force = false) => {
+    // Skip the full fetch on revisits — state was already seeded from cache
+    if (profileIndexCache.loaded && !force) return;
+
     try {
       const session = await getSession();
-      const accountEmail = (session?.email || "").trim().toLowerCase();
+      // email is nested inside session.user
+      const accountEmail = (session?.user?.email || "").trim().toLowerCase();
 
       setLoggedInEmail(accountEmail);
 
       if (!accountEmail) {
         setSelectedProfile(null);
         setProfiles([]);
-        setFullName("User");
-        setEmail("user@email.com");
+        setFullName("");
+        setEmail("");
         return;
       }
 
       const setup = await ensureDefaultProfileForEmail(
         accountEmail,
-        session?.fullName || "User"
+        session?.fullName || ""
       );
 
       let activeProfile = setup?.activeProfile;
@@ -56,10 +67,48 @@ export default function Profile() {
         allProfiles = await getProfilesByEmail(accountEmail);
       }
 
+      // --- Fast path: show local data immediately ---
+      let displayName = activeProfile?.name || session?.fullName || "";
+      let displayEmail = accountEmail;
+
       setSelectedProfile(activeProfile || null);
       setProfiles(allProfiles || []);
-      setFullName(activeProfile?.name || session?.fullName || "User");
-      setEmail(accountEmail || "user@email.com");
+      setFullName(displayName);
+      setEmail(displayEmail);
+
+      // Update cache with local data so next visit is instant
+      Object.assign(profileIndexCache, {
+        loaded: true,
+        fullName: displayName,
+        email: displayEmail,
+        profiles: allProfiles || [],
+        selectedProfile: activeProfile || null,
+        loggedInEmail: accountEmail,
+      });
+
+      // --- Background: sync fresh name/email from Supabase ---
+      try {
+        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+        if (supabaseUser?.id) {
+          const { data: userRow } = await supabase
+            .from("users")
+            .select("full_name, email")
+            .eq("id", supabaseUser.id)
+            .single();
+          if (userRow) {
+            const supaName = activeProfile?.name || userRow.full_name || displayName;
+            const supaEmail = userRow.email || displayEmail;
+            if (supaName !== displayName || supaEmail !== displayEmail) {
+              setFullName(supaName);
+              setEmail(supaEmail);
+              profileIndexCache.fullName = supaName;
+              profileIndexCache.email = supaEmail;
+            }
+          }
+        }
+      } catch (_) {
+        // Supabase unavailable — local data already shown
+      }
     } catch (error) {
       console.log("loadProfiles error:", error);
     }
@@ -67,6 +116,7 @@ export default function Profile() {
 
   useFocusEffect(
     useCallback(() => {
+      // loadProfiles skips internally when cache is already populated
       loadProfiles();
     }, [])
   );
@@ -77,8 +127,13 @@ export default function Profile() {
 
       await setActiveProfileByEmail(loggedInEmail, profile);
       setSelectedProfile(profile);
-      setFullName(profile?.name || "User");
+      setFullName(profile?.name || "");
       setProfileModalVisible(false);
+
+      // Update index cache and invalidate my-profile cache so it reloads for the new profile
+      profileIndexCache.selectedProfile = profile;
+      profileIndexCache.fullName = profile?.name || "";
+      myProfileCache.loaded = false;
     } catch (error) {
       console.log("handleSelectProfile error:", error);
     }
@@ -101,13 +156,17 @@ export default function Profile() {
       if (result.profile) {
         await setActiveProfileByEmail(loggedInEmail, result.profile);
         setSelectedProfile(result.profile);
-        setFullName(result.profile.name || "User");
+        setFullName(result.profile.name || "");
         setProfileModalVisible(false);
+        // Invalidate caches so both screens reload for the new profile
+        profileIndexCache.loaded = false;
+        myProfileCache.loaded = false;
         router.push("/patient-first-setup");
         return;
       }
 
-      await loadProfiles();
+      // Force reload so new profile appears in the list
+      await loadProfiles(true);
     } catch (error) {
       console.log("handleAddProfile error:", error);
       Alert.alert("Error", "Failed to add profile.");
@@ -117,6 +176,7 @@ export default function Profile() {
   const handleLogout = async () => {
     try {
       setProfileModalVisible(false);
+      clearAllProfileCaches();
       await logoutUser();
       router.replace("/get-started");
     } catch (error) {

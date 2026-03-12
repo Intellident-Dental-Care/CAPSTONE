@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
+import { supabase } from "../../server/supabaseService";
 import {
   getSession,
   getCurrentActiveProfileForSession,
@@ -19,6 +20,7 @@ import {
   updatePatientProfileByProfileId,
   updateProfileInAccount,
 } from "../_storage/authStorage";
+import { myProfileCache } from "../_storage/profileCache";
 
 function calculateAge(dobValue) {
   if (!dobValue) return "";
@@ -44,40 +46,85 @@ function calculateAge(dobValue) {
 export default function MyProfile() {
   const router = useRouter();
 
-  const [profileId, setProfileId] = useState("");
-  const [accountEmail, setAccountEmail] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [dob, setDob] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [email, setEmail] = useState("");
+  // Initialise from cache so revisits render real data with zero async work
+  const [profileId, setProfileId] = useState(myProfileCache.profileId);
+  const [accountEmail, setAccountEmail] = useState(myProfileCache.accountEmail);
+  const [fullName, setFullName] = useState(myProfileCache.fullName);
+  const [dob, setDob] = useState(myProfileCache.dob);
+  const [mobile, setMobile] = useState(myProfileCache.mobile);
+  const [email, setEmail] = useState(myProfileCache.email);
   const [loading, setLoading] = useState(false);
 
   const age = useMemo(() => calculateAge(dob), [dob]);
 
   useEffect(() => {
+    // Skip fetch if cache is already populated (revisit or back-navigation)
+    if (myProfileCache.loaded) return;
+
     (async () => {
       const session = await getSession();
       const activeProfile = await getCurrentActiveProfileForSession();
 
-      if (!session?.email || !activeProfile?.id) return;
+      // email is nested inside session.user
+      const sessionEmail = (session?.user?.email || "").trim().toLowerCase();
 
-      setAccountEmail(session.email);
+      if (!sessionEmail || !activeProfile?.id) return;
+
+      setAccountEmail(sessionEmail);
       setProfileId(activeProfile.id);
-      setEmail(session.email);
+      setEmail(sessionEmail);
 
-      const patientProfile = await getPatientProfileByProfileId(activeProfile.id);
+      let resolvedName = "";
+      let resolvedEmail = sessionEmail;
+      let resolvedDob = "";
+      let resolvedMobile = "";
 
-      if (patientProfile) {
-        setFullName(patientProfile.fullName || activeProfile.name || "");
-        setDob(patientProfile.dob || "");
-        setMobile(patientProfile.mobile || "");
-        setEmail(patientProfile.email || session.email || "");
-      } else {
-        setFullName(activeProfile.name || session.fullName || "");
-        setDob("");
-        setMobile("");
-        setEmail(session.email);
+      // Try fetching fresh name/email from Supabase users table
+      try {
+        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+        if (supabaseUser?.id) {
+          const { data: userRow } = await supabase
+            .from("users")
+            .select("full_name, email")
+            .eq("id", supabaseUser.id)
+            .single();
+          if (userRow) {
+            resolvedName = userRow.full_name || activeProfile.name || "";
+            resolvedEmail = userRow.email || sessionEmail;
+          }
+        }
+      } catch (_) {
+        // Supabase unavailable — fall back to local data
       }
+
+      // Load dob/mobile from local patient profile
+      const patientProfile = await getPatientProfileByProfileId(activeProfile.id);
+      if (patientProfile) {
+        if (!resolvedName) resolvedName = patientProfile.fullName || activeProfile.name || "";
+        resolvedDob = patientProfile.dob || "";
+        resolvedMobile = patientProfile.mobile || "";
+        if (!resolvedEmail || resolvedEmail === sessionEmail) {
+          resolvedEmail = patientProfile.email || sessionEmail;
+        }
+      } else if (!resolvedName) {
+        resolvedName = activeProfile.name || session?.fullName || "";
+      }
+
+      setFullName(resolvedName);
+      setDob(resolvedDob);
+      setMobile(resolvedMobile);
+      setEmail(resolvedEmail);
+
+      // Populate cache so the next visit is instant
+      Object.assign(myProfileCache, {
+        loaded: true,
+        profileId: activeProfile.id,
+        accountEmail: sessionEmail,
+        fullName: resolvedName,
+        dob: resolvedDob,
+        mobile: resolvedMobile,
+        email: resolvedEmail,
+      });
     })();
   }, []);
 
@@ -129,6 +176,21 @@ export default function MyProfile() {
           name: fullName,
         });
       }
+
+      try {
+        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+        if (supabaseUser?.id) {
+          await supabase
+            .from("users")
+            .update({ full_name: fullName })
+            .eq("id", supabaseUser.id);
+        }
+      } catch (_) {
+        // Non-fatal — local save already succeeded
+      }
+
+      // Keep the cache in sync so the next visit reflects saved values
+      Object.assign(myProfileCache, { fullName, dob, mobile, email });
 
       setLoading(false);
       Alert.alert("Success", "Profile updated successfully.");

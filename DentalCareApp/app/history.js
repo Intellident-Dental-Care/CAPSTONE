@@ -20,7 +20,7 @@ import {
   setActiveProfileByEmail,
   ensureDefaultProfileForEmail,
   addProfileToEmail,
-} from "./storage/authStorage";
+} from "./_storage/authStorage";
 
 const historyData = [
   {
