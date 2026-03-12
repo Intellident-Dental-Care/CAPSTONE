@@ -72,14 +72,76 @@ export default function Home() {
     }, [])
   );
 
-  // --- Placeholder Functions ---
-  const handleSelectProfile = (profile) => setSelectedProfile(profile);
-  const handleAddProfile = () => {};
-  const handleLogout = async () => await logoutUser();
-  const openFlowModal = () => setFlowModalVisible(true);
-  const closeFlowModal = () => setFlowModalVisible(false);
-  const handleChoosePreAssessment = () => { closeFlowModal(); router.push("/pre-assessment"); };
-  const handleChooseBooking = () => { closeFlowModal(); router.push("/dentists"); };
+  const handleSelectProfile = async (profile) => {
+    try {
+      if (!loggedInEmail || !profile) return;
+
+      await setActiveProfileByEmail(loggedInEmail, profile);
+      setSelectedProfile(profile);
+      setFullName(profile?.name || "User");
+      setProfileModalVisible(false);
+    } catch (error) {
+      console.log("handleSelectProfile error:", error);
+    }
+  };
+
+  const handleAddProfile = async (profileName) => {
+    try {
+      if (!loggedInEmail || !profileName?.trim()) return;
+
+      const result = await addProfileToEmail(loggedInEmail, profileName);
+
+      if (!result.success) {
+        Alert.alert(
+          "Unable to add profile",
+          result.message || "Please try again."
+        );
+        return;
+      }
+
+      if (result.profile) {
+        await setActiveProfileByEmail(loggedInEmail, result.profile);
+        setSelectedProfile(result.profile);
+        setFullName(result.profile.name || "User");
+        setProfileModalVisible(false);
+        router.push("/patient-first-setup");
+        return;
+      }
+
+      await loadProfiles();
+    } catch (error) {
+      console.log("handleAddProfile error:", error);
+      Alert.alert("Error", "Failed to add profile.");
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      setProfileModalVisible(false);
+      await logoutUser();
+      router.replace("/get-started");
+    } catch (error) {
+      console.log("handleLogout error:", error);
+    }
+  };
+
+  const openFlowModal = () => {
+    setFlowModalVisible(true);
+  };
+
+  const closeFlowModal = () => {
+    setFlowModalVisible(false);
+  };
+
+  const handleChoosePreAssessment = () => {
+    closeFlowModal();
+    router.push("/pre-assessment");
+  };
+
+  const handleChooseBooking = () => {
+    closeFlowModal();
+    router.push("/booking");
+  };
 
   return (
     <View style={styles.screen}>
@@ -327,33 +389,29 @@ export default function Home() {
       >
         <Pressable style={styles.modalOverlay} onPress={closeFlowModal}>
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-            {flowStep === "start" && (
-              <>
-                <Text style={styles.modalTitle}>What would you like to do?</Text>
-                <Text style={styles.modalSubtitle}>
-                  Choose if you want to do pre-assessment first or proceed to
-                  booking.
-                </Text>
+            <Text style={styles.modalTitle}>What would you like to do?</Text>
+            <Text style={styles.modalSubtitle}>
+              Choose if you want to do pre-assessment first or proceed to
+              booking.
+            </Text>
 
-                <Pressable
-                  style={styles.optionButton}
-                  onPress={handleChoosePreAssessment}
-                >
-                  <Text style={styles.optionText}>Do Pre-Assessment First</Text>
-                </Pressable>
+            <Pressable
+              style={styles.optionButton}
+              onPress={handleChoosePreAssessment}
+            >
+              <Text style={styles.optionText}>Do Pre-Assessment First</Text>
+            </Pressable>
 
-                <Pressable
-                  style={styles.optionButton}
-                  onPress={handleChooseBooking}
-                >
-                  <Text style={styles.optionText}>Proceed to Booking</Text>
-                </Pressable>
+            <Pressable
+              style={styles.optionButton}
+              onPress={handleChooseBooking}
+            >
+              <Text style={styles.optionText}>Proceed to Booking</Text>
+            </Pressable>
 
-                <Pressable style={styles.cancelBtn} onPress={closeFlowModal}>
-                  <Text style={styles.cancelText}>Cancel</Text>
-                </Pressable>
-              </>
-            )}
+            <Pressable style={styles.cancelBtn} onPress={closeFlowModal}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>

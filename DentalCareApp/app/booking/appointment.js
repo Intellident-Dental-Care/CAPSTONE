@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, Platform, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Platform, ActivityIndicator,
+  Modal,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { colors } from "../theme/colors";
@@ -11,7 +19,7 @@ import { getCurrentActiveProfileForSession, getPatientProfileByProfileId } from 
 
 /* ---------- helpers ---------- */
 function monthShort(d) {
-  return d.toLocaleString("en-US", { month: "short" }).toUpperCase(); // JAN
+  return d.toLocaleString("en-US", { month: "short" }).toUpperCase();
 }
 function pad2(n) {
   return String(n).padStart(2, "0");
@@ -23,7 +31,7 @@ function toISODate(d) {
   return `${y}-${m}-${day}`;
 }
 function formatMonthDay(d) {
-  return `${monthShort(d)} ${pad2(d.getDate())}`; // e.g. JAN 27
+  return `${monthShort(d)} ${pad2(d.getDate())}`;
 }
 function buildNext7Days() {
   const base = new Date();
@@ -67,28 +75,25 @@ function convertTo12Hour(time24h) {
 /* ---------- component ---------- */
 export default function BookingAppointment() {
   const router = useRouter();
-  const { branch, doctor, preassessmentId, service } = useLocalSearchParams();
+  const { service, branch, doctor, preassessmentId} = useLocalSearchParams();
+
   const [showAlert, setShowAlert] = useState(false);
   const [dentistData, setDentistData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
-  const [bookedTimeSlots, setBookedTimeSlots] = useState([]);
+  const [bookedTimeSlots, setBookedTimeSlots] = useState([]);  const [showPreview, setShowPreview] = useState(false);
 
-  // date pills (state so we can add a new one from calendar)
   const [datePills, setDatePills] = useState(() => buildNext7Days());
 
-  // selected date
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const [selectedISO, setSelectedISO] = useState(toISODate(today));
   const [selectedLabel, setSelectedLabel] = useState(formatMonthDay(today));
 
-  // time
   const [selectedTime, setSelectedTime] = useState("9:00 AM");
   const [timeTab, setTimeTab] = useState("Morning");
 
-  // calendar picker
   const [showCalendar, setShowCalendar] = useState(false);
   const [pickedDate, setPickedDate] = useState(today);
 
@@ -102,6 +107,7 @@ export default function BookingAppointment() {
     "11:00 AM",
     "11:30 AM",
   ];
+
   const timesAfternoon = [
     "1:00 PM",
     "1:30 PM",
@@ -112,6 +118,7 @@ export default function BookingAppointment() {
     "4:00 PM",
     "4:30 PM",
   ];
+
   const times = timeTab === "Morning" ? timesMorning : timesAfternoon;
 
   useEffect(() => {
@@ -184,10 +191,8 @@ export default function BookingAppointment() {
   };
 
   const onPickDate = (event, date) => {
-    
     if (Platform.OS !== "ios") setShowCalendar(false);
 
-    
     if (event?.type === "dismissed" || !date) return;
 
     date.setHours(0, 0, 0, 0);
@@ -196,21 +201,21 @@ export default function BookingAppointment() {
     const iso = toISODate(date);
     const label = formatMonthDay(date);
 
-    
     setSelectedISO(iso);
     setSelectedLabel(label);
 
-    
     setDatePills((prev) => {
       const exists = prev.some((p) => p.iso === iso);
       if (exists) return prev;
 
-      const next = [...prev, { iso, label }].sort((a, b) => a.iso.localeCompare(b.iso));
-      if (next.length > 7) next.shift(); 
+      const next = [...prev, { iso, label }].sort((a, b) =>
+        a.iso.localeCompare(b.iso)
+      );
+
+      if (next.length > 7) next.shift();
       return next;
     });
 
-    
     if (Platform.OS === "ios") setShowCalendar(false);
   };
 
@@ -324,9 +329,17 @@ export default function BookingAppointment() {
     );
   }
 
+  const handleBookNow = () => {
+    setShowPreview(true);
+  };
+
+  const handleConfirmBooking = () => {
+    setShowPreview(false);
+    setShowAlert(true);
+  };
+
   return (
     <View style={styles.container}>
-     
       <View style={styles.headerRow}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={20} color={colors.primary} />
@@ -334,11 +347,14 @@ export default function BookingAppointment() {
 
         <View style={styles.headerRight}>
           <Ionicons name="heart-outline" size={18} color={colors.primary} />
-          <Ionicons name="share-social-outline" size={18} color={colors.primary} />
+          <Ionicons
+            name="share-social-outline"
+            size={18}
+            color={colors.primary}
+          />
         </View>
       </View>
 
-      {/* Doctor header */}
       <View style={styles.doctorRow}>
         <View style={styles.docPic}>
           <Ionicons name="person" size={22} color={colors.primary} />
@@ -351,14 +367,12 @@ export default function BookingAppointment() {
         </View>
       </View>
 
-      {/* Stats */}
       <View style={styles.statsRow}>
         <Stat label="Experience" value={`${dentistData?.experience_years || 14} years`} />
         <Stat label="Patients" value={dentistData?.total_patients || "1234"} />
         <Stat label="Success Rate" value={`${dentistData?.success_rate || 99.9}%`} />
       </View>
 
-      {/* Tabs */}
       <View style={styles.tabsRow}>
         <Text style={[styles.tab, styles.tabActive]}>Schedules</Text>
         <Text style={styles.tab}>About</Text>
@@ -367,11 +381,17 @@ export default function BookingAppointment() {
       </View>
       <View style={styles.tabLine} />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
-        {/* Date */}
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 140 }}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.section}>Date</Text>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 10 }}
+        >
           {(Array.isArray(datePills) ? datePills : []).map((d) => {
             const active = d.iso === selectedISO;
             return (
@@ -383,44 +403,70 @@ export default function BookingAppointment() {
                   setSelectedLabel(d.label);
                 }}
               >
-                <Text style={[styles.dateText, active && { color: "#fff" }]}>{d.label}</Text>
+                <Text style={[styles.dateText, active && { color: "#fff" }]}>
+                  {d.label}
+                </Text>
               </Pressable>
             );
           })}
 
-          {/* Calendar pill as LAST */}
-          <Pressable style={[styles.datePill, styles.calendarPill]} onPress={() => setShowCalendar(true)}>
-            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+          <Pressable
+            style={[styles.datePill, styles.calendarPill]}
+            onPress={() => setShowCalendar(true)}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={18}
+              color={colors.primary}
+            />
           </Pressable>
         </ScrollView>
 
-        {/* DateTimePicker */}
         {showCalendar && (
           <DateTimePicker
             value={pickedDate}
             mode="date"
             display={Platform.OS === "ios" ? "spinner" : "calendar"}
             onChange={onPickDate}
-            accentColor={colors.primary} 
+            accentColor={colors.primary}
           />
         )}
 
-        {/* Time */}
         <Text style={[styles.section, { marginTop: 18 }]}>Time</Text>
 
         <View style={styles.timeTabs}>
           <Pressable
-            style={[styles.timeTab, timeTab === "Morning" && styles.timeTabActive]}
+            style={[
+              styles.timeTab,
+              timeTab === "Morning" && styles.timeTabActive,
+            ]}
             onPress={() => setTimeTab("Morning")}
           >
-            <Text style={[styles.timeTabText, timeTab === "Morning" && { color: "#fff" }]}>Morning</Text>
+            <Text
+              style={[
+                styles.timeTabText,
+                timeTab === "Morning" && { color: "#fff" },
+              ]}
+            >
+              Morning
+            </Text>
           </Pressable>
 
           <Pressable
-            style={[styles.timeTab, timeTab === "Afternoon" && styles.timeTabActive]}
+            style={[
+              styles.timeTab,
+              timeTab === "Afternoon" && styles.timeTabActive,
+            ]}
             onPress={() => setTimeTab("Afternoon")}
           >
-            <Text style={[styles.timeTabText, timeTab === "Afternoon" && { color: "#fff" }]}>Afternoon</Text>
+            <Text
+              style={[
+                styles.timeTabText,
+                timeTab === "Afternoon" && { color: "#fff" },
+              ]}
+            >
+              Afternoon
+            </Text>
           </Pressable>
         </View>
 
@@ -449,7 +495,9 @@ export default function BookingAppointment() {
                   active && !isBooked && { color: "#fff" },
                   isBooked && styles.timeTextBooked
                 ]}>
+                  
                   {t}
+                
                 </Text>
                 {isBooked && (
                   <Text style={styles.bookedLabel}>Booked</Text>
@@ -477,18 +525,58 @@ export default function BookingAppointment() {
         </Text>
       </Pressable>
 
-      
+      <Modal
+        visible={showPreview}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPreview(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowPreview(false)}
+        >
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <Text style={styles.modalTitle}>Booking Preview</Text>
+            <Text style={styles.modalSubtitle}>
+              Please review your appointment details before confirming.
+            </Text>
+
+            <View style={styles.previewBox}>
+              <PreviewRow label="Service" value={service || "No service selected"} />
+              <PreviewRow label="Doctor" value={doctor || "No doctor selected"} />
+              <PreviewRow label="Branch" value={branch || "No branch selected"} />
+              <PreviewRow label="Date" value={selectedLabel} />
+              <PreviewRow label="Time" value={selectedTime} />
+            </View>
+
+            <Pressable
+              style={styles.confirmBtn}
+              onPress={handleConfirmBooking}
+            >
+              <Text style={styles.confirmText}>Confirm Booking</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.cancelBtn}
+              onPress={() => setShowPreview(false)}
+            >
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <PinkAlert
         visible={showAlert}
-        title="Booked!"
-        message={`You have booked an appointment on ${selectedLabel} at ${selectedTime}.`}
+        title="Booking Confirmed!"
+        message={`Your appointment for ${service || "Dental Service"} with ${
+          doctor || "Doctor"
+        } at ${branch || "Branch"} is booked on ${selectedLabel} at ${selectedTime}.`}
         onClose={() => {
           setShowAlert(false);
           router.replace("/home");
         }}
       />
-
-
     </View>
   );
 }
@@ -496,15 +584,30 @@ export default function BookingAppointment() {
 function Stat({ label, value }) {
   return (
     <View style={{ alignItems: "center" }}>
-      <Text style={{ fontSize: 12, fontWeight: "900", color: "#666" }}>{value}</Text>
+      <Text style={{ fontSize: 12, fontWeight: "900", color: "#666" }}>
+        {value}
+      </Text>
       <Text style={{ fontSize: 9, color: colors.textGray }}>{label}</Text>
     </View>
   );
 }
 
+function PreviewRow({ label, value }) {
+  return (
+    <View style={styles.previewRow}>
+      <Text style={styles.previewLabel}>{label}</Text>
+      <Text style={styles.previewValue}>{value}</Text>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", paddingTop: 46, paddingHorizontal: 18 },
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingTop: 46,
+    paddingHorizontal: 18,
+  },
 
   headerRow: {
     flexDirection: "row",
@@ -512,24 +615,86 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  headerRight: { flexDirection: "row", gap: 14, alignItems: "center" },
-  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
 
-  doctorRow: { marginTop: 10, marginLeft: 23, flexDirection: "row", alignItems: "center", gap: 12 },
-  docPic: { width: 77, height: 83, borderRadius: 12, backgroundColor: "#eee", alignItems: "center", justifyContent: "center" },
-  docName: { fontSize: 17, fontWeight: "900", color: colors.primary },
-  docSub: { marginTop: 2, fontSize: 12, color: colors.textGray },
+  headerRight: {
+    flexDirection: "row",
+    gap: 14,
+    alignItems: "center",
+  },
 
-  statsRow: { marginTop: 14, flexDirection: "row", justifyContent: "space-around" },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-  tabsRow: { marginTop: 30, flexDirection: "row", justifyContent: "space-between" },
-  tab: { fontSize: 11, color: colors.textGray },
-  tabActive: { color: colors.primary, fontWeight: "900" },
-  tabLine: { marginTop: 8, height: 1, backgroundColor: "#eee" },
+  doctorRow: {
+    marginTop: 10,
+    marginLeft: 23,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
 
-  section: { marginTop: 16, marginBottom: 12, fontSize: 14, fontWeight: "900", color: colors.primary },
+  docPic: {
+    width: 77,
+    height: 83,
+    borderRadius: 12,
+    backgroundColor: "#eee",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-  
+  docName: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: colors.primary,
+  },
+
+  docSub: {
+    marginTop: 2,
+    fontSize: 12,
+    color: colors.textGray,
+  },
+
+  statsRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+
+  tabsRow: {
+    marginTop: 30,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+
+  tab: {
+    fontSize: 11,
+    color: colors.textGray,
+  },
+
+  tabActive: {
+    color: colors.primary,
+    fontWeight: "900",
+  },
+
+  tabLine: {
+    marginTop: 8,
+    height: 1,
+    backgroundColor: "#eee",
+  },
+
+  section: {
+    marginTop: 16,
+    marginBottom: 12,
+    fontSize: 14,
+    fontWeight: "900",
+    color: colors.primary,
+  },
+
   datePill: {
     width: 60,
     height: 60,
@@ -538,8 +703,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  datePillActive: { backgroundColor: colors.primary },
-  dateText: { fontSize: 10, fontWeight: "900", color: "#777" },
+
+  datePillActive: {
+    backgroundColor: colors.primary,
+  },
+
+  dateText: {
+    fontSize: 10,
+    fontWeight: "900",
+    color: "#777",
+  },
 
   calendarPill: {
     backgroundColor: "#fff",
@@ -547,36 +720,55 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
 
-  timeTabs: { marginTop: 10, height: 34, borderRadius: 18, backgroundColor: "#EDEDED", flexDirection: "row", overflow: "hidden" },
-  timeTab: { flex: 1, alignItems: "center", justifyContent: "center" },
-  timeTabActive: { backgroundColor: colors.primary },
-  timeTabText: { fontSize: 10, fontWeight: "900", color: "#777" },
+  timeTabs: {
+    marginTop: 10,
+    height: 34,
+    borderRadius: 18,
+    backgroundColor: "#EDEDED",
+    flexDirection: "row",
+    overflow: "hidden",
+  },
 
-  timeGrid: { marginTop: 16, flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  timeBox: { width: "47%", height: 44, borderRadius: 10, backgroundColor: "#EDEDED", alignItems: "center", justifyContent: "center" },
-  timeBoxActive: { backgroundColor: colors.primary },
-  timeBoxBooked: { 
-    backgroundColor: "#F5F5F5", 
-    borderWidth: 1, 
-    borderColor: "#E0E0E0",
-    opacity: 0.6
+  timeTab: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  timeText: { fontSize: 10, fontWeight: "900", color: "#777" },
-  timeTextBooked: { 
-    color: "#999", 
-    fontSize: 9
+
+  timeTabActive: {
+    backgroundColor: colors.primary,
   },
-  bookedLabel: {
-    fontSize: 7,
-    color: "#999",
-    marginTop: 1
-  },
-  bookedInfo: {
-    marginTop: 12,
+
+  timeTabText: {
     fontSize: 10,
-    color: colors.textGray,
-    textAlign: "center",
-    fontStyle: "italic"
+    fontWeight: "900",
+    color: "#777",
+  },
+
+  timeGrid: {
+    marginTop: 16,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+
+  timeBox: {
+    width: "47%",
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: "#EDEDED",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  timeBoxActive: {
+    backgroundColor: colors.primary,
+  },
+
+  timeText: {
+    fontSize: 10,
+    fontWeight: "900",
+    color: "#777",
   },
 
   bookBtn: {
@@ -594,5 +786,89 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  bookText: { color: "#fff", fontSize: 12, fontWeight: "900" },
+
+  bookText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+
+  modalCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+  },
+
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.primary,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+
+  modalSubtitle: {
+    fontSize: 12,
+    color: colors.textGray,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+
+  previewBox: {
+    backgroundColor: "#FFE9F1",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+  },
+
+  previewRow: {
+    marginBottom: 10,
+  },
+
+  previewLabel: {
+    fontSize: 11,
+    color: colors.textGray,
+    marginBottom: 2,
+    fontWeight: "700",
+  },
+
+  previewValue: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: "900",
+  },
+
+  confirmBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  confirmText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#fff",
+  },
+
+  cancelBtn: {
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+
+  cancelText: {
+    fontSize: 13,
+    color: colors.textGray,
+    fontWeight: "600",
+  },
 });
