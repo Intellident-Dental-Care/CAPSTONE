@@ -77,13 +77,18 @@ function PickerModal({ visible, title, options, onClose, onPick }) {
 
 export default function BookingBranchDoctor() {
   const router = useRouter();
-  const { service: passedService } = useLocalSearchParams();
+  const { service: passedService, doctor:passedDoctor, branch: passedBranch } = useLocalSearchParams();
 
   const [service, setService] = useState(
     typeof passedService === "string" ? passedService : ""
   );
-  const [branch, setBranch] = useState("");
-  const [doctor, setDoctor] = useState("");
+  const [branch, setBranch] = useState(
+    typeof passedBranch === "string" ? passedBranch : ""
+  );
+
+  const [doctor, setDoctor] = useState(
+    typeof passedDoctor === "string" ? passedDoctor : ""
+  );
 
   const [showService, setShowService] = useState(false);
   const [showBranch, setShowBranch] = useState(false);

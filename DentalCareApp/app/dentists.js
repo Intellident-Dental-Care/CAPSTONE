@@ -1,9 +1,3 @@
-// app/dentists.js  (or app/dentist.js — use the file name you actually have)
-// ✅ Fixed: NO huge gap when there are NO favorites
-// ✅ Favorites section appears only when user hearts a dentist
-// ✅ Header + Search + Tabs are FIXED (only list scrolls)
-// ✅ Search bar style matches Services (white + light border)
-
 import React, { useMemo, useState } from "react";
 import {
   View,
@@ -14,6 +8,7 @@ import {
   FlatList,
   Image,
   ScrollView,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -27,7 +22,6 @@ const BRANCHES = [
 ];
 
 const DENTISTS = [
-  // General Trias
   {
     id: "gt-1",
     name: "Dr. Bianca L. Reyes",
@@ -59,7 +53,6 @@ const DENTISTS = [
     photo: null,
   },
 
-  // Dasmarinas
   {
     id: "ds-1",
     name: "Dr. Dian Crizzie Mendoza",
@@ -81,7 +74,6 @@ const DENTISTS = [
     photo: null,
   },
 
-  // Bacoor
   {
     id: "bc-1",
     name: "Dr. Patricia M. Cruz",
@@ -155,31 +147,35 @@ export default function Dentists() {
   const [branch, setBranch] = useState("All");
   const [likedMap, setLikedMap] = useState({});
 
-  // filter based on search + branch
+  const [flowModalVisible, setFlowModalVisible] = useState(false);
+  const [selectedDentist, setSelectedDentist] = useState(null);
+
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
+
     return DENTISTS.filter((d) => {
       const okBranch = branch === "All" ? true : d.branch === branch;
       if (!okBranch) return false;
 
       if (!query) return true;
 
-      const text = `${d.name} ${d.specialty} ${d.specialties} ${d.availability} ${d.branch}`.toLowerCase();
+      const text =
+        `${d.name} ${d.specialty} ${d.specialties} ${d.availability} ${d.branch}`.toLowerCase();
+
       return text.includes(query);
     });
   }, [q, branch]);
 
-  // favorites + non-favorites based on current filter
   const favorites = useMemo(
     () => filtered.filter((x) => !!likedMap[x.id]),
     [filtered, likedMap]
   );
+
   const nonFavorites = useMemo(
     () => filtered.filter((x) => !likedMap[x.id]),
     [filtered, likedMap]
   );
 
-  // build list with section titles
   const listData = useMemo(() => {
     const out = [];
 
@@ -198,6 +194,37 @@ export default function Dentists() {
     return out;
   }, [favorites, nonFavorites]);
 
+  const closeFlowModal = () => {
+    setFlowModalVisible(false);
+    setSelectedDentist(null);
+  };
+
+  const handleChoosePreAssessment = () => {
+    if (!selectedDentist) return;
+
+    setFlowModalVisible(false);
+    router.push({
+      pathname: "/pre-assessment",
+      params: {
+        doctor: selectedDentist.name,
+        branch: selectedDentist.branch,
+      },
+    });
+  };
+
+  const handleChooseBooking = () => {
+    if (!selectedDentist) return;
+
+    setFlowModalVisible(false);
+    router.push({
+      pathname: "/booking",
+      params: {
+        doctor: selectedDentist.name,
+        branch: selectedDentist.branch,
+      },
+    });
+  };
+
   const renderRow = ({ item, index }) => {
     if (item.type === "title") {
       return (
@@ -208,8 +235,6 @@ export default function Dentists() {
     }
 
     const d = item.item;
-
-    
     const isFirstCardUnderFirstTitle = index === 1;
 
     return (
@@ -223,14 +248,12 @@ export default function Dentists() {
           item={d}
           liked={!!likedMap[d.id]}
           onToggleLike={() =>
-            setLikedMap((p) => ({ ...p, [d.id]: !p[d.id] }))
+            setLikedMap((prev) => ({ ...prev, [d.id]: !prev[d.id] }))
           }
-          onBook={() =>
-            router.push({
-              pathname: "/booking",
-              params: { branch: d.branch, doctor: d.name },
-            })
-          }
+          onBook={() => {
+            setSelectedDentist(d);
+            setFlowModalVisible(true);
+          }}
         />
       </View>
     );
@@ -238,7 +261,6 @@ export default function Dentists() {
 
   return (
     <View style={styles.screen}>
-     
       <View style={styles.fixedTop}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
@@ -250,7 +272,6 @@ export default function Dentists() {
           <View style={{ width: 36 }} />
         </View>
 
-        
         <View style={styles.searchWrap}>
           <TextInput
             value={q}
@@ -295,8 +316,43 @@ export default function Dentists() {
         renderItem={renderRow}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={<Text style={styles.emptyText}>No dentist found.</Text>}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>No dentist found.</Text>
+        }
       />
+
+      <Modal
+        visible={flowModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeFlowModal}
+      >
+        <Pressable style={styles.modalOverlay} onPress={closeFlowModal}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <Text style={styles.modalTitle}>What would you like to do?</Text>
+
+            <Text style={styles.modalSubtitle}>
+              Choose if you want to do pre-assessment first or proceed to
+              booking.
+            </Text>
+
+            <Pressable
+              style={styles.optionButton}
+              onPress={handleChoosePreAssessment}
+            >
+              <Text style={styles.optionText}>Do Pre-Assessment First</Text>
+            </Pressable>
+
+            <Pressable style={styles.optionButton} onPress={handleChooseBooking}>
+              <Text style={styles.optionText}>Proceed to Booking</Text>
+            </Pressable>
+
+            <Pressable style={styles.cancelBtn} onPress={closeFlowModal}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -325,8 +381,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  headerTitle: { fontSize: 18, fontWeight: "900", color: colors.primary },
-
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.primary,
+  },
 
   searchWrap: {
     height: 42,
@@ -348,7 +407,11 @@ const styles = StyleSheet.create({
     color: "#333",
   },
 
-  pillsRow: { paddingTop: 12, paddingBottom: 12, gap: 10 },
+  pillsRow: {
+    paddingTop: 12,
+    paddingBottom: 12,
+    gap: 10,
+  },
 
   pill: {
     width: 160,
@@ -360,17 +423,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
 
-  pillActive: { backgroundColor: colors.primary },
+  pillActive: {
+    backgroundColor: colors.primary,
+  },
 
-  pillText: { fontSize: 10, fontWeight: "800", color: colors.primary },
-
+  pillText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.primary,
+  },
 
   listContent: {
     paddingTop: 8,
     paddingBottom: 30,
     paddingHorizontal: 16,
   },
-
 
   sectionTitle: {
     marginTop: 6,
@@ -379,7 +446,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: colors.primary,
   },
-
 
   cardWrap: {
     marginBottom: 12,
@@ -405,21 +471,54 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  photoImg: { width: "100%", height: "100%", resizeMode: "cover" },
+  photoImg: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
 
-  info: { flex: 1, padding: 12 },
+  info: {
+    flex: 1,
+    padding: 12,
+  },
 
-  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
 
-  heartBtn: { paddingLeft: 10, paddingVertical: 4 },
+  heartBtn: {
+    paddingLeft: 10,
+    paddingVertical: 4,
+  },
 
-  name: { fontSize: 12, fontWeight: "900", color: colors.primary, flex: 1, paddingRight: 10 },
+  name: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: colors.primary,
+    flex: 1,
+    paddingRight: 10,
+  },
 
-  role: { marginTop: 2, fontSize: 10, color: "#666", fontWeight: "700" },
+  role: {
+    marginTop: 2,
+    fontSize: 10,
+    color: "#666",
+    fontWeight: "700",
+  },
 
-  small: { marginTop: 2, fontSize: 9, color: "#777" },
+  small: {
+    marginTop: 2,
+    fontSize: 9,
+    color: "#777",
+  },
 
-  bookRow: { marginTop: 8, flexDirection: "row", justifyContent: "flex-end" },
+  bookRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
 
   bookBtn: {
     height: 22,
@@ -430,12 +529,74 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  bookText: { fontSize: 9, color: "#fff", fontWeight: "900" },
+  bookText: {
+    fontSize: 9,
+    color: "#fff",
+    fontWeight: "900",
+  },
 
   emptyText: {
     marginTop: 20,
     textAlign: "center",
     color: colors.textGray,
     fontWeight: "700",
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+
+  modalCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+  },
+
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.primary,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+
+  modalSubtitle: {
+    fontSize: 12,
+    color: colors.textGray,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+
+  optionButton: {
+    backgroundColor: "#FFE9F1",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 10,
+    alignItems: "center",
+  },
+
+  optionText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.primary,
+    textAlign: "center",
+  },
+
+  cancelBtn: {
+    marginTop: 4,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+
+  cancelText: {
+    fontSize: 13,
+    color: colors.textGray,
+    fontWeight: "600",
   },
 });

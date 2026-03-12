@@ -34,10 +34,6 @@ export default function Home() {
   const [loggedInEmail, setLoggedInEmail] = useState("");
 
   const [flowModalVisible, setFlowModalVisible] = useState(false);
-  const [flowStep, setFlowStep] = useState("start");
-  const [selectedService, setSelectedService] = useState("");
-  const [selectedBranch, setSelectedBranch] = useState("");
-  const [selectedDoctor, setSelectedDoctor] = useState("");
 
   const loadProfiles = async () => {
     try {
@@ -137,19 +133,11 @@ export default function Home() {
   };
 
   const openFlowModal = () => {
-    setSelectedService("");
-    setSelectedBranch("");
-    setSelectedDoctor("");
-    setFlowStep("start");
     setFlowModalVisible(true);
   };
 
   const closeFlowModal = () => {
     setFlowModalVisible(false);
-    setFlowStep("start");
-    setSelectedService("");
-    setSelectedBranch("");
-    setSelectedDoctor("");
   };
 
   const handleChoosePreAssessment = () => {
@@ -426,33 +414,29 @@ export default function Home() {
       >
         <Pressable style={styles.modalOverlay} onPress={closeFlowModal}>
           <Pressable style={styles.modalCard} onPress={() => {}}>
-            {flowStep === "start" && (
-              <>
-                <Text style={styles.modalTitle}>What would you like to do?</Text>
-                <Text style={styles.modalSubtitle}>
-                  Choose if you want to do pre-assessment first or proceed to
-                  booking.
-                </Text>
+            <Text style={styles.modalTitle}>What would you like to do?</Text>
+            <Text style={styles.modalSubtitle}>
+              Choose if you want to do pre-assessment first or proceed to
+              booking.
+            </Text>
 
-                <Pressable
-                  style={styles.optionButton}
-                  onPress={handleChoosePreAssessment}
-                >
-                  <Text style={styles.optionText}>Do Pre-Assessment First</Text>
-                </Pressable>
+            <Pressable
+              style={styles.optionButton}
+              onPress={handleChoosePreAssessment}
+            >
+              <Text style={styles.optionText}>Do Pre-Assessment First</Text>
+            </Pressable>
 
-                <Pressable
-                  style={styles.optionButton}
-                  onPress={handleChooseBooking}
-                >
-                  <Text style={styles.optionText}>Proceed to Booking</Text>
-                </Pressable>
+            <Pressable
+              style={styles.optionButton}
+              onPress={handleChooseBooking}
+            >
+              <Text style={styles.optionText}>Proceed to Booking</Text>
+            </Pressable>
 
-                <Pressable style={styles.cancelBtn} onPress={closeFlowModal}>
-                  <Text style={styles.cancelText}>Cancel</Text>
-                </Pressable>
-              </>
-            )}
+            <Pressable style={styles.cancelBtn} onPress={closeFlowModal}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
