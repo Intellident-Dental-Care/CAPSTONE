@@ -1,245 +1,650 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const USERS_KEY = "@dc_users";
-const SESSION_KEY = "@dc_session_user";
-const ACCOUNT_PROFILES_KEY = "@dc_account_profiles";
+const ACCOUNTS_KEY = "accounts";
+const SESSION_KEY = "user_session";
+const PROFILES_KEY = "profiles_by_email";
+const ACTIVE_PROFILE_KEY = "active_profile_by_email";
+const PATIENT_PROFILES_KEY = "patient_profiles_by_profile_id";
 
-async function readJSON(key, fallback) {
-  const raw = await AsyncStorage.getItem(key);
-  return raw ? JSON.parse(raw) : fallback;
-}
+/* =========================
+   ACCOUNT FUNCTIONS
+========================= */
 
-async function writeJSON(key, value) {
-  await AsyncStorage.setItem(key, JSON.stringify(value));
-}
-
-function normalizeEmail(email) {
-  return (email || "").trim().toLowerCase();
-}
-
-export async function getUsers() {
-  return await readJSON(USERS_KEY, []);
-}
-
-async function setUsers(users) {
-  await writeJSON(USERS_KEY, users);
-}
-
-export async function findUserByEmail(email) {
-  const users = await getUsers();
-  const cleanEmail = normalizeEmail(email);
-  return users.find((u) => u.email.toLowerCase() === cleanEmail) || null;
-}
-
-export async function createUser({ fullName, email, password }) {
-  const users = await getUsers();
-  const cleanEmail = normalizeEmail(email);
-
-  const exists = users.some((u) => u.email.toLowerCase() === cleanEmail);
-  if (exists) return { ok: false, message: "Email already exists." };
-
-  const newUser = {
-    id: Date.now().toString(),
-    fullName: fullName.trim(),
-    email: cleanEmail,
-    password,
-    onboardingSeen: false,
-    createdAt: new Date().toISOString(),
-  };
-
-  users.push(newUser);
-  await setUsers(users);
-
-  return { ok: true, user: newUser };
-}
-
-export async function loginUser(email, password) {
-  const users = await getUsers();
-  const cleanEmail = normalizeEmail(email);
-
-  const user = users.find((u) => u.email.toLowerCase() === cleanEmail);
-  if (!user) return { ok: false, message: "Email not found." };
-  if (user.password !== password) return { ok: false, message: "Incorrect password." };
-
-  const accountProfiles = await getAccountProfilesByEmail(user.email);
-  const firstProfile = accountProfiles[0] || null;
-
-  await writeJSON(SESSION_KEY, {
-    id: user.id,
-    email: user.email,
-    accountName: user.fullName,
-    onboardingSeen: !!user.onboardingSeen,
-    activeProfileId: firstProfile?.id || null,
-    activeProfileName: firstProfile?.fullName || user.fullName,
-  });
-
-  return {
-    ok: true,
-    user,
-    needsPatientSetup: accountProfiles.length === 0,
-  };
-}
-
-export async function getSession() {
-  return await readJSON(SESSION_KEY, null);
-}
-
-export async function setSession(sessionData) {
-  await writeJSON(SESSION_KEY, sessionData);
-}
-
-export async function logoutUser() {
-  await AsyncStorage.removeItem(SESSION_KEY);
-}
-
-export async function setOnboardingSeenForUser(userId) {
-  const users = await getUsers();
-  const updated = users.map((u) =>
-    u.id === userId ? { ...u, onboardingSeen: true } : u
-  );
-  await setUsers(updated);
-}
-
-export async function getAllAccountProfiles() {
-  return await readJSON(ACCOUNT_PROFILES_KEY, {});
-}
-
-export async function getAccountProfilesByEmail(email) {
-  const allProfiles = await getAllAccountProfiles();
-  const cleanEmail = normalizeEmail(email);
-  return allProfiles[cleanEmail] || [];
-}
-
-export async function saveAccountProfilesByEmail(email, profiles) {
-  const allProfiles = await getAllAccountProfiles();
-  const cleanEmail = normalizeEmail(email);
-  allProfiles[cleanEmail] = profiles;
-  await writeJSON(ACCOUNT_PROFILES_KEY, allProfiles);
-}
-
-export async function getProfilesForCurrentAccount() {
-  const session = await getSession();
-  if (!session?.email) return [];
-  return await getAccountProfilesByEmail(session.email);
-}
-
-export async function getActiveProfile() {
-  const session = await getSession();
-  if (!session?.email || !session?.activeProfileId) return null;
-
-  const profiles = await getAccountProfilesByEmail(session.email);
-  return profiles.find((p) => p.id === session.activeProfileId) || null;
-}
-
-export async function switchActiveProfile(profileId) {
-  const session = await getSession();
-  if (!session?.email) {
-    return { ok: false, message: "No logged-in user found." };
+export const getAccounts = async () => {
+  try {
+    const data = await AsyncStorage.getItem(ACCOUNTS_KEY);
+    const parsed = data ? JSON.parse(data) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.log("getAccounts error:", error);
+    return [];
   }
+};
 
-  const profiles = await getAccountProfilesByEmail(session.email);
-  const profile = profiles.find((p) => p.id === profileId);
-
-  if (!profile) {
-    return { ok: false, message: "Profile not found." };
+export const saveAccounts = async (accounts) => {
+  try {
+    await AsyncStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+  } catch (error) {
+    console.log("saveAccounts error:", error);
   }
+};
 
-  await setSession({
-    ...session,
-    activeProfileId: profile.id,
-    activeProfileName: profile.fullName,
-  });
+export const createUser = async (userData) => {
+  try {
+    const accounts = await getAccounts();
 
-  return { ok: true, profile };
-}
+    const cleanEmail = (userData?.email || "").trim().toLowerCase();
+    const cleanFullName = (userData?.fullName || "").trim();
+    const cleanPassword = (userData?.password || "").trim();
 
-export async function savePatientProfile(profileData) {
-  const session = await getSession();
-  if (!session?.email) {
-    return { ok: false, message: "No logged-in user found." };
-  }
+    if (!cleanFullName || !cleanEmail || !cleanPassword) {
+      return {
+        success: false,
+        message: "Please fill in all fields.",
+      };
+    }
 
-  const profiles = await getAccountProfilesByEmail(session.email);
+    const emailExists = accounts.some(
+      (acc) => ((acc?.email || "").trim().toLowerCase() === cleanEmail)
+    );
 
-  const newProfile = {
-    id: Date.now().toString(),
-    fullName: profileData.fullName?.trim() || "Profile",
-    dob: profileData.dob || "",
-    age: profileData.age || "",
-    mobile: profileData.mobile || "",
-    email: session.email,
-    medicalHistory: profileData.medicalHistory || {},
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+    if (emailExists) {
+      return {
+        success: false,
+        message: "Email already exists.",
+      };
+    }
 
-  const updatedProfiles = [...profiles, newProfile];
-  await saveAccountProfilesByEmail(session.email, updatedProfiles);
-
-  await setSession({
-    ...session,
-    activeProfileId: newProfile.id,
-    activeProfileName: newProfile.fullName,
-  });
-
-  return { ok: true, profile: newProfile };
-}
-
-export async function updateProfile(profileData) {
-  const session = await getSession();
-  if (!session?.email || !session?.activeProfileId) {
-    return { ok: false, message: "No active profile found." };
-  }
-
-  const profiles = await getAccountProfilesByEmail(session.email);
-
-  let updatedProfile = null;
-
-  const updatedProfiles = profiles.map((p) => {
-    if (p.id !== session.activeProfileId) return p;
-
-    updatedProfile = {
-      ...p,
-      ...profileData,
-      fullName: profileData.fullName ?? p.fullName,
-      dob: profileData.dob ?? p.dob,
-      age: profileData.age ?? p.age,
-      mobile: profileData.mobile ?? p.mobile,
-      email: session.email,
-      medicalHistory: profileData.medicalHistory ?? p.medicalHistory,
-      updatedAt: new Date().toISOString(),
+    const newUser = {
+      id: Date.now().toString(),
+      fullName: cleanFullName,
+      email: cleanEmail,
+      password: cleanPassword,
+      onboardingSeen: false,
+      needsPatientSetup: true,
     };
 
-    return updatedProfile;
-  });
+    const updatedAccounts = [...accounts, newUser];
+    await saveAccounts(updatedAccounts);
 
-  await saveAccountProfilesByEmail(session.email, updatedProfiles);
+    await ensureDefaultProfileForEmail(newUser.email, newUser.fullName);
 
-  await setSession({
-    ...session,
-    activeProfileName: updatedProfile?.fullName || session.activeProfileName,
-  });
+    return {
+      success: true,
+      user: newUser,
+    };
+  } catch (error) {
+    console.log("createUser error:", error);
+    return {
+      success: false,
+      message: "Failed to create user.",
+    };
+  }
+};
 
-  return { ok: true, profile: updatedProfile };
-}
+export const loginUser = async (email, password) => {
+  try {
+    const accounts = await getAccounts();
 
-export async function getPatientProfileByEmail(email) {
-  const session = await getSession();
-  if (!session?.activeProfileId) return null;
+    const cleanEmail = (email || "").trim().toLowerCase();
+    const cleanPassword = (password || "").trim();
 
-  const profiles = await getAccountProfilesByEmail(email);
-  return profiles.find((p) => p.id === session.activeProfileId) || null;
-}
+    const matchedUser = accounts.find(
+      (acc) =>
+        ((acc?.email || "").trim().toLowerCase() === cleanEmail) &&
+        (acc?.password || "") === cleanPassword
+    );
 
-export async function hasPatientSetup(email) {
-  const profiles = await getAccountProfilesByEmail(email);
-  return profiles.length > 0;
-}
+    if (!matchedUser) {
+      return {
+        success: false,
+        message: "Invalid email or password.",
+      };
+    }
 
-export async function clearAllAuthStorage() {
-  await AsyncStorage.multiRemove([
-    USERS_KEY,
-    SESSION_KEY,
-    ACCOUNT_PROFILES_KEY,
-  ]);
-}
+    await saveSession(matchedUser);
+    await ensureDefaultProfileForEmail(
+      matchedUser.email,
+      matchedUser.fullName || "User"
+    );
+
+    return {
+      success: true,
+      user: matchedUser,
+    };
+  } catch (error) {
+    console.log("loginUser error:", error);
+    return {
+      success: false,
+      message: "Login failed.",
+    };
+  }
+};
+
+export const updateUser = async (updatedUser) => {
+  try {
+    const accounts = await getAccounts();
+
+    const updatedAccounts = accounts.map((acc) =>
+      acc.id === updatedUser.id ? { ...acc, ...updatedUser } : acc
+    );
+
+    await saveAccounts(updatedAccounts);
+    await saveSession(updatedUser);
+
+    return {
+      success: true,
+      user: updatedUser,
+    };
+  } catch (error) {
+    console.log("updateUser error:", error);
+    return {
+      success: false,
+      message: "Failed to update user.",
+    };
+  }
+};
+
+export const deleteUser = async (email) => {
+  try {
+    const cleanEmail = (email || "").trim().toLowerCase();
+    const accounts = await getAccounts();
+
+    const filteredAccounts = accounts.filter(
+      (acc) => ((acc?.email || "").trim().toLowerCase() !== cleanEmail)
+    );
+
+    await saveAccounts(filteredAccounts);
+
+    const rawProfiles = await AsyncStorage.getItem(PROFILES_KEY);
+    const parsedProfiles = rawProfiles ? JSON.parse(rawProfiles) : {};
+    const deletedProfiles = parsedProfiles[cleanEmail] || [];
+    delete parsedProfiles[cleanEmail];
+    await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(parsedProfiles));
+
+    const rawActive = await AsyncStorage.getItem(ACTIVE_PROFILE_KEY);
+    const parsedActive = rawActive ? JSON.parse(rawActive) : {};
+    delete parsedActive[cleanEmail];
+    await AsyncStorage.setItem(ACTIVE_PROFILE_KEY, JSON.stringify(parsedActive));
+
+    const rawPatientProfiles = await AsyncStorage.getItem(PATIENT_PROFILES_KEY);
+    const parsedPatientProfiles = rawPatientProfiles
+      ? JSON.parse(rawPatientProfiles)
+      : {};
+
+    deletedProfiles.forEach((profile) => {
+      delete parsedPatientProfiles[profile.id];
+    });
+
+    await AsyncStorage.setItem(
+      PATIENT_PROFILES_KEY,
+      JSON.stringify(parsedPatientProfiles)
+    );
+
+    const session = await getSession();
+    if (((session?.email || "").trim().toLowerCase()) === cleanEmail) {
+      await logoutUser();
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.log("deleteUser error:", error);
+    return {
+      success: false,
+      message: "Failed to delete user.",
+    };
+  }
+};
+
+/* =========================
+   SESSION FUNCTIONS
+========================= */
+
+export const saveSession = async (session) => {
+  try {
+    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  } catch (error) {
+    console.log("saveSession error:", error);
+  }
+};
+
+export const getSession = async () => {
+  try {
+    const data = await AsyncStorage.getItem(SESSION_KEY);
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.log("getSession error:", error);
+    return null;
+  }
+};
+
+export const logoutUser = async () => {
+  try {
+    await AsyncStorage.removeItem(SESSION_KEY);
+  } catch (error) {
+    console.log("logoutUser error:", error);
+  }
+};
+
+/* =========================
+   PROFILE FUNCTIONS
+========================= */
+
+export const getProfilesByEmail = async (email) => {
+  try {
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!cleanEmail) return [];
+
+    const raw = await AsyncStorage.getItem(PROFILES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+
+    return parsed[cleanEmail] || [];
+  } catch (error) {
+    console.log("getProfilesByEmail error:", error);
+    return [];
+  }
+};
+
+export const saveProfilesByEmail = async (email, profiles) => {
+  try {
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!cleanEmail) return;
+
+    const raw = await AsyncStorage.getItem(PROFILES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+
+    parsed[cleanEmail] = profiles;
+
+    await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(parsed));
+  } catch (error) {
+    console.log("saveProfilesByEmail error:", error);
+  }
+};
+
+export const addProfileToEmail = async (email, profileName) => {
+  try {
+    const cleanEmail = (email || "").trim().toLowerCase();
+    const cleanProfileName = (profileName || "").trim();
+
+    if (!cleanEmail || !cleanProfileName) {
+      return {
+        success: false,
+        message: "Profile name is required.",
+      };
+    }
+
+    const profiles = await getProfilesByEmail(cleanEmail);
+
+    const nameExists = profiles.some(
+      (profile) =>
+        ((profile?.name || "").trim().toLowerCase() ===
+          cleanProfileName.toLowerCase())
+    );
+
+    if (nameExists) {
+      return {
+        success: false,
+        message: "Profile name already exists.",
+      };
+    }
+
+    const newProfile = {
+      id: Date.now().toString(),
+      name: cleanProfileName,
+      icon: "person",
+      email: cleanEmail,
+      needsPatientSetup: true,
+    };
+
+    const updatedProfiles = [...profiles, newProfile];
+    await saveProfilesByEmail(cleanEmail, updatedProfiles);
+
+    return {
+      success: true,
+      profile: newProfile,
+      profiles: updatedProfiles,
+    };
+  } catch (error) {
+    console.log("addProfileToEmail error:", error);
+    return {
+      success: false,
+      message: "Failed to add profile.",
+    };
+  }
+};
+
+export const getActiveProfileByEmail = async (email) => {
+  try {
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!cleanEmail) return null;
+
+    const raw = await AsyncStorage.getItem(ACTIVE_PROFILE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+
+    return parsed[cleanEmail] || null;
+  } catch (error) {
+    console.log("getActiveProfileByEmail error:", error);
+    return null;
+  }
+};
+
+export const setActiveProfileByEmail = async (email, profile) => {
+  try {
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!cleanEmail || !profile) return;
+
+    const raw = await AsyncStorage.getItem(ACTIVE_PROFILE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+
+    parsed[cleanEmail] = profile;
+
+    await AsyncStorage.setItem(ACTIVE_PROFILE_KEY, JSON.stringify(parsed));
+  } catch (error) {
+    console.log("setActiveProfileByEmail error:", error);
+  }
+};
+
+export const ensureDefaultProfileForEmail = async (
+  email,
+  fallbackName = "User"
+) => {
+  try {
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!cleanEmail) {
+      return { profiles: [], activeProfile: null };
+    }
+
+    let profiles = await getProfilesByEmail(cleanEmail);
+
+    if (profiles.length === 0) {
+      const defaultProfile = {
+        id: Date.now().toString(),
+        name: fallbackName,
+        icon: "person",
+        email: cleanEmail,
+        needsPatientSetup: true,
+      };
+
+      profiles = [defaultProfile];
+      await saveProfilesByEmail(cleanEmail, profiles);
+      await setActiveProfileByEmail(cleanEmail, defaultProfile);
+
+      return {
+        profiles,
+        activeProfile: defaultProfile,
+      };
+    }
+
+    let activeProfile = await getActiveProfileByEmail(cleanEmail);
+    const stillExists = profiles.find((p) => p.id === activeProfile?.id);
+
+    if (!activeProfile || !stillExists) {
+      activeProfile = profiles[0];
+      await setActiveProfileByEmail(cleanEmail, activeProfile);
+    }
+
+    return {
+      profiles,
+      activeProfile,
+    };
+  } catch (error) {
+    console.log("ensureDefaultProfileForEmail error:", error);
+    return { profiles: [], activeProfile: null };
+  }
+};
+
+export const updateProfileInAccount = async (email, updatedProfile) => {
+  try {
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!cleanEmail || !updatedProfile?.id) {
+      return {
+        success: false,
+        message: "Invalid profile.",
+      };
+    }
+
+    const profiles = await getProfilesByEmail(cleanEmail);
+
+    const updatedProfiles = profiles.map((profile) =>
+      profile.id === updatedProfile.id ? { ...profile, ...updatedProfile } : profile
+    );
+
+    await saveProfilesByEmail(cleanEmail, updatedProfiles);
+
+    const activeProfile = await getActiveProfileByEmail(cleanEmail);
+    if (activeProfile?.id === updatedProfile.id) {
+      await setActiveProfileByEmail(cleanEmail, {
+        ...activeProfile,
+        ...updatedProfile,
+      });
+    }
+
+    return {
+      success: true,
+      profiles: updatedProfiles,
+    };
+  } catch (error) {
+    console.log("updateProfileInAccount error:", error);
+    return {
+      success: false,
+      message: "Failed to update profile.",
+    };
+  }
+};
+
+export const getCurrentActiveProfileForSession = async () => {
+  try {
+    const session = await getSession();
+    const cleanEmail = (session?.email || "").trim().toLowerCase();
+    if (!cleanEmail) return null;
+
+    const setup = await ensureDefaultProfileForEmail(
+      cleanEmail,
+      session?.fullName || "User"
+    );
+
+    return setup?.activeProfile || (await getActiveProfileByEmail(cleanEmail));
+  } catch (error) {
+    console.log("getCurrentActiveProfileForSession error:", error);
+    return null;
+  }
+};
+
+/* =========================
+   PATIENT PROFILE FUNCTIONS
+   SAVED PER PROFILE ID
+========================= */
+
+export const getPatientProfiles = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(PATIENT_PROFILES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    console.log("getPatientProfiles error:", error);
+    return {};
+  }
+};
+
+export const savePatientProfileByProfileId = async (profileId, payload) => {
+  try {
+    const cleanProfileId = (profileId || "").trim();
+    if (!cleanProfileId) {
+      return {
+        success: false,
+        message: "Profile id is required.",
+      };
+    }
+
+    const existingProfiles = await getPatientProfiles();
+
+    existingProfiles[cleanProfileId] = {
+      ...(existingProfiles[cleanProfileId] || {}),
+      ...payload,
+      profileId: cleanProfileId,
+    };
+
+    await AsyncStorage.setItem(
+      PATIENT_PROFILES_KEY,
+      JSON.stringify(existingProfiles)
+    );
+
+    return {
+      success: true,
+      profile: existingProfiles[cleanProfileId],
+    };
+  } catch (error) {
+    console.log("savePatientProfileByProfileId error:", error);
+    return {
+      success: false,
+      message: "Failed to save patient profile.",
+    };
+  }
+};
+
+export const getPatientProfileByProfileId = async (profileId) => {
+  try {
+    const cleanProfileId = (profileId || "").trim();
+    if (!cleanProfileId) return null;
+
+    const profiles = await getPatientProfiles();
+    return profiles[cleanProfileId] || null;
+  } catch (error) {
+    console.log("getPatientProfileByProfileId error:", error);
+    return null;
+  }
+};
+
+export const updatePatientProfileByProfileId = async (profileId, updates) => {
+  try {
+    const cleanProfileId = (profileId || "").trim();
+    if (!cleanProfileId) {
+      return {
+        success: false,
+        message: "Profile id is required.",
+      };
+    }
+
+    const profiles = await getPatientProfiles();
+    const existing = profiles[cleanProfileId] || {};
+
+    profiles[cleanProfileId] = {
+      ...existing,
+      ...updates,
+      profileId: cleanProfileId,
+    };
+
+    await AsyncStorage.setItem(PATIENT_PROFILES_KEY, JSON.stringify(profiles));
+
+    return {
+      success: true,
+      profile: profiles[cleanProfileId],
+    };
+  } catch (error) {
+    console.log("updatePatientProfileByProfileId error:", error);
+    return {
+      success: false,
+      message: "Failed to update patient profile.",
+    };
+  }
+};
+
+export const setPatientSetupDoneForProfile = async (email, profileId) => {
+  try {
+    const cleanEmail = (email || "").trim().toLowerCase();
+    const cleanProfileId = (profileId || "").trim();
+
+    if (!cleanEmail || !cleanProfileId) return;
+
+    const profiles = await getProfilesByEmail(cleanEmail);
+    const updatedProfiles = profiles.map((profile) =>
+      profile.id === cleanProfileId
+        ? { ...profile, needsPatientSetup: false }
+        : profile
+    );
+
+    await saveProfilesByEmail(cleanEmail, updatedProfiles);
+
+    const activeProfile = await getActiveProfileByEmail(cleanEmail);
+    if (activeProfile?.id === cleanProfileId) {
+      await setActiveProfileByEmail(cleanEmail, {
+        ...activeProfile,
+        needsPatientSetup: false,
+      });
+    }
+  } catch (error) {
+    console.log("setPatientSetupDoneForProfile error:", error);
+  }
+};
+
+export const setPatientSetupDoneForUser = async (email) => {
+  try {
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!cleanEmail) return;
+
+    const accounts = await getAccounts();
+
+    const updatedAccounts = accounts.map((acc) =>
+      ((acc?.email || "").trim().toLowerCase() === cleanEmail)
+        ? { ...acc, needsPatientSetup: false }
+        : acc
+    );
+
+    await saveAccounts(updatedAccounts);
+
+    const session = await getSession();
+    if (((session?.email || "").trim().toLowerCase()) === cleanEmail) {
+      const updatedSession = { ...session, needsPatientSetup: false };
+      await saveSession(updatedSession);
+    }
+  } catch (error) {
+    console.log("setPatientSetupDoneForUser error:", error);
+  }
+};
+
+/* =========================
+   ONBOARDING FUNCTIONS
+========================= */
+
+export const setOnboardingSeenForUser = async (email) => {
+  try {
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!cleanEmail) return;
+
+    const accounts = await getAccounts();
+
+    const updatedAccounts = accounts.map((acc) =>
+      ((acc?.email || "").trim().toLowerCase() === cleanEmail)
+        ? { ...acc, onboardingSeen: true }
+        : acc
+    );
+
+    await saveAccounts(updatedAccounts);
+
+    const session = await getSession();
+    if (((session?.email || "").trim().toLowerCase()) === cleanEmail) {
+      const updatedSession = { ...session, onboardingSeen: true };
+      await saveSession(updatedSession);
+    }
+  } catch (error) {
+    console.log("setOnboardingSeenForUser error:", error);
+  }
+};
+
+export const getOnboardingSeenForUser = async (email) => {
+  try {
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!cleanEmail) return false;
+
+    const accounts = await getAccounts();
+
+    const user = accounts.find(
+      (acc) => ((acc?.email || "").trim().toLowerCase() === cleanEmail)
+    );
+
+    return !!user?.onboardingSeen;
+  } catch (error) {
+    console.log("getOnboardingSeenForUser error:", error);
+    return false;
+  }
+};

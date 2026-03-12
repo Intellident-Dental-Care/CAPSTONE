@@ -1,14 +1,17 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../theme/colors";
 import {
-  getActiveProfile,
-  getProfilesForCurrentAccount,
+  getSession,
+  getProfilesByEmail,
+  getActiveProfileByEmail,
+  setActiveProfileByEmail,
+  ensureDefaultProfileForEmail,
+  addProfileToEmail,
   logoutUser,
-  switchActiveProfile,
 } from "../storage/authStorage";
 import ProfileSwitcherModal from "../components/ProfileSwitcherModal";
 
@@ -20,15 +23,46 @@ export default function Profile() {
   const [profiles, setProfiles] = useState([]);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [loggedInEmail, setLoggedInEmail] = useState("");
 
   const loadProfiles = async () => {
-    const active = await getActiveProfile();
-    const allProfiles = await getProfilesForCurrentAccount();
+    try {
+      const session = await getSession();
+      const accountEmail = (session?.email || "").trim().toLowerCase();
 
-    setSelectedProfile(active);
-    setProfiles(allProfiles);
-    setFullName(active?.fullName || "User");
-    setEmail(active?.email || "user@email.com");
+      setLoggedInEmail(accountEmail);
+
+      if (!accountEmail) {
+        setSelectedProfile(null);
+        setProfiles([]);
+        setFullName("User");
+        setEmail("user@email.com");
+        return;
+      }
+
+      const setup = await ensureDefaultProfileForEmail(
+        accountEmail,
+        session?.fullName || "User"
+      );
+
+      let activeProfile = setup?.activeProfile;
+      let allProfiles = setup?.profiles || [];
+
+      if (!activeProfile) {
+        activeProfile = await getActiveProfileByEmail(accountEmail);
+      }
+
+      if (!allProfiles.length) {
+        allProfiles = await getProfilesByEmail(accountEmail);
+      }
+
+      setSelectedProfile(activeProfile || null);
+      setProfiles(allProfiles || []);
+      setFullName(activeProfile?.name || session?.fullName || "User");
+      setEmail(accountEmail || "user@email.com");
+    } catch (error) {
+      console.log("loadProfiles error:", error);
+    }
   };
 
   useFocusEffect(
@@ -38,19 +72,56 @@ export default function Profile() {
   );
 
   const handleSelectProfile = async (profile) => {
-    await switchActiveProfile(profile.id);
-    await loadProfiles();
+    try {
+      if (!loggedInEmail || !profile) return;
+
+      await setActiveProfileByEmail(loggedInEmail, profile);
+      setSelectedProfile(profile);
+      setFullName(profile?.name || "User");
+      setProfileModalVisible(false);
+    } catch (error) {
+      console.log("handleSelectProfile error:", error);
+    }
   };
 
-  const handleAddProfile = () => {
-    setProfileModalVisible(false);
-    router.push("/patient-first-setup?mode=add-profile");
+  const handleAddProfile = async (profileName) => {
+    try {
+      if (!loggedInEmail || !profileName?.trim()) return;
+
+      const result = await addProfileToEmail(loggedInEmail, profileName);
+
+      if (!result.success) {
+        Alert.alert(
+          "Unable to add profile",
+          result.message || "Please try again."
+        );
+        return;
+      }
+
+      if (result.profile) {
+        await setActiveProfileByEmail(loggedInEmail, result.profile);
+        setSelectedProfile(result.profile);
+        setFullName(result.profile.name || "User");
+        setProfileModalVisible(false);
+        router.push("/patient-first-setup");
+        return;
+      }
+
+      await loadProfiles();
+    } catch (error) {
+      console.log("handleAddProfile error:", error);
+      Alert.alert("Error", "Failed to add profile.");
+    }
   };
 
   const handleLogout = async () => {
-    setProfileModalVisible(false);
-    await logoutUser();
-    router.replace("/get-started");
+    try {
+      setProfileModalVisible(false);
+      await logoutUser();
+      router.replace("/get-started");
+    } catch (error) {
+      console.log("handleLogout error:", error);
+    }
   };
 
   const Row = ({ icon, label, onPress }) => (
@@ -111,9 +182,21 @@ export default function Profile() {
           onPress={() => router.push("/profile/my-profile")}
         />
         <Row icon="settings-outline" label="Settings" onPress={() => {}} />
-        <Row icon="notifications-outline" label="Notifications" onPress={() => {}} />
-        <Row icon="chatbubble-ellipses-outline" label="FAQ" onPress={() => {}} />
-        <Row icon="information-circle-outline" label="About" onPress={() => {}} />
+        <Row
+          icon="notifications-outline"
+          label="Notifications"
+          onPress={() => {}}
+        />
+        <Row
+          icon="chatbubble-ellipses-outline"
+          label="FAQ"
+          onPress={() => {}}
+        />
+        <Row
+          icon="information-circle-outline"
+          label="About"
+          onPress={() => {}}
+        />
       </View>
 
       <ProfileSwitcherModal

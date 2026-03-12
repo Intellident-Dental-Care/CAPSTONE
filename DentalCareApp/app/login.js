@@ -70,23 +70,25 @@ export default function Login() {
   const handleLogin = async () => {
     setError("");
 
-    if (!email.trim() || !password) {
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !password) {
       setError("Please enter your email and password.");
       return;
     }
 
     try {
       setLoading(true);
-      const res = await loginUser(email, password);
+      const res = await loginUser(cleanEmail, password);
       setLoading(false);
 
-      if (!res.ok) {
-        setError(res.message);
+      if (!res.success) {
+        setError(res.message || "Login failed.");
         return;
       }
 
-      const firstTimeOnboarding = !res.user.onboardingSeen;
-      const needsPatientSetup = res.needsPatientSetup;
+      const firstTimeOnboarding = !res.user?.onboardingSeen;
+      const needsPatientSetup = res.user?.needsPatientSetup;
 
       Animated.parallel([
         Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
@@ -104,9 +106,10 @@ export default function Login() {
           }
         }, 60);
       });
-    } catch {
+    } catch (error) {
       setLoading(false);
       setError("Something went wrong. Please try again.");
+      console.log("handleLogin error:", error);
     }
   };
 
@@ -211,7 +214,9 @@ export default function Login() {
               </View>
 
               <View style={styles.bottomTextRow}>
-                <Text style={{ color: colors.textGray, fontSize: 12 }}>Don’t have an account? </Text>
+                <Text style={{ color: colors.textGray, fontSize: 12 }}>
+                  Don’t have an account?{" "}
+                </Text>
                 <Pressable onPress={() => switchTo("/signup")} disabled={loading}>
                   <Text style={styles.linkPink}>Sign Up</Text>
                 </Pressable>

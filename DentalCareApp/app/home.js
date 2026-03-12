@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   Modal,
+  Alert,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
@@ -14,31 +15,14 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import ProfileSwitcherModal from "./components/ProfileSwitcherModal";
 import {
-  getActiveProfile,
-  getProfilesForCurrentAccount,
+  getSession,
+  getProfilesByEmail,
+  getActiveProfileByEmail,
+  setActiveProfileByEmail,
+  ensureDefaultProfileForEmail,
+  addProfileToEmail,
   logoutUser,
-  switchActiveProfile,
 } from "./storage/authStorage";
-
-const SERVICES = [
-  "Teeth Cleaning",
-  "Tooth Extraction",
-  "Dental Filling",
-  "Braces Consultation",
-  "Teeth Whitening",
-];
-
-const BRANCHES = [
-  "GC Dental Care - Dasma Branch",
-  "GC Dental Care - Imus Branch",
-  "GC Dental Care - Bacoor Branch",
-];
-
-const DOCTORS = [
-  "Dr. Mendoza",
-  "Dr. Guillermo",
-  "Dr. Amparo",
-];
 
 export default function Home() {
   const router = useRouter();
@@ -47,6 +31,7 @@ export default function Home() {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [profiles, setProfiles] = useState([]);
+  const [loggedInEmail, setLoggedInEmail] = useState("");
 
   const [flowModalVisible, setFlowModalVisible] = useState(false);
   const [flowStep, setFlowStep] = useState("start");
@@ -55,12 +40,41 @@ export default function Home() {
   const [selectedDoctor, setSelectedDoctor] = useState("");
 
   const loadProfiles = async () => {
-    const active = await getActiveProfile();
-    const allProfiles = await getProfilesForCurrentAccount();
+    try {
+      const session = await getSession();
+      const email = (session?.email || "").trim().toLowerCase();
 
-    setSelectedProfile(active);
-    setProfiles(allProfiles);
-    setFullName(active?.fullName || "User");
+      setLoggedInEmail(email);
+
+      if (!email) {
+        setSelectedProfile(null);
+        setProfiles([]);
+        setFullName("User");
+        return;
+      }
+
+      const setup = await ensureDefaultProfileForEmail(
+        email,
+        session?.fullName || "User"
+      );
+
+      let activeProfile = setup?.activeProfile;
+      let allProfiles = setup?.profiles || [];
+
+      if (!activeProfile) {
+        activeProfile = await getActiveProfileByEmail(email);
+      }
+
+      if (!allProfiles.length) {
+        allProfiles = await getProfilesByEmail(email);
+      }
+
+      setSelectedProfile(activeProfile || null);
+      setProfiles(allProfiles || []);
+      setFullName(activeProfile?.name || session?.fullName || "User");
+    } catch (error) {
+      console.log("loadProfiles error:", error);
+    }
   };
 
   useFocusEffect(
@@ -70,19 +84,56 @@ export default function Home() {
   );
 
   const handleSelectProfile = async (profile) => {
-    await switchActiveProfile(profile.id);
-    await loadProfiles();
+    try {
+      if (!loggedInEmail || !profile) return;
+
+      await setActiveProfileByEmail(loggedInEmail, profile);
+      setSelectedProfile(profile);
+      setFullName(profile?.name || "User");
+      setProfileModalVisible(false);
+    } catch (error) {
+      console.log("handleSelectProfile error:", error);
+    }
   };
 
-  const handleAddProfile = () => {
-    setProfileModalVisible(false);
-    router.push("/patient-first-setup?mode=add-profile");
+  const handleAddProfile = async (profileName) => {
+    try {
+      if (!loggedInEmail || !profileName?.trim()) return;
+
+      const result = await addProfileToEmail(loggedInEmail, profileName);
+
+      if (!result.success) {
+        Alert.alert(
+          "Unable to add profile",
+          result.message || "Please try again."
+        );
+        return;
+      }
+
+      if (result.profile) {
+        await setActiveProfileByEmail(loggedInEmail, result.profile);
+        setSelectedProfile(result.profile);
+        setFullName(result.profile.name || "User");
+        setProfileModalVisible(false);
+        router.push("/patient-first-setup");
+        return;
+      }
+
+      await loadProfiles();
+    } catch (error) {
+      console.log("handleAddProfile error:", error);
+      Alert.alert("Error", "Failed to add profile.");
+    }
   };
 
   const handleLogout = async () => {
-    setProfileModalVisible(false);
-    await logoutUser();
-    router.replace("/get-started");
+    try {
+      setProfileModalVisible(false);
+      await logoutUser();
+      router.replace("/get-started");
+    } catch (error) {
+      console.log("handleLogout error:", error);
+    }
   };
 
   const openFlowModal = () => {
@@ -110,8 +161,6 @@ export default function Home() {
     closeFlowModal();
     router.push("/booking");
   };
-
-  
 
   return (
     <View style={styles.screen}>
@@ -404,8 +453,6 @@ export default function Home() {
                 </Pressable>
               </>
             )}
-
-            
           </Pressable>
         </Pressable>
       </Modal>

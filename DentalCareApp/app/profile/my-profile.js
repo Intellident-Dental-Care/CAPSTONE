@@ -14,8 +14,10 @@ import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
 import {
   getSession,
-  getPatientProfileByEmail,
-  updateProfile,
+  getCurrentActiveProfileForSession,
+  getPatientProfileByProfileId,
+  updatePatientProfileByProfileId,
+  updateProfileInAccount,
 } from "../storage/authStorage";
 
 function calculateAge(dobValue) {
@@ -42,6 +44,8 @@ function calculateAge(dobValue) {
 export default function MyProfile() {
   const router = useRouter();
 
+  const [profileId, setProfileId] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [dob, setDob] = useState("");
   const [mobile, setMobile] = useState("");
@@ -53,23 +57,36 @@ export default function MyProfile() {
   useEffect(() => {
     (async () => {
       const session = await getSession();
-      if (!session?.email) return;
+      const activeProfile = await getCurrentActiveProfileForSession();
 
+      if (!session?.email || !activeProfile?.id) return;
+
+      setAccountEmail(session.email);
+      setProfileId(activeProfile.id);
       setEmail(session.email);
-      if (session?.fullName) setFullName(session.fullName);
 
-      const patientProfile = await getPatientProfileByEmail(session.email);
+      const patientProfile = await getPatientProfileByProfileId(activeProfile.id);
 
       if (patientProfile) {
-        setFullName(patientProfile.fullName || session.fullName || "");
+        setFullName(patientProfile.fullName || activeProfile.name || "");
         setDob(patientProfile.dob || "");
         setMobile(patientProfile.mobile || "");
         setEmail(patientProfile.email || session.email || "");
+      } else {
+        setFullName(activeProfile.name || session.fullName || "");
+        setDob("");
+        setMobile("");
+        setEmail(session.email);
       }
     })();
   }, []);
 
   const onSave = async () => {
+    if (!profileId) {
+      Alert.alert("Error", "No active profile found.");
+      return;
+    }
+
     if (!fullName.trim()) {
       Alert.alert("Required", "Please enter your full name.");
       return;
@@ -88,14 +105,10 @@ export default function MyProfile() {
     try {
       setLoading(true);
 
-      const session = await getSession();
-      const existingProfile = session?.email
-        ? await getPatientProfileByEmail(session.email)
-        : null;
-
+      const existingProfile = await getPatientProfileByProfileId(profileId);
       const medicalHistory = existingProfile?.medicalHistory || {};
 
-      await updateProfile({
+      const result = await updatePatientProfileByProfileId(profileId, {
         fullName,
         dob,
         age,
@@ -103,6 +116,19 @@ export default function MyProfile() {
         email,
         medicalHistory,
       });
+
+      if (!result.success) {
+        setLoading(false);
+        Alert.alert("Error", result.message || "Failed to update profile.");
+        return;
+      }
+
+      if (accountEmail) {
+        await updateProfileInAccount(accountEmail, {
+          id: profileId,
+          name: fullName,
+        });
+      }
 
       setLoading(false);
       Alert.alert("Success", "Profile updated successfully.");

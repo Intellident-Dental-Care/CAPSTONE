@@ -10,8 +10,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
 import {
-  getSession,
-  getPatientProfileByEmail,
+  getCurrentActiveProfileForSession,
+  getPatientProfileByProfileId,
 } from "../storage/authStorage";
 
 function Row({ label, value }) {
@@ -44,13 +44,7 @@ function YesNoRow({ label, value }) {
               : "remove-circle"
           }
           size={18}
-          color={
-            isYes
-              ? "#2ecc71"
-              : isNo
-              ? "#e74c3c"
-              : "#bdbdbd"
-          }
+          color={isYes ? "#2ecc71" : isNo ? "#e74c3c" : "#bdbdbd"}
         />
         <Text style={styles.infoValue}>{normalized || "—"}</Text>
       </View>
@@ -77,10 +71,10 @@ export default function MedicalHistory() {
 
   useEffect(() => {
     (async () => {
-      const session = await getSession();
-      if (!session?.email) return;
+      const activeProfile = await getCurrentActiveProfileForSession();
+      if (!activeProfile?.id) return;
 
-      const profile = await getPatientProfileByEmail(session.email);
+      const profile = await getPatientProfileByProfileId(activeProfile.id);
       if (profile?.medicalHistory) {
         setMedical(profile.medicalHistory);
       }
@@ -152,18 +146,19 @@ export default function MedicalHistory() {
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
         <SectionCard title="General Health">
           <YesNoRow label="1. Are you in good health?" value={medical.goodHealth} />
           <YesNoRow label="2. Are you under medical treatment now?" value={medical.underTreatment} />
           <Row label="Condition being treated" value={medical.treatmentCondition} />
-
           <YesNoRow
             label="3. Serious illness or surgical operation?"
             value={medical.seriousIllness}
           />
           <Row label="Illness / operation details" value={medical.illnessOperation} />
-
           <YesNoRow label="4. Have you ever been hospitalized?" value={medical.hospitalized} />
           <Row label="Hospitalization details" value={medical.hospitalizedReason} />
         </SectionCard>
@@ -174,7 +169,6 @@ export default function MedicalHistory() {
             value={medical.takingMedication}
           />
           <Row label="Medication details" value={medical.medicationDetails} />
-
           <YesNoRow label="6. Use tobacco products?" value={medical.useTobacco} />
           <YesNoRow
             label="7. Use alcohol, cocaine, or other dangerous drugs?"

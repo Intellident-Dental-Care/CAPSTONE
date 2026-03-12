@@ -11,7 +11,14 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "./theme/colors";
-import { getSession, savePatientProfile } from "./storage/authStorage";
+import {
+  getSession,
+  getCurrentActiveProfileForSession,
+  getPatientProfileByProfileId,
+  savePatientProfileByProfileId,
+  setPatientSetupDoneForProfile,
+  setPatientSetupDoneForUser,
+} from "./storage/authStorage";
 
 function calculateAge(dobValue) {
   if (!dobValue) return "";
@@ -66,6 +73,7 @@ function CheckboxItem({ label, checked, onPress }) {
 export default function PatientFirstSetup() {
   const router = useRouter();
 
+  const [profileId, setProfileId] = useState("");
   const [fullName, setFullName] = useState("");
   const [dob, setDob] = useState("");
   const [mobile, setMobile] = useState("");
@@ -142,9 +150,99 @@ export default function PatientFirstSetup() {
   useEffect(() => {
     (async () => {
       const session = await getSession();
-      if (session?.fullName) setFullName(session.fullName);
+      const activeProfile = await getCurrentActiveProfileForSession();
+
       if (session?.email) setEmail(session.email);
-      if (session?.mobile) setMobile(session.mobile);
+
+      if (activeProfile?.id) {
+        setProfileId(activeProfile.id);
+      }
+
+      if (activeProfile?.name) {
+        setFullName(activeProfile.name);
+      } else if (session?.fullName) {
+        setFullName(session.fullName);
+      }
+
+      const existingPatientProfile = activeProfile?.id
+        ? await getPatientProfileByProfileId(activeProfile.id)
+        : null;
+
+      if (existingPatientProfile) {
+        setFullName(existingPatientProfile.fullName || activeProfile?.name || "");
+        setDob(existingPatientProfile.dob || "");
+        setMobile(existingPatientProfile.mobile || "");
+        setEmail(existingPatientProfile.email || session?.email || "");
+
+        const medical = existingPatientProfile.medicalHistory || {};
+
+        setGoodHealth(medical.goodHealth || "");
+        setUnderTreatment(medical.underTreatment || "");
+        setTreatmentCondition(medical.treatmentCondition || "");
+        setSeriousIllness(medical.seriousIllness || "");
+        setIllnessOperation(medical.illnessOperation || "");
+        setHospitalized(medical.hospitalized || "");
+        setHospitalizedReason(medical.hospitalizedReason || "");
+        setTakingMedication(medical.takingMedication || "");
+        setMedicationDetails(medical.medicationDetails || "");
+        setUseTobacco(medical.useTobacco || "");
+        setUseAlcoholDrugs(medical.useAlcoholDrugs || "");
+        setBleedingTime(medical.bleedingTime || "");
+        setPregnant(medical.pregnant || "");
+        setNursing(medical.nursing || "");
+        setBirthControl(medical.birthControl || "");
+        setBloodType(medical.bloodType || "");
+        setBloodPressure(medical.bloodPressure || "");
+        setAllergies(
+          medical.allergies || {
+            localAnesthetic: false,
+            penicillin: false,
+            sulfa: false,
+            aspirin: false,
+            latex: false,
+          }
+        );
+        setAllergyOthers(medical.allergyOthers || "");
+        setConditions(
+          medical.conditions || {
+            highBloodPressure: false,
+            lowBloodPressure: false,
+            epilepsy: false,
+            aidsHiv: false,
+            std: false,
+            stomachUlcer: false,
+            faintingSeizure: false,
+            rapidWeightLoss: false,
+            radiationTherapy: false,
+            jointReplacement: false,
+            heartSurgery: false,
+            heartAttack: false,
+            thyroidProblem: false,
+            heartDisease: false,
+            heartMurmur: false,
+            hepatitisLiver: false,
+            rheumaticFever: false,
+            hayFever: false,
+            respiratoryProblems: false,
+            hepatitisJaundice: false,
+            tuberculosis: false,
+            swollenAnkles: false,
+            kidneyDisease: false,
+            diabetes: false,
+            chestPain: false,
+            stroke: false,
+            cancerTumors: false,
+            anemia: false,
+            angina: false,
+            asthma: false,
+            emphysema: false,
+            bleedingProblems: false,
+            headInjuries: false,
+            arthritisRheumatism: false,
+          }
+        );
+        setConditionOthers(medical.conditionOthers || "");
+      }
     })();
   }, []);
 
@@ -157,6 +255,11 @@ export default function PatientFirstSetup() {
   };
 
   const onSave = async () => {
+    if (!profileId) {
+      Alert.alert("Error", "No active profile found.");
+      return;
+    }
+
     if (!fullName.trim()) {
       Alert.alert("Required", "Please enter your full name.");
       return;
@@ -178,7 +281,6 @@ export default function PatientFirstSetup() {
       age,
       mobile,
       email,
-
       medicalHistory: {
         goodHealth,
         underTreatment,
@@ -204,7 +306,18 @@ export default function PatientFirstSetup() {
       },
     };
 
-    await savePatientProfile(payload);
+    const result = await savePatientProfileByProfileId(profileId, payload);
+
+    if (!result.success) {
+      Alert.alert("Error", result.message || "Failed to save medical form.");
+      return;
+    }
+
+    if (email) {
+      await setPatientSetupDoneForProfile(email, profileId);
+      await setPatientSetupDoneForUser(email);
+    }
+
     Alert.alert("Success", "Your medical form has been saved.", [
       {
         text: "OK",
@@ -430,7 +543,7 @@ export default function PatientFirstSetup() {
         <CheckboxItem label="Anemia" checked={conditions.anemia} onPress={() => toggleCondition("anemia")} />
         <CheckboxItem label="Angina" checked={conditions.angina} onPress={() => toggleCondition("angina")} />
         <CheckboxItem label="Asthma" checked={conditions.asthma} onPress={() => toggleCondition("asthma")} />
-        <CheckboxItem label="Emphysemia" checked={conditions.emphysemia} onPress={() => toggleCondition("emphysemia")} />
+        <CheckboxItem label="Emphysemia" checked={conditions.emphysema} onPress={() => toggleCondition("emphysema")} />
         <CheckboxItem label="Bleeding Problems" checked={conditions.bleedingProblems} onPress={() => toggleCondition("bleedingProblems")} />
         <CheckboxItem label="Head Injuries" checked={conditions.headInjuries} onPress={() => toggleCondition("headInjuries")} />
         <CheckboxItem label="Arthritis or Rheumatism" checked={conditions.arthritisRheumatism} onPress={() => toggleCondition("arthritisRheumatism")} />
@@ -459,23 +572,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     paddingTop: 46,
   },
+
   scroll: {
     paddingHorizontal: 24,
     paddingBottom: 30,
   },
+
   header: {
     marginBottom: 8,
   },
+
   headerTitle: {
     fontSize: 22,
     fontWeight: "900",
     color: colors.primary,
   },
+
   headerSub: {
     marginTop: 4,
     fontSize: 12,
     color: colors.textGray,
   },
+
   sectionTitle: {
     marginTop: 20,
     marginBottom: 8,
@@ -484,12 +602,14 @@ const styles = StyleSheet.create({
     color: "#777",
     textTransform: "uppercase",
   },
+
   label: {
     marginTop: 12,
     fontSize: 10,
     color: colors.textGray,
     fontWeight: "700",
   },
+
   question: {
     marginTop: 18,
     marginBottom: 8,
@@ -497,6 +617,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: colors.textDark,
   },
+
   smallLabel: {
     marginTop: 12,
     marginBottom: 4,
@@ -504,6 +625,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.textDark,
   },
+
   input: {
     marginTop: 6,
     height: 46,
@@ -515,21 +637,25 @@ const styles = StyleSheet.create({
     color: colors.textDark,
     backgroundColor: "#fff",
   },
+
   disabledInput: {
     backgroundColor: "#f7f7f7",
     color: "#777",
   },
+
   radioRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 20,
     marginBottom: 4,
   },
+
   radioOption: {
     flexDirection: "row",
     alignItems: "center",
     marginRight: 18,
   },
+
   radioCircle: {
     width: 22,
     height: 22,
@@ -541,59 +667,64 @@ const styles = StyleSheet.create({
     marginRight: 8,
     backgroundColor: "#fff",
   },
+
   radioActive: {
     borderColor: colors.primary,
   },
+
   radioInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
     backgroundColor: colors.primary,
   },
+
   radioText: {
     fontSize: 13,
     color: colors.textDark,
+    fontWeight: "600",
   },
+
   checkItem: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
+    marginBottom: 8,
   },
+
   checkbox: {
     width: 20,
     height: 20,
     borderRadius: 4,
-    borderWidth: 1.2,
+    borderWidth: 1.5,
     borderColor: "#bbb",
-    backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
   },
+
   checkboxActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
+
   checkLabel: {
-    flex: 1,
     fontSize: 13,
     color: colors.textDark,
+    fontWeight: "600",
   },
+
   saveBtn: {
-    marginTop: 28,
-    height: 50,
-    borderRadius: 25,
+    marginTop: 30,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
   },
+
   saveText: {
     color: "#fff",
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "900",
   },
 });

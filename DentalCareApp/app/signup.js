@@ -39,17 +39,41 @@ export default function Signup() {
 
   const close = () => {
     Animated.parallel([
-      Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
-      Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+      Animated.timing(backdrop, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: H,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(logoAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
     ]).start(() => router.back());
   };
 
   const switchTo = (path) => {
     Animated.parallel([
-      Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
-      Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+      Animated.timing(backdrop, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: H,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(logoAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
     ]).start(() => {
       router.back();
       setTimeout(() => router.push(path), 50);
@@ -58,28 +82,54 @@ export default function Signup() {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(backdrop, { toValue: 1, duration: 220, useNativeDriver: true }),
-      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 140 }),
-      Animated.spring(logoAnim, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 140 }),
+      Animated.timing(backdrop, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 18,
+        stiffness: 140,
+      }),
+      Animated.spring(logoAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        damping: 18,
+        stiffness: 140,
+      }),
     ]).start();
   }, [backdrop, translateY, logoAnim]);
 
   const logoStyle = useMemo(() => {
-    const scale = logoAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.72] });
-    const ty = logoAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -22] });
+    const scale = logoAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [1, 0.72],
+    });
+    const ty = logoAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, -22],
+    });
     return { transform: [{ translateY: ty }, { scale }] };
   }, [logoAnim]);
 
   const handleSignup = async () => {
     setError("");
-    if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
+
+    const cleanFullName = fullName.trim();
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanFullName || !cleanEmail || !password || !confirmPassword) {
       setError("Please fill in all fields.");
       return;
     }
 
     const strongPassword = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
     if (!strongPassword.test(password)) {
-      setError("Password must be at least 8 characters and include 1 uppercase letter, 1 number, and 1 special character.");
+      setError(
+        "Password must be at least 8 characters and include 1 uppercase letter, 1 number, and 1 special character."
+      );
       return;
     }
 
@@ -90,27 +140,49 @@ export default function Signup() {
 
     try {
       setLoading(true);
-      const res = await createUser({ fullName, email: email.trim(), password });
+
+      const res = await createUser({
+        fullName: cleanFullName,
+        email: cleanEmail,
+        password,
+      });
+
       setLoading(false);
 
-      if (!res.ok) {
-        setError(res.message);
+      if (!res.success) {
+        setError(res.message || "Signup failed.");
         return;
       }
 
       Animated.parallel([
-        Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
-        Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+        Animated.timing(backdrop, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: H,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoAnim, {
+          toValue: 0,
+          duration: 220,
+          useNativeDriver: true,
+        }),
       ]).start(() => {
         router.back();
         setTimeout(() => {
-          router.push({ pathname: "/otp-verification", params: { email: email.trim() } });
+          router.push({
+            pathname: "/otp-verification",
+            params: { email: cleanEmail },
+          });
         }, 60);
       });
-    } catch {
+    } catch (error) {
       setLoading(false);
       setError("Something went wrong. Please try again.");
+      console.log("handleSignup error:", error);
     }
   };
 
@@ -120,33 +192,49 @@ export default function Signup() {
         <Animated.View
           style={[
             styles.backdrop,
-            { opacity: backdrop.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] }) },
+            {
+              opacity: backdrop.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0.35],
+              }),
+            },
           ]}
         />
       </Pressable>
 
-      <Animated.View style={[styles.screen, { transform: [{ translateY }] }]}>
-        <KeyboardAvoidingView 
-          style={{ flex: 1 }} 
+      <Animated.View
+        style={[styles.screen, { transform: [{ translateY }] }]}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <ScrollView 
-            contentContainerStyle={styles.scrollContent} 
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             bounces={false}
           >
             <View style={styles.top}>
               <Pressable style={styles.backRow} onPress={close}>
-                <Feather name="chevron-left" size={18} color={colors.textGrayLight} />
+                <Feather
+                  name="chevron-left"
+                  size={18}
+                  color={colors.textGrayLight}
+                />
                 <Text style={styles.backText}>Back</Text>
               </Pressable>
-              <Animated.Image source={require("../assets/logo.png")} style={[styles.logoSmall, logoStyle]} />
+
+              <Animated.Image
+                source={require("../assets/logo.png")}
+                style={[styles.logoSmall, logoStyle]}
+              />
             </View>
 
             <View style={styles.card}>
               <Text style={styles.h1}>Create Your Account</Text>
               <Text style={styles.h2}>
-                Safe and Quality Dentistry.{"\n"}We take your health and safety seriously.
+                Safe and Quality Dentistry.{"\n"}We take your health and safety
+                seriously.
               </Text>
 
               <View style={{ height: 18 }} />
@@ -180,8 +268,15 @@ export default function Signup() {
                   value={password}
                   onChangeText={setPassword}
                 />
-                <Pressable onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn}>
-                  <Feather name={showPass ? "eye" : "eye-off"} size={18} color={colors.textGray} />
+                <Pressable
+                  onPress={() => setShowPass((p) => !p)}
+                  style={styles.eyeBtn}
+                >
+                  <Feather
+                    name={showPass ? "eye" : "eye-off"}
+                    size={18}
+                    color={colors.textGray}
+                  />
                 </Pressable>
               </View>
 
@@ -194,8 +289,15 @@ export default function Signup() {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                 />
-                <Pressable onPress={() => setShowConfirmPass((p) => !p)} style={styles.eyeBtn}>
-                  <Feather name={showConfirmPass ? "eye" : "eye-off"} size={18} color={colors.textGray} />
+                <Pressable
+                  onPress={() => setShowConfirmPass((p) => !p)}
+                  style={styles.eyeBtn}
+                >
+                  <Feather
+                    name={showConfirmPass ? "eye" : "eye-off"}
+                    size={18}
+                    color={colors.textGray}
+                  />
                 </Pressable>
               </View>
 
@@ -207,8 +309,14 @@ export default function Signup() {
                 </Pressable>
               </View>
 
-              <Pressable style={styles.loginBtn} onPress={handleSignup} disabled={loading}>
-                <Text style={styles.loginText}>{loading ? "Saving..." : "Get Started"}</Text>
+              <Pressable
+                style={styles.loginBtn}
+                onPress={handleSignup}
+                disabled={loading}
+              >
+                <Text style={styles.loginText}>
+                  {loading ? "Saving..." : "Get Started"}
+                </Text>
               </Pressable>
 
               <View style={styles.dividerRow}>
@@ -219,18 +327,32 @@ export default function Signup() {
 
               <View style={styles.socialRow}>
                 <Pressable style={styles.socialBtn}>
-                  <FontAwesome name="facebook" size={18} color={colors.primary} />
+                  <FontAwesome
+                    name="facebook"
+                    size={18}
+                    color={colors.primary}
+                  />
                 </Pressable>
                 <Pressable style={styles.socialBtn}>
-                  <AntDesign name="google" size={18} color={colors.primary} />
+                  <AntDesign
+                    name="google"
+                    size={18}
+                    color={colors.primary}
+                  />
                 </Pressable>
                 <Pressable style={styles.socialBtn}>
-                  <Ionicons name="logo-apple" size={18} color={colors.primary} />
+                  <Ionicons
+                    name="logo-apple"
+                    size={18}
+                    color={colors.primary}
+                  />
                 </Pressable>
               </View>
 
               <View style={styles.bottomTextRow}>
-                <Text style={{ color: colors.textGray, fontSize: 12 }}>Already have an account? </Text>
+                <Text style={{ color: colors.textGray, fontSize: 12 }}>
+                  Already have an account?{" "}
+                </Text>
                 <Pressable onPress={() => switchTo("/login")} disabled={loading}>
                   <Text style={styles.linkPink}>Log In</Text>
                 </Pressable>
@@ -247,16 +369,22 @@ const styles = StyleSheet.create({
   overlayRoot: { flex: 1, backgroundColor: "transparent" },
   backdrop: { flex: 1, backgroundColor: "#000" },
   screen: { position: "absolute", left: 0, right: 0, bottom: 0, height: "100%" },
-  
-  scrollContent: { 
-    flexGrow: 1, 
-    backgroundColor: colors.pinkBg 
+
+  scrollContent: {
+    flexGrow: 1,
+    backgroundColor: colors.pinkBg,
   },
 
   top: { height: 170, paddingTop: 48, paddingHorizontal: 18 },
   backRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   backText: { fontSize: 12, color: colors.textGrayLight },
-  logoSmall: { width: 180, height: 180, resizeMode: "contain", alignSelf: "center", marginTop: 12 },
+  logoSmall: {
+    width: 180,
+    height: 180,
+    resizeMode: "contain",
+    alignSelf: "center",
+    marginTop: 12,
+  },
 
   card: {
     backgroundColor: colors.white,
@@ -264,13 +392,24 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 40,
     paddingHorizontal: 22,
     paddingTop: 26,
-    paddingBottom: 60, 
+    paddingBottom: 60,
     marginTop: 60,
-    minHeight: H - 170, 
+    minHeight: H - 170,
   },
 
-  h1: { fontSize: 20, fontWeight: "800", color: colors.primary, textAlign: "center" },
-  h2: { marginTop: 10, fontSize: 12, color: colors.textGray, textAlign: "center", lineHeight: 17 },
+  h1: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: colors.primary,
+    textAlign: "center",
+  },
+  h2: {
+    marginTop: 10,
+    fontSize: 12,
+    color: colors.textGray,
+    textAlign: "center",
+    lineHeight: 17,
+  },
 
   input: {
     height: 44,
@@ -313,11 +452,21 @@ const styles = StyleSheet.create({
   },
   loginText: { color: colors.white, fontSize: 13, fontWeight: "800" },
 
-  dividerRow: { marginTop: 20, flexDirection: "row", alignItems: "center", gap: 10 },
+  dividerRow: {
+    marginTop: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   line: { flex: 1, height: 1, backgroundColor: colors.line },
   dividerText: { fontSize: 10, color: colors.textGray },
 
-  socialRow: { marginTop: 14, flexDirection: "row", justifyContent: "center", gap: 16 },
+  socialRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+  },
   socialBtn: {
     width: 42,
     height: 42,
@@ -329,6 +478,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  bottomTextRow: { marginTop: 16, flexDirection: "row", justifyContent: "center", alignItems: "center" },
+  bottomTextRow: {
+    marginTop: 16,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   linkPink: { color: colors.primary, fontSize: 12, fontWeight: "700" },
 });

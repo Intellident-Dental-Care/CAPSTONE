@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,12 +6,21 @@ import {
   SafeAreaView,
   ScrollView,
   Pressable,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { colors } from "./theme/colors";
-import { getSession } from "./storage/authStorage";
 import ProfileSwitcherModal from "./components/ProfileSwitcherModal";
+import {
+  getSession,
+  logoutUser,
+  getProfilesByEmail,
+  getActiveProfileByEmail,
+  setActiveProfileByEmail,
+  ensureDefaultProfileForEmail,
+  addProfileToEmail,
+} from "./storage/authStorage";
 
 const historyData = [
   {
@@ -74,15 +83,113 @@ const historyData = [
 
 export default function History() {
   const router = useRouter();
-  const [fullName, setFullName] = useState("User");
+
   const [filter, setFilter] = useState("All");
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+
+  const [loggedInEmail, setLoggedInEmail] = useState("");
+  const [profiles, setProfiles] = useState([]);
+  const [selectedProfile, setSelectedProfile] = useState({
+    id: "",
+    name: "User",
+    icon: "person",
+  });
+
+  const loadProfiles = async () => {
+    try {
+      const session = await getSession();
+      const email = (session?.email || "").trim().toLowerCase();
+
+      setLoggedInEmail(email);
+
+      if (!email) return;
+
+      const setup = await ensureDefaultProfileForEmail(
+        email,
+        session?.fullName || "User"
+      );
+
+      if (setup?.profiles) {
+        setProfiles(setup.profiles);
+      }
+
+      if (setup?.activeProfile) {
+        setSelectedProfile(setup.activeProfile);
+      } else {
+        const savedProfiles = await getProfilesByEmail(email);
+        const activeProfile = await getActiveProfileByEmail(email);
+
+        setProfiles(savedProfiles);
+        if (activeProfile) {
+          setSelectedProfile(activeProfile);
+        }
+      }
+    } catch (error) {
+      console.log("loadProfiles error:", error);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      const session = await getSession();
-      if (session?.fullName) setFullName(session.fullName);
-    })();
+    loadProfiles();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfiles();
+    }, [])
+  );
+
+  const handleSelectProfile = async (profile) => {
+    try {
+      setSelectedProfile(profile);
+      setProfileModalVisible(false);
+
+      if (loggedInEmail) {
+        await setActiveProfileByEmail(loggedInEmail, profile);
+      }
+    } catch (error) {
+      console.log("handleSelectProfile error:", error);
+    }
+  };
+
+  const handleAddProfile = async (profileName) => {
+    try {
+      if (!loggedInEmail || !profileName?.trim()) return;
+
+      const result = await addProfileToEmail(loggedInEmail, profileName);
+
+      if (!result.success) {
+        Alert.alert(
+          "Unable to add profile",
+          result.message || "Please try again."
+        );
+        return;
+      }
+
+      if (result.profile) {
+        await setActiveProfileByEmail(loggedInEmail, result.profile);
+        setSelectedProfile(result.profile);
+        setProfileModalVisible(false);
+        router.push("/patient-first-setup");
+        return;
+      }
+
+      await loadProfiles();
+    } catch (error) {
+      console.log("handleAddProfile error:", error);
+      Alert.alert("Error", "Failed to add profile.");
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      setProfileModalVisible(false);
+      await logoutUser();
+      router.replace("/get-started");
+    } catch (error) {
+      console.log("handleLogout error:", error);
+    }
+  };
 
   const getStatusStyle = (status) => {
     switch (status) {
@@ -166,23 +273,29 @@ export default function History() {
 
           <View style={styles.topRight}>
             <Pressable
-                style={styles.notifPill}
-                onPress={() => router.push("/notification")}
-                >
-                <Ionicons
-                    name="notifications-outline"
-                    size={16}
-                    color={colors.primary}
-                />
+              style={styles.notifPill}
+              onPress={() => router.push("/notification")}
+            >
+              <Ionicons
+                name="notifications-outline"
+                size={16}
+                color={colors.primary}
+              />
             </Pressable>
 
-            <View style={styles.avatarSmall}>
+            <Pressable
+              style={styles.avatarSmall}
+              onPress={() => setProfileModalVisible(true)}
+            >
               <Ionicons name="person" size={16} color={colors.primary} />
-            </View>
+            </Pressable>
           </View>
         </View>
 
         <Text style={styles.title}>History</Text>
+        <Text style={styles.profileName}>
+          {selectedProfile?.name || "User"}
+        </Text>
 
         <View style={styles.tabs}>
           <Pressable
@@ -290,6 +403,16 @@ export default function History() {
             </View>
           ))}
         </ScrollView>
+
+        <ProfileSwitcherModal
+          visible={profileModalVisible}
+          onClose={() => setProfileModalVisible(false)}
+          profiles={profiles}
+          selectedProfile={selectedProfile}
+          onSelectProfile={handleSelectProfile}
+          onAddProfile={handleAddProfile}
+          onLogout={handleLogout}
+        />
       </View>
     </SafeAreaView>
   );
@@ -351,6 +474,13 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: "900",
     color: colors.primary,
+  },
+
+  profileName: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#8D8D8D",
+    fontWeight: "600",
   },
 
   tabs: {
