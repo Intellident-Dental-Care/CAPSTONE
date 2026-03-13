@@ -33,13 +33,21 @@ export default function Profile() {
   const [loggedInEmail, setLoggedInEmail] = useState(profileIndexCache.loggedInEmail);
 
   const loadProfiles = async (force = false) => {
-    // Skip the full fetch on revisits — state was already seeded from cache
-    if (profileIndexCache.loaded && !force) return;
+    // Skip the full fetch only if cached data is complete.
+    // If email is missing, refresh so the subtitle under the name can be shown.
+    if (profileIndexCache.loaded && profileIndexCache.email?.trim() && !force) return;
 
     try {
       const session = await getSession();
-      // email is nested inside session.user
-      const accountEmail = (session?.user?.email || "").trim().toLowerCase();
+      // Support both local and provider sessions.
+      const accountEmail = (
+        session?.user?.email ||
+        session?.session?.user?.email ||
+        session?.email ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
 
       setLoggedInEmail(accountEmail);
 
@@ -128,11 +136,13 @@ export default function Profile() {
       await setActiveProfileByEmail(loggedInEmail, profile);
       setSelectedProfile(profile);
       setFullName(profile?.name || "");
+      setEmail(loggedInEmail || profileIndexCache.email || "");
       setProfileModalVisible(false);
 
       // Update index cache and invalidate my-profile cache so it reloads for the new profile
       profileIndexCache.selectedProfile = profile;
       profileIndexCache.fullName = profile?.name || "";
+      profileIndexCache.email = loggedInEmail || profileIndexCache.email || "";
       myProfileCache.loaded = false;
     } catch (error) {
       console.log("handleSelectProfile error:", error);
@@ -157,6 +167,7 @@ export default function Profile() {
         await setActiveProfileByEmail(loggedInEmail, result.profile);
         setSelectedProfile(result.profile);
         setFullName(result.profile.name || "");
+        setEmail(loggedInEmail || profileIndexCache.email || "");
         setProfileModalVisible(false);
         // Invalidate caches so both screens reload for the new profile
         profileIndexCache.loaded = false;
