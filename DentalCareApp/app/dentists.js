@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,92 +9,59 @@ import {
   Image,
   ScrollView,
   Modal,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "./theme/colors";
+import { supabase } from "../server/supabaseService";
 
-const BRANCHES = [
-  "All",
-  "General Trias, Cavite",
-  "Dasmarinas, Cavite",
-  "Bacoor, Cavite",
-];
+const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const DENTISTS = [
-  {
-    id: "gt-1",
-    name: "Dr. Bianca L. Reyes",
-    branch: "General Trias, Cavite",
-    specialty: "Orthodontics",
-    specialties: "Specialties | Braces, Invisalign, Whitening",
-    availability:
-      "Earliest Availability | Tue, Jan 13 - 10:00 AM - GC Dental General Trias",
-    photo: null,
-  },
-  {
-    id: "gt-2",
-    name: "Dr. Noel G. Santos",
-    branch: "General Trias, Cavite",
-    specialty: "Dentist",
-    specialties: "Specialties | Cleaning, Pasta, Whitening",
-    availability:
-      "Earliest Availability | Wed, Jan 14 - 1:00 PM - GC Dental General Trias",
-    photo: null,
-  },
-  {
-    id: "gt-3",
-    name: "Dr. Aria P. Valdez",
-    branch: "General Trias, Cavite",
-    specialty: "Dentist",
-    specialties: "Specialties | Extraction, Cleaning, Whitening",
-    availability:
-      "Earliest Availability | Fri, Jan 16 - 9:30 AM - GC Dental General Trias",
-    photo: null,
-  },
+function formatTime12(time24) {
+  if (!time24) return "";
+  const [h = "0", m = "00"] = String(time24).split(":");
+  const hour24 = Number.parseInt(h, 10);
+  if (Number.isNaN(hour24)) return "";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  const suffix = hour24 >= 12 ? "PM" : "AM";
+  return `${hour12}:${m} ${suffix}`;
+}
 
-  {
-    id: "ds-1",
-    name: "Dr. Dian Crizzie Mendoza",
-    branch: "Dasmarinas, Cavite",
-    specialty: "Orthodontics",
-    specialties: "Specialties | Braces, Invisalign, Whitening",
-    availability:
-      "Earliest Availability | Tue, Jan 13 - 10:00 AM - GC Dental Dasmarinas",
-    photo: null,
-  },
-  {
-    id: "ds-2",
-    name: "Dr. Edward Angelo Guillermo",
-    branch: "Dasmarinas, Cavite",
-    specialty: "Orthodontics",
-    specialties: "Specialties | Braces, Invisalign, Whitening",
-    availability:
-      "Earliest Availability | Tue, Jan 13 - 10:00 AM - GC Dental Dasmarinas",
-    photo: null,
-  },
+function formatDays(dayNumbers) {
+  const sorted = [...new Set((dayNumbers || []).map((d) => Number(d)))]
+    .filter((d) => d >= 0 && d <= 6)
+    .sort((a, b) => a - b);
 
-  {
-    id: "bc-1",
-    name: "Dr. Patricia M. Cruz",
-    branch: "Bacoor, Cavite",
-    specialty: "Dentist",
-    specialties: "Specialties | Cleaning, Extraction, Whitening",
-    availability:
-      "Earliest Availability | Mon, Jan 12 - 11:00 AM - GC Dental Bacoor",
-    photo: null,
-  },
-  {
-    id: "bc-2",
-    name: "Dr. Rhea T. Morales",
-    branch: "Bacoor, Cavite",
-    specialty: "Orthodontics",
-    specialties: "Specialties | Braces, Invisalign",
-    availability:
-      "Earliest Availability | Wed, Jan 14 - 9:00 AM - GC Dental Bacoor",
-    photo: null,
-  },
-];
+  if (!sorted.length) return "No schedule";
+  return sorted.map((d) => DAY_SHORT[d]).join(", ");
+}
+
+function getEarliestAvailability(rows, branch) {
+  if (!rows?.length) return `No upcoming schedule - ${branch}`;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < 21; i += 1) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    const weekday = date.getDay();
+    const match = rows.find((row) => Number(row.day_of_week) === weekday);
+    if (!match) continue;
+
+    const dateLabel = date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+    const startLabel = formatTime12(match.start_time);
+    return `Earliest Availability | ${dateLabel}${startLabel ? ` - ${startLabel}` : ""} - ${branch}`;
+  }
+
+  return `Available at ${branch}`;
+}
 
 function DentistCard({ item, liked, onToggleLike, onBook }) {
   return (
@@ -146,14 +113,91 @@ export default function Dentists() {
   const [q, setQ] = useState("");
   const [branch, setBranch] = useState("All");
   const [likedMap, setLikedMap] = useState({});
+  const [dentists, setDentists] = useState([]);
+  const [branchOptions, setBranchOptions] = useState(["All"]);
+  const [loading, setLoading] = useState(true);
 
   const [flowModalVisible, setFlowModalVisible] = useState(false);
   const [selectedDentist, setSelectedDentist] = useState(null);
 
+  useEffect(() => {
+    const fetchDentists = async () => {
+      try {
+        setLoading(true);
+        const [{ data: dentistRows, error: dentistsError }, { data: scheduleRows, error: schedulesError }] =
+          await Promise.all([
+            supabase
+              .from("dentist_list")
+              .select("id, name, specialization, experience_years, total_patients, success_rate"),
+            supabase
+              .from("dentist_schedule")
+              .select("dentist_id, branch, day_of_week, start_time, end_time")
+              .eq("is_active", true),
+          ]);
+
+        if (dentistsError) throw dentistsError;
+        if (schedulesError) throw schedulesError;
+
+        const dentistMap = new Map((dentistRows || []).map((d) => [d.id, d]));
+        const groupedByDentistBranch = new Map();
+        const branchSet = new Set(["All"]);
+
+        (scheduleRows || []).forEach((row) => {
+          const branchName = row.branch?.trim();
+          const dentist = dentistMap.get(row.dentist_id);
+          if (!branchName || !dentist) return;
+
+          branchSet.add(branchName);
+
+          const key = `${row.dentist_id}::${branchName}`;
+          if (!groupedByDentistBranch.has(key)) {
+            groupedByDentistBranch.set(key, {
+              dentist,
+              branch: branchName,
+              rows: [],
+            });
+          }
+
+          groupedByDentistBranch.get(key).rows.push(row);
+        });
+
+        const mapped = Array.from(groupedByDentistBranch.values()).map((entry) => {
+          const daysText = formatDays(entry.rows.map((r) => r.day_of_week));
+          return {
+            id: `${entry.dentist.id}-${entry.branch}`,
+            dentistId: entry.dentist.id,
+            name: entry.dentist.name,
+            branch: entry.branch,
+            specialty: entry.dentist.specialization || "Dentist",
+            specialties: `Days in Branch | ${daysText}`,
+            availability: getEarliestAvailability(entry.rows, entry.branch),
+            photo: null,
+          };
+        });
+
+        mapped.sort((a, b) => a.name.localeCompare(b.name));
+
+        setDentists(mapped);
+        setBranchOptions(Array.from(branchSet).sort((a, b) => {
+          if (a === "All") return -1;
+          if (b === "All") return 1;
+          return a.localeCompare(b);
+        }));
+      } catch (err) {
+        console.error("Error loading dentist schedules:", err);
+        Alert.alert("Error", "Failed to load dentist schedules.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDentists();
+  }, []);
+
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
 
-    return DENTISTS.filter((d) => {
+    return dentists.filter((d) => {
       const okBranch = branch === "All" ? true : d.branch === branch;
       if (!okBranch) return false;
 
@@ -164,7 +208,7 @@ export default function Dentists() {
 
       return text.includes(query);
     });
-  }, [q, branch]);
+  }, [q, branch, dentists]);
 
   const favorites = useMemo(
     () => filtered.filter((x) => !!likedMap[x.id]),
@@ -220,6 +264,7 @@ export default function Dentists() {
       pathname: "/booking",
       params: {
         doctor: selectedDentist.name,
+        doctorId: selectedDentist.dentistId,
         branch: selectedDentist.branch,
       },
     });
@@ -259,6 +304,17 @@ export default function Dentists() {
     );
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.screen, { alignItems: "center", justifyContent: "center" }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 10, fontSize: 14, color: colors.textGray }}>
+          Loading dentists...
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.fixedTop}>
@@ -288,7 +344,7 @@ export default function Dentists() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.pillsRow}
         >
-          {BRANCHES.map((b) => {
+          {branchOptions.map((b) => {
             const active = branch === b;
             return (
               <Pressable

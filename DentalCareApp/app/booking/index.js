@@ -7,18 +7,13 @@ import {
   Modal,
   ScrollView,
   Image,
+  Alert,
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { colors } from "../theme/colors";
 import { supabase } from "../../server/supabaseService";
-
-const BRANCHES = [
-  "General Trias, Cavite",
-  "Dasmarinas, Cavite",
-  "Bacoor, Cavite",
-];
 
 function PickerModal({ visible, title, options, onClose, onPick }) {
   return (
@@ -50,12 +45,22 @@ function PickerModal({ visible, title, options, onClose, onPick }) {
 
 export default function BookingBranchDoctor() {
   const router = useRouter();
-  const { service: passedService, preassessmentId } = useLocalSearchParams();
+  const {
+    service: passedService,
+    preassessmentId,
+    branch: passedBranch,
+    doctor: passedDoctor,
+  } = useLocalSearchParams();
   const [service, setService] = useState(
     typeof passedService === "string" ? passedService : ""
   );
-  const [branch, setBranch] = useState("");
-  const [doctor, setDoctor] = useState("");
+  const [branch, setBranch] = useState(
+    typeof passedBranch === "string" ? passedBranch : ""
+  );
+  const [doctor, setDoctor] = useState(
+    typeof passedDoctor === "string" ? passedDoctor : ""
+  );
+  const [doctorId, setDoctorId] = useState("");
   const [showService, setShowService] = useState(false);
   const [showBranch, setShowBranch] = useState(false);
   const [showDoctor, setShowDoctor] = useState(false);
@@ -87,29 +92,45 @@ export default function BookingBranchDoctor() {
   const fetchDentists = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('dentist_list')
-        .select(`
-          *,
-          dentist_schedule!inner(branch)
-        `);
+      const [{ data: dentists, error: dentistsError }, { data: schedules, error: schedulesError }] =
+        await Promise.all([
+          supabase
+            .from("dentist_list")
+            .select("id, name, specialization, experience_years, total_patients, success_rate"),
+          supabase
+            .from("dentist_schedule")
+            .select("dentist_id, branch, day_of_week")
+            .eq("is_active", true),
+        ]);
 
-      if (error) throw error;
+      if (dentistsError) throw dentistsError;
+      if (schedulesError) throw schedulesError;
 
-      // Group dentists by branch
+      const dentistMap = new Map((dentists || []).map((d) => [d.id, d]));
       const branchGroups = {};
-      data.forEach(dentist => {
-        const branch = dentist.dentist_schedule[0]?.branch;
-        if (branch) {
-          if (!branchGroups[branch]) {
-            branchGroups[branch] = [];
-          }
-          branchGroups[branch].push(dentist);
-        }
+      const seenByBranch = {};
+
+      (schedules || []).forEach((row) => {
+        const branchName = row.branch?.trim();
+        const dentist = dentistMap.get(row.dentist_id);
+        if (!branchName || !dentist) return;
+
+        if (!branchGroups[branchName]) branchGroups[branchName] = [];
+        if (!seenByBranch[branchName]) seenByBranch[branchName] = new Set();
+        if (seenByBranch[branchName].has(dentist.id)) return;
+
+        seenByBranch[branchName].add(dentist.id);
+        branchGroups[branchName].push(dentist);
       });
 
-      setBranches(Object.keys(branchGroups));
+      setBranches(Object.keys(branchGroups).sort((a, b) => a.localeCompare(b)));
       setDoctorsByBranch(branchGroups);
+
+      if (typeof passedBranch === "string" && typeof passedDoctor === "string") {
+        const presetDoctor =
+          branchGroups[passedBranch]?.find((d) => d.name === passedDoctor) || null;
+        if (presetDoctor) setDoctorId(presetDoctor.id);
+      }
     } catch (err) {
       console.error('Error fetching dentists:', err);
       Alert.alert('Error', 'Failed to load dentist data');
@@ -118,12 +139,22 @@ export default function BookingBranchDoctor() {
     }
   };
 
+  useEffect(() => {
+    if (!branch || !doctor) {
+      setDoctorId("");
+      return;
+    }
+
+    const selected = (doctorsByBranch[branch] || []).find((d) => d.name === doctor);
+    setDoctorId(selected?.id || "");
+  }, [branch, doctor, doctorsByBranch]);
+
   const doctors = useMemo(() => {
     if (!branch) return [];
     return doctorsByBranch[branch] || [];
   }, [branch, doctorsByBranch]);
 
-  const canProceed = branch && doctor;
+  const canProceed = !!(branch && doctor);
 
   if (loading) {
     return (
@@ -195,7 +226,7 @@ export default function BookingBranchDoctor() {
           if (!canProceed) return;
           router.push({
             pathname: "/booking/appointment",
-            params: { service, branch, doctor, preassessmentId },
+            params: { service, branch, doctor, doctorId, preassessmentId },
           });
         }}
       >
@@ -221,6 +252,7 @@ export default function BookingBranchDoctor() {
         onPick={(opt) => {
           setBranch(opt);
           setDoctor("");
+          setDoctorId("");
           setShowBranch(false);
         }}
       />
@@ -233,6 +265,7 @@ export default function BookingBranchDoctor() {
         onPick={(opt) => {
           const selectedDentist = doctors.find(d => d.name === opt);
           setDoctor(opt);
+          setDoctorId(selectedDentist?.id || "");
           setShowDoctor(false);
         }}
       />

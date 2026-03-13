@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   Platform, ActivityIndicator,
+  Alert,
   Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -33,15 +34,77 @@ function toISODate(d) {
 function formatMonthDay(d) {
   return `${monthShort(d)} ${pad2(d.getDate())}`;
 }
-function buildNext7Days() {
+
+function getWeekdayFromISO(iso) {
+  if (!iso) return null;
+  return new Date(`${iso}T00:00:00`).getDay();
+}
+
+function parseTimeToMinutes(timeValue) {
+  if (!timeValue) return null;
+  const [h = "0", m = "0"] = String(timeValue).split(":");
+  const hour = Number.parseInt(h, 10);
+  const minute = Number.parseInt(m, 10);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+  return hour * 60 + minute;
+}
+
+function minutesTo12Hour(totalMinutes) {
+  const hour24 = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const suffix = hour24 >= 12 ? "PM" : "AM";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour12}:${pad2(minutes)} ${suffix}`;
+}
+
+function buildSlotsForDate(scheduleRows, isoDate) {
+  const weekday = getWeekdayFromISO(isoDate);
+  if (weekday === null) return [];
+
+  const rowsForDay = (scheduleRows || []).filter(
+    (row) => Number(row.day_of_week) === weekday
+  );
+
+  const slotSet = new Set();
+  rowsForDay.forEach((row) => {
+    const start = parseTimeToMinutes(row.start_time);
+    const end = parseTimeToMinutes(row.end_time);
+    const step = Number(row.slot_minutes) || 30;
+
+    if (start === null || end === null || end <= start || step <= 0) return;
+
+    for (let minutes = start; minutes + step <= end; minutes += step) {
+      slotSet.add(minutesTo12Hour(minutes));
+    }
+  });
+
+  return Array.from(slotSet).sort((a, b) => {
+    const aMinutes = parseTimeToMinutes(convertTo24Hour(a));
+    const bMinutes = parseTimeToMinutes(convertTo24Hour(b));
+    return (aMinutes || 0) - (bMinutes || 0);
+  });
+}
+
+function buildAvailableDates(scheduleRows, horizonDays = 45, maxDates = 10) {
+  const allowedDays = new Set(
+    (scheduleRows || []).map((row) => Number(row.day_of_week))
+  );
+  if (!allowedDays.size) return [];
+
   const base = new Date();
   base.setHours(0, 0, 0, 0);
-  return Array.from({ length: 7 }, (_, i) => {
+
+  const out = [];
+  for (let i = 0; i < horizonDays && out.length < maxDates; i += 1) {
     const d = new Date(base);
     d.setDate(base.getDate() + i);
     d.setHours(0, 0, 0, 0);
-    return { iso: toISODate(d), label: formatMonthDay(d) };
-  });
+
+    if (!allowedDays.has(d.getDay())) continue;
+    out.push({ iso: toISODate(d), label: formatMonthDay(d) });
+  }
+
+  return out;
 }
 
 // Convert 12-hour format to 24-hour format for database storage
@@ -75,87 +138,149 @@ function convertTo12Hour(time24h) {
 /* ---------- component ---------- */
 export default function BookingAppointment() {
   const router = useRouter();
-  const { service, branch, doctor, preassessmentId} = useLocalSearchParams();
+  const { service, branch, doctor, doctorId, preassessmentId } = useLocalSearchParams();
+
+  const selectedDoctorId =
+    typeof doctorId === "string" && doctorId.length ? doctorId : "";
 
   const [showAlert, setShowAlert] = useState(false);
   const [dentistData, setDentistData] = useState(null);
+  const [dentistSchedules, setDentistSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
-  const [bookedTimeSlots, setBookedTimeSlots] = useState([]);  const [showPreview, setShowPreview] = useState(false);
+  const [bookedTimeSlots, setBookedTimeSlots] = useState([]);
+  const [showPreview, setShowPreview] = useState(false);
 
-  const [datePills, setDatePills] = useState(() => buildNext7Days());
+  const [datePills, setDatePills] = useState([]);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [selectedISO, setSelectedISO] = useState(toISODate(today));
-  const [selectedLabel, setSelectedLabel] = useState(formatMonthDay(today));
+  const [selectedISO, setSelectedISO] = useState("");
+  const [selectedLabel, setSelectedLabel] = useState("");
 
-  const [selectedTime, setSelectedTime] = useState("9:00 AM");
+  const [selectedTime, setSelectedTime] = useState("");
   const [timeTab, setTimeTab] = useState("Morning");
 
   const [showCalendar, setShowCalendar] = useState(false);
   const [pickedDate, setPickedDate] = useState(today);
 
-  const timesMorning = [
-    "8:00 AM",
-    "8:30 AM",
-    "9:00 AM",
-    "9:30 AM",
-    "10:00 AM",
-    "10:30 AM",
-    "11:00 AM",
-    "11:30 AM",
-  ];
+  const availableSlots = useMemo(
+    () => buildSlotsForDate(dentistSchedules, selectedISO),
+    [dentistSchedules, selectedISO]
+  );
 
-  const timesAfternoon = [
-    "1:00 PM",
-    "1:30 PM",
-    "2:00 PM",
-    "2:30 PM",
-    "3:00 PM",
-    "3:30 PM",
-    "4:00 PM",
-    "4:30 PM",
-  ];
+  const timesMorning = useMemo(
+    () =>
+      availableSlots.filter((timeLabel) => {
+        const hour = Number.parseInt(convertTo24Hour(timeLabel).split(":")[0], 10);
+        return hour < 12;
+      }),
+    [availableSlots]
+  );
+
+  const timesAfternoon = useMemo(
+    () =>
+      availableSlots.filter((timeLabel) => {
+        const hour = Number.parseInt(convertTo24Hour(timeLabel).split(":")[0], 10);
+        return hour >= 12;
+      }),
+    [availableSlots]
+  );
 
   const times = timeTab === "Morning" ? timesMorning : timesAfternoon;
 
   useEffect(() => {
     fetchDentistData();
-  }, [doctor]);
+  }, [doctor, selectedDoctorId, branch]);
 
   useEffect(() => {
-    if (dentistData && selectedISO) {
+    if (dentistData && selectedISO && branch) {
       fetchBookedTimeSlots();
+      return;
     }
-  }, [dentistData, selectedISO]);
+
+    setBookedTimeSlots([]);
+  }, [dentistData, selectedISO, branch]);
+
+  useEffect(() => {
+    const nextDates = buildAvailableDates(dentistSchedules, 45, 10);
+    setDatePills(nextDates);
+
+    if (!nextDates.length) {
+      setSelectedISO("");
+      setSelectedLabel("");
+      setSelectedTime("");
+      return;
+    }
+
+    const selectedStillValid = nextDates.some((d) => d.iso === selectedISO);
+    if (selectedStillValid) return;
+
+    setSelectedISO(nextDates[0].iso);
+    setSelectedLabel(nextDates[0].label);
+    setPickedDate(new Date(`${nextDates[0].iso}T00:00:00`));
+  }, [dentistSchedules, selectedISO]);
+
+  useEffect(() => {
+    const allTimes = [...timesMorning, ...timesAfternoon];
+
+    if (!allTimes.length) {
+      if (selectedTime) setSelectedTime("");
+      return;
+    }
+
+    if (timeTab === "Morning" && !timesMorning.length && timesAfternoon.length) {
+      setTimeTab("Afternoon");
+      return;
+    }
+
+    if (timeTab === "Afternoon" && !timesAfternoon.length && timesMorning.length) {
+      setTimeTab("Morning");
+      return;
+    }
+
+    if (!allTimes.includes(selectedTime)) {
+      setSelectedTime(allTimes[0]);
+    }
+  }, [timeTab, timesMorning, timesAfternoon, selectedTime]);
 
   const fetchDentistData = async () => {
-    if (!doctor) return;
+    if (!doctor && !selectedDoctorId) return;
     
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('dentist_list')
-        .select(`
-          *,
-          dentist_schedule(*)
-        `)
-        .eq('name', doctor)
-        .single();
+      let dentistQuery = supabase.from("dentist_list").select("*");
+      dentistQuery = selectedDoctorId
+        ? dentistQuery.eq("id", selectedDoctorId)
+        : dentistQuery.eq("name", doctor);
 
+      const { data, error } = await dentistQuery.single();
       if (error) throw error;
+
+      const { data: scheduleData, error: scheduleError } = await supabase
+        .from("dentist_schedule")
+        .select("id, branch, day_of_week, start_time, end_time, slot_minutes")
+        .eq("dentist_id", data.id)
+        .eq("branch", branch)
+        .eq("is_active", true)
+        .order("day_of_week", { ascending: true });
+
+      if (scheduleError) throw scheduleError;
+
       setDentistData(data);
+      setDentistSchedules(scheduleData || []);
     } catch (err) {
       console.error('Error fetching dentist:', err);
+      setDentistSchedules([]);
+      Alert.alert("Error", "Failed to load dentist schedule.");
     } finally {
       setLoading(false);
     }
   };
 
   const fetchBookedTimeSlots = async () => {
-    if (!dentistData || !selectedISO) return;
+    if (!dentistData || !selectedISO || !branch) return;
 
     try {
       console.log('Fetching booked slots for:', {
@@ -196,6 +321,20 @@ export default function BookingAppointment() {
     if (event?.type === "dismissed" || !date) return;
 
     date.setHours(0, 0, 0, 0);
+    const weekday = date.getDay();
+    const branchHasSchedule = dentistSchedules.some(
+      (row) => Number(row.day_of_week) === weekday
+    );
+
+    if (!branchHasSchedule) {
+      Alert.alert(
+        "No Schedule",
+        "This dentist is not available at this branch on the selected day."
+      );
+      if (Platform.OS === "ios") setShowCalendar(false);
+      return;
+    }
+
     setPickedDate(date);
 
     const iso = toISODate(date);
@@ -212,7 +351,7 @@ export default function BookingAppointment() {
         a.iso.localeCompare(b.iso)
       );
 
-      if (next.length > 7) next.shift();
+      if (next.length > 10) next.shift();
       return next;
     });
 
@@ -221,6 +360,19 @@ export default function BookingAppointment() {
 
   const handleBooking = async () => {
     if (booking) return;
+    if (!dentistData || !selectedISO || !selectedTime) {
+      Alert.alert("Incomplete Booking", "Please choose an available date and time first.");
+      return;
+    }
+
+    if (!availableSlots.includes(selectedTime)) {
+      Alert.alert(
+        "Unavailable Time",
+        "The selected time is not available for this dentist at this branch."
+      );
+      return;
+    }
+
     setBooking(true);
 
     try {
@@ -329,14 +481,15 @@ export default function BookingAppointment() {
     );
   }
 
-  const handleBookNow = () => {
-    setShowPreview(true);
-  };
-
   const handleConfirmBooking = () => {
     setShowPreview(false);
     setShowAlert(true);
   };
+
+  const hasDateAvailability = datePills.length > 0;
+  const hasTimeAvailability = availableSlots.length > 0;
+  const canBookNow =
+    !booking && hasDateAvailability && hasTimeAvailability && !!selectedISO && !!selectedTime;
 
   return (
     <View style={styles.container}>
@@ -387,49 +540,57 @@ export default function BookingAppointment() {
       >
         <Text style={styles.section}>Date</Text>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 10 }}
-        >
-          {(Array.isArray(datePills) ? datePills : []).map((d) => {
-            const active = d.iso === selectedISO;
-            return (
+        {hasDateAvailability ? (
+          <>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 10 }}
+            >
+              {(Array.isArray(datePills) ? datePills : []).map((d) => {
+                const active = d.iso === selectedISO;
+                return (
+                  <Pressable
+                    key={d.iso}
+                    style={[styles.datePill, active && styles.datePillActive]}
+                    onPress={() => {
+                      setSelectedISO(d.iso);
+                      setSelectedLabel(d.label);
+                    }}
+                  >
+                    <Text style={[styles.dateText, active && { color: "#fff" }]}>
+                      {d.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+
               <Pressable
-                key={d.iso}
-                style={[styles.datePill, active && styles.datePillActive]}
-                onPress={() => {
-                  setSelectedISO(d.iso);
-                  setSelectedLabel(d.label);
-                }}
+                style={[styles.datePill, styles.calendarPill]}
+                onPress={() => setShowCalendar(true)}
               >
-                <Text style={[styles.dateText, active && { color: "#fff" }]}>
-                  {d.label}
-                </Text>
+                <Ionicons
+                  name="calendar-outline"
+                  size={18}
+                  color={colors.primary}
+                />
               </Pressable>
-            );
-          })}
+            </ScrollView>
 
-          <Pressable
-            style={[styles.datePill, styles.calendarPill]}
-            onPress={() => setShowCalendar(true)}
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={18}
-              color={colors.primary}
-            />
-          </Pressable>
-        </ScrollView>
-
-        {showCalendar && (
-          <DateTimePicker
-            value={pickedDate}
-            mode="date"
-            display={Platform.OS === "ios" ? "spinner" : "calendar"}
-            onChange={onPickDate}
-            accentColor={colors.primary}
-          />
+            {showCalendar && (
+              <DateTimePicker
+                value={pickedDate}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "calendar"}
+                onChange={onPickDate}
+                accentColor={colors.primary}
+              />
+            )}
+          </>
+        ) : (
+          <Text style={styles.noScheduleText}>
+            No available schedule for this dentist at {branch || "this branch"}.
+          </Text>
         )}
 
         <Text style={[styles.section, { marginTop: 18 }]}>Time</Text>
@@ -439,8 +600,11 @@ export default function BookingAppointment() {
             style={[
               styles.timeTab,
               timeTab === "Morning" && styles.timeTabActive,
+              !timesMorning.length && { opacity: 0.45 },
             ]}
-            onPress={() => setTimeTab("Morning")}
+            onPress={() => {
+              if (timesMorning.length) setTimeTab("Morning");
+            }}
           >
             <Text
               style={[
@@ -456,8 +620,11 @@ export default function BookingAppointment() {
             style={[
               styles.timeTab,
               timeTab === "Afternoon" && styles.timeTabActive,
+              !timesAfternoon.length && { opacity: 0.45 },
             ]}
-            onPress={() => setTimeTab("Afternoon")}
+            onPress={() => {
+              if (timesAfternoon.length) setTimeTab("Afternoon");
+            }}
           >
             <Text
               style={[
@@ -507,6 +674,12 @@ export default function BookingAppointment() {
           })}
         </View>
 
+        {!times.length && hasDateAvailability && (
+          <Text style={styles.noScheduleText}>
+            No time slots available for the selected date at this branch.
+          </Text>
+        )}
+
         {bookedTimeSlots.length > 0 && (
           <Text style={styles.bookedInfo}>
             * Grayed out times are already booked for this doctor and branch
@@ -516,9 +689,9 @@ export default function BookingAppointment() {
 
       {/* Book Now */}
       <Pressable 
-        style={[styles.bookBtn, booking && { opacity: 0.5 }]} 
+        style={[styles.bookBtn, !canBookNow && { opacity: 0.5 }]} 
         onPress={handleBooking}
-        disabled={booking}
+        disabled={!canBookNow}
       >
         <Text style={styles.bookText}>
           {booking ? "Booking..." : "Book Now"}
@@ -769,6 +942,37 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "900",
     color: "#777",
+  },
+
+  timeBoxBooked: {
+    backgroundColor: "#F0F0F0",
+    borderWidth: 1,
+    borderColor: "#DDD",
+  },
+
+  timeTextBooked: {
+    color: "#A0A0A0",
+  },
+
+  bookedLabel: {
+    marginTop: 2,
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#B04B65",
+  },
+
+  bookedInfo: {
+    marginTop: 10,
+    fontSize: 10,
+    color: colors.textGray,
+    fontWeight: "700",
+  },
+
+  noScheduleText: {
+    marginTop: 4,
+    fontSize: 11,
+    color: colors.textGray,
+    fontWeight: "700",
   },
 
   bookBtn: {

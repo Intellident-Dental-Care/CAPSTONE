@@ -20,6 +20,7 @@ import { storeSession } from "./_storage/authStorage";
 import { handleGoogleLogin } from "../server/googleLogin";
 import { handleAppleLogin } from "../server/appleLogin";
 import { handleFacebookLogin } from "../server/facebookLogin";
+import { cancelOverdueAppointments } from "../server/cancelOverdueAppointments";
 
 const { height: H } = Dimensions.get("window");
 
@@ -71,18 +72,34 @@ export default function Login() {
     return { transform: [{ translateY: ty }, { scale }] };
   }, [logoAnim]);
 
-const handleLogin = async () => {
-  setError("");
+  const navigateAfterLogin = (firstTimeOnboarding, needsPatientSetup) => {
+    Animated.parallel([
+      Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
+      Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+    ]).start(() => {
+      if (firstTimeOnboarding) {
+        router.replace("/onboarding");
+      } else if (needsPatientSetup) {
+        router.replace("/patient-first-setup");
+      } else {
+        router.replace("/home");
+      }
+    });
+  };
 
-  const cleanEmail = email.trim().toLowerCase();
+  const handleLogin = async () => {
+    setError("");
+
+    const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanEmail || !password) {
-    setError("Please enter your email and password.");
-    return;
-  }
+      setError("Please enter your email and password.");
+      return;
+    }
 
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
     
     // Sign in the user first
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -129,32 +146,19 @@ const handleLogin = async () => {
       fullName: userProfile.full_name || data.user.email
     });
 
-    // Success - redirect based on onboarding status
-    const firstTimeOnboarding = !data.user?.user_metadata?.onboardingSeen;
-      const needsPatientSetup = res.user?.needsPatientSetup;
+      // Run status cleanup right after login so overdue bookings are handled immediately.
+      await cancelOverdueAppointments({ userId: data.user.id });
 
-    Animated.parallel([
-      Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
-      Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
-    ]).start(() => {
-      router.back();
-      setTimeout(() => {
-        if (firstTimeOnboarding) {
-            router.replace("/onboarding");
-        } else if (needsPatientSetup) {
-            router.replace("/patient-first-setup");
-          } else {
-            router.replace("/home");
-          }
-      }, 60);
-    });
-  } catch (err) {
-    console.error("Login error:", err);
-    setLoading(false);
-    setError("Something went wrong. Please try again.");
-  }
-};
+      // Success - redirect based on onboarding status
+      const firstTimeOnboarding = !data.user?.user_metadata?.onboardingSeen;
+      const needsPatientSetup = !!data.user?.user_metadata?.needsPatientSetup;
+      navigateAfterLogin(firstTimeOnboarding, needsPatientSetup);
+    } catch (err) {
+      console.error("Login error:", err);
+      setLoading(false);
+      setError("Something went wrong. Please try again.");
+    }
+  };
 
   const handleSocialLogin = async (provider) => {
     try {
@@ -197,20 +201,13 @@ const handleLogin = async () => {
           session: await supabase.auth.getSession(),
           fullName: userProfile?.full_name || user.user_metadata?.full_name || user.email
         });
+
+        await cancelOverdueAppointments({ userId: user.id });
         
         setError("Login successful! Welcome to DentalCare!");
         
         // Navigate to home after successful social login
-        Animated.parallel([
-          Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-          Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
-          Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
-        ]).start(() => {
-          router.back();
-          setTimeout(() => {
-            router.replace("/home");
-          }, 100);
-        });
+        navigateAfterLogin(false, false);
       }
     } catch (error) {
       console.error(`${provider} login error:`, error);
@@ -226,7 +223,6 @@ const handleLogin = async () => {
       setError(errorMessage);
     } finally {
       setLoading(false);
-      console.log("handleLogin error:", error);
     }
   };
 

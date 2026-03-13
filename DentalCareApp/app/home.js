@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -8,20 +8,29 @@ import {
   ScrollView,
   ActivityIndicator,
   Modal,
+  Alert,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
-import { getSession, logoutUser, getCurrentActiveProfileForSession } from "./_storage/authStorage";
-import { profileIndexCache, appointmentCache, APPOINTMENT_CACHE_TTL_MS } from "./_storage/profileCache";
+import {
+  getSession,
+  logoutUser,
+  getProfilesByEmail,
+  getActiveProfileByEmail,
+  setActiveProfileByEmail,
+  ensureDefaultProfileForEmail,
+  addProfileToEmail,
+} from "./_storage/authStorage";
+import {
+  profileIndexCache,
+  appointmentCache,
+  APPOINTMENT_CACHE_TTL_MS,
+  clearAllProfileCaches,
+} from "./_storage/profileCache";
 import { fetchUpcomingAppointment, formatAppointmentDate, formatAppointmentTime } from "../server/upcomingAppointment";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
-
-// Dummy component to prevent crashing if you haven't created this yet
-function ProfileSwitcherModal({ visible, onClose }) {
-  if (!visible) return null;
-  return <View style={{ display: 'none' }} />;
-}
+import ProfileSwitcherModal from "./components/ProfileSwitcherModal";
 
 export default function Home() {
   const router = useRouter();
@@ -35,41 +44,85 @@ export default function Home() {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [profiles, setProfiles] = useState([]);
   const [selectedProfile, setSelectedProfile] = useState(null);
+  const [loggedInEmail, setLoggedInEmail] = useState(profileIndexCache.loggedInEmail || "");
   const [flowModalVisible, setFlowModalVisible] = useState(false);
-  const [flowStep, setFlowStep] = useState("start");
+
+  const loadUpcomingForProfile = useCallback(async (activeProfile) => {
+    const cacheKey = activeProfile?.id || "__no_profile__";
+    const cached = appointmentCache[cacheKey];
+    const now = Date.now();
+    const isStale = !cached || (now - cached.fetchedAt) > APPOINTMENT_CACHE_TTL_MS;
+
+    if (cached) {
+      setUpcomingAppointment(cached.data);
+    }
+
+    if (isStale) {
+      if (!cached) setLoadingAppointment(true);
+      const { data } = await fetchUpcomingAppointment(activeProfile?.id || null);
+      appointmentCache[cacheKey] = { data, fetchedAt: Date.now() };
+      setUpcomingAppointment(data);
+      setLoadingAppointment(false);
+    }
+  }, []);
+
+  const loadProfiles = useCallback(async () => {
+    try {
+      const session = await getSession();
+      const accountEmail = (session?.user?.email || "").trim().toLowerCase();
+      setLoggedInEmail(accountEmail);
+
+      if (!accountEmail) {
+        setProfiles([]);
+        setSelectedProfile(null);
+        return;
+      }
+
+      const setup = await ensureDefaultProfileForEmail(
+        accountEmail,
+        session?.fullName || "User"
+      );
+
+      let activeProfile = setup?.activeProfile || null;
+      let allProfiles = setup?.profiles || [];
+
+      if (!activeProfile) {
+        activeProfile = await getActiveProfileByEmail(accountEmail);
+      }
+      if (!allProfiles.length) {
+        allProfiles = await getProfilesByEmail(accountEmail);
+      }
+
+      setProfiles(allProfiles || []);
+      setSelectedProfile(activeProfile || null);
+
+      if (activeProfile?.name) {
+        setFullName(activeProfile.name);
+      } else if (session?.fullName) {
+        setFullName(session.fullName);
+      }
+
+      Object.assign(profileIndexCache, {
+        loaded: true,
+        profiles: allProfiles || [],
+        selectedProfile: activeProfile || null,
+        fullName: activeProfile?.name || session?.fullName || "User",
+        loggedInEmail: accountEmail,
+      });
+
+      await loadUpcomingForProfile(activeProfile);
+    } catch (error) {
+      console.log("loadProfiles error:", error);
+    }
+  }, [loadUpcomingForProfile]);
 
   // Re-read the active profile name every time the screen comes into focus
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        const activeProfile = await getCurrentActiveProfileForSession();
-        if (activeProfile?.name) {
-          setFullName(activeProfile.name);
-        } else {
-          const session = await getSession();
-          if (session?.fullName) setFullName(session.fullName);
-        }
-
-        const cacheKey = activeProfile?.id || "__no_profile__";
-        const cached = appointmentCache[cacheKey];
-        const now = Date.now();
-        const isStale = !cached || (now - cached.fetchedAt) > APPOINTMENT_CACHE_TTL_MS;
-
-        // Immediately show cached data (no loading flash on revisit)
-        if (cached) {
-          setUpcomingAppointment(cached.data);
-        }
-
-        // Only hit the network if there's no cache or cache is stale
-        if (isStale) {
-          if (!cached) setLoadingAppointment(true);
-          const { data } = await fetchUpcomingAppointment(activeProfile?.id || null);
-          appointmentCache[cacheKey] = { data, fetchedAt: Date.now() };
-          setUpcomingAppointment(data);
-          setLoadingAppointment(false);
-        }
+        await loadProfiles();
       })();
-    }, [])
+    }, [loadProfiles])
   );
 
   const handleSelectProfile = async (profile) => {
@@ -79,6 +132,10 @@ export default function Home() {
       await setActiveProfileByEmail(loggedInEmail, profile);
       setSelectedProfile(profile);
       setFullName(profile?.name || "User");
+      profileIndexCache.selectedProfile = profile;
+      profileIndexCache.fullName = profile?.name || "User";
+
+      await loadUpcomingForProfile(profile);
       setProfileModalVisible(false);
     } catch (error) {
       console.log("handleSelectProfile error:", error);
@@ -103,6 +160,8 @@ export default function Home() {
         await setActiveProfileByEmail(loggedInEmail, result.profile);
         setSelectedProfile(result.profile);
         setFullName(result.profile.name || "User");
+        setProfiles((prev) => [...prev, result.profile]);
+        await loadUpcomingForProfile(result.profile);
         setProfileModalVisible(false);
         router.push("/patient-first-setup");
         return;
@@ -118,6 +177,7 @@ export default function Home() {
   const handleLogout = async () => {
     try {
       setProfileModalVisible(false);
+      clearAllProfileCaches();
       await logoutUser();
       router.replace("/get-started");
     } catch (error) {

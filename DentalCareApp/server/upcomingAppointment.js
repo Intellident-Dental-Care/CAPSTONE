@@ -1,5 +1,13 @@
 import { supabase } from './supabaseService';
 import { getCurrentUser } from './supabaseService';
+import { cancelOverdueAppointments } from './cancelOverdueAppointments';
+
+function isUuid(value) {
+  if (!value) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value)
+  );
+}
 
 export const fetchUpcomingAppointment = async (profileId) => {
   try {
@@ -7,6 +15,15 @@ export const fetchUpcomingAppointment = async (profileId) => {
     
     if (!user) {
       return { data: null, error: null };
+    }
+
+    // Run overdue cancellation for this logged-in user/profile before reading upcoming.
+    const cancelResult = await cancelOverdueAppointments({
+      userId: user.id,
+      profileId,
+    });
+    if (cancelResult?.error) {
+      console.log('Auto-cancel skipped:', cancelResult.error);
     }
 
     // Get current date and time
@@ -30,7 +47,7 @@ export const fetchUpcomingAppointment = async (profileId) => {
       .limit(1);
 
     // Filter by profile if provided, otherwise fall back to user_id
-    if (profileId) {
+    if (isUuid(profileId)) {
       query = query.eq('profile_id', profileId);
     } else {
       query = query.eq('user_id', user.id);
