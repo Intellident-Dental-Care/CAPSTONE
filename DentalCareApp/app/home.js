@@ -32,6 +32,13 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import ProfileSwitcherModal from "./components/ProfileSwitcherModal";
 
+function isUuid(value) {
+  if (!value) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value)
+  );
+}
+
 export default function Home() {
   const router = useRouter();
 
@@ -48,7 +55,8 @@ export default function Home() {
   const [flowModalVisible, setFlowModalVisible] = useState(false);
 
   const loadUpcomingForProfile = useCallback(async (activeProfile) => {
-    const cacheKey = activeProfile?.id || "__no_profile__";
+    const safeProfileId = isUuid(activeProfile?.id) ? activeProfile.id : null;
+    const cacheKey = safeProfileId || "__no_profile__";
     const cached = appointmentCache[cacheKey];
     const now = Date.now();
     const isStale = !cached || (now - cached.fetchedAt) > APPOINTMENT_CACHE_TTL_MS;
@@ -59,7 +67,7 @@ export default function Home() {
 
     if (isStale) {
       if (!cached) setLoadingAppointment(true);
-      const { data } = await fetchUpcomingAppointment(activeProfile?.id || null);
+      const { data } = await fetchUpcomingAppointment(safeProfileId);
       appointmentCache[cacheKey] = { data, fetchedAt: Date.now() };
       setUpcomingAppointment(data);
       setLoadingAppointment(false);

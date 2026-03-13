@@ -40,7 +40,7 @@ export const fetchUpcomingAppointment = async (profileId) => {
         *,
         dentist_list!inner(name, specialization)
       `)
-      .eq('status', 'pending')
+      .in('status', ['pending', 'confirmed'])
       .or(`appointment_date.gt.${today},and(appointment_date.eq.${today},appointment_time.gt.${currentTime})`)
       .order('appointment_date', { ascending: true })
       .order('appointment_time', { ascending: true })

@@ -32,6 +32,10 @@ export function clearAppointmentCacheForProfile(profileId) {
 // Full appointments list cache (same TTL)
 export const appointmentsListCache = {};
 
+// Dentist directory cache (list + branch filters) keyed by user scope.
+export const dentistListCache = {};
+export const DENTIST_LIST_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+
 export function clearAllProfileCaches() {
   Object.assign(profileIndexCache, {
     loaded: false,
@@ -53,4 +57,5 @@ export function clearAllProfileCaches() {
   // Clear all appointment cache entries
   Object.keys(appointmentCache).forEach((k) => delete appointmentCache[k]);
   Object.keys(appointmentsListCache).forEach((k) => delete appointmentsListCache[k]);
+  Object.keys(dentistListCache).forEach((k) => delete dentistListCache[k]);
 }

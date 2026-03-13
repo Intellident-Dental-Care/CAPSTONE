@@ -17,6 +17,7 @@ import PinkAlert from "../components/PinkAlert";
 import { supabase } from "../../server/supabaseService";
 import { getCurrentUser } from "../../server/supabaseService";
 import { getCurrentActiveProfileForSession, getPatientProfileByProfileId } from "../_storage/authStorage";
+import { clearAppointmentCacheForProfile, appointmentsListCache } from "../_storage/profileCache";
 
 /* ---------- helpers ---------- */
 function monthShort(d) {
@@ -105,6 +106,18 @@ function buildAvailableDates(scheduleRows, horizonDays = 45, maxDates = 10) {
   }
 
   return out;
+}
+
+function isUuid(value) {
+  if (!value) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value)
+  );
+}
+
+function isMissingServiceColumnError(error) {
+  const message = String(error?.message || "");
+  return error?.code === "PGRST204" && message.includes("'service' column");
 }
 
 // Convert 12-hour format to 24-hour format for database storage
@@ -385,7 +398,7 @@ export default function BookingAppointment() {
         : null;
       const patientName =
         patientProfile?.fullName || activeProfile?.name || user?.email || "";
-      const profileId = activeProfile?.id || null;
+      const profileId = isUuid(activeProfile?.id) ? activeProfile.id : null;
 
       const time24h = convertTo24Hour(selectedTime);
 
@@ -434,12 +447,8 @@ export default function BookingAppointment() {
         return;
       }
 
-      // Use preassessmentId passed from the pre-assessment flow
-      if (!preassessmentId) {
-        Alert.alert('Preassessment Required', 'Please complete the pre-assessment first before booking.');
-        setBooking(false);
-        return;
-      }
+      // Pre-assessment is optional. Link it only when a valid UUID is provided.
+      const safePreassessmentId = isUuid(preassessmentId) ? preassessmentId : null;
 
       const bookingData = {
         user_id: user.id,
@@ -450,17 +459,31 @@ export default function BookingAppointment() {
         branch: branch,
         appointment_date: selectedISO,
         appointment_time: time24h,
-        preassessment_id: preassessmentId,
+        preassessment_id: safePreassessmentId,
         status: 'pending'
       };
 
       console.log('Inserting booking data:', bookingData);
 
-      const { error } = await supabase
+      let { error } = await supabase
         .from('bookings')
         .insert([bookingData]);
 
+      // Backward compatibility: some DBs still don't have bookings.service.
+      if (isMissingServiceColumnError(error)) {
+        const { service: _unusedService, ...legacyBookingData } = bookingData;
+        const retry = await supabase
+          .from('bookings')
+          .insert([legacyBookingData]);
+        error = retry.error;
+      }
+
       if (error) throw error;
+
+      // Invalidate cached appointment cards/lists so Home and Appointments refresh immediately.
+      const cacheKey = profileId || '__no_profile__';
+      clearAppointmentCacheForProfile(cacheKey);
+      delete appointmentsListCache[cacheKey];
 
       console.log('Booking created successfully');
       setShowAlert(true);

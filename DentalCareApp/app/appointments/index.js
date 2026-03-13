@@ -19,6 +19,13 @@ import { supabase } from "../../server/supabaseService";
 import { getCurrentActiveProfileForSession } from "../_storage/authStorage";
 import { appointmentsListCache, APPOINTMENT_CACHE_TTL_MS } from "../_storage/profileCache";
 
+function isUuid(value) {
+  if (!value) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value)
+  );
+}
+
 function fmt12h(t) {
   if (!t) return '';
   const [h, m] = t.split(':');
@@ -93,7 +100,7 @@ export default function AppointmentsScreen() {
   const fetchAppointments = async () => {
     try {
       const activeProfile = await getCurrentActiveProfileForSession();
-      const profileId = activeProfile?.id || null;
+      const profileId = isUuid(activeProfile?.id) ? activeProfile.id : null;
       const cacheKey = profileId || '__no_profile__';
       const cached = appointmentsListCache[cacheKey];
       const now = Date.now();

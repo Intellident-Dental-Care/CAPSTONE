@@ -79,18 +79,20 @@ export default function MyProfile() {
       let resolvedDob = "";
       let resolvedMobile = "";
 
-      // Try fetching fresh name/email from Supabase users table
+      // Fetch account-level profile fields from Supabase users table
       try {
         const { data: { user: supabaseUser } } = await supabase.auth.getUser();
         if (supabaseUser?.id) {
           const { data: userRow } = await supabase
             .from("users")
-            .select("full_name, email")
+            .select("full_name, email, dob, mobile")
             .eq("id", supabaseUser.id)
             .single();
           if (userRow) {
             resolvedName = userRow.full_name || activeProfile.name || "";
             resolvedEmail = userRow.email || sessionEmail;
+            resolvedDob = userRow.dob || "";
+            resolvedMobile = userRow.mobile || "";
           }
         }
       } catch (_) {
@@ -101,8 +103,8 @@ export default function MyProfile() {
       const patientProfile = await getPatientProfileByProfileId(activeProfile.id);
       if (patientProfile) {
         if (!resolvedName) resolvedName = patientProfile.fullName || activeProfile.name || "";
-        resolvedDob = patientProfile.dob || "";
-        resolvedMobile = patientProfile.mobile || "";
+        if (!resolvedDob) resolvedDob = patientProfile.dob || "";
+        if (!resolvedMobile) resolvedMobile = patientProfile.mobile || "";
         if (!resolvedEmail || resolvedEmail === sessionEmail) {
           resolvedEmail = patientProfile.email || sessionEmail;
         }
@@ -177,16 +179,26 @@ export default function MyProfile() {
         });
       }
 
-      try {
-        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
-        if (supabaseUser?.id) {
-          await supabase
-            .from("users")
-            .update({ full_name: fullName })
-            .eq("id", supabaseUser.id);
-        }
-      } catch (_) {
-        // Non-fatal — local save already succeeded
+      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+      if (!supabaseUser?.id) {
+        setLoading(false);
+        Alert.alert("Error", "No authenticated user found.");
+        return;
+      }
+
+      const { error: usersUpdateError } = await supabase
+        .from("users")
+        .update({
+          full_name: fullName,
+          dob,
+          mobile,
+        })
+        .eq("id", supabaseUser.id);
+
+      if (usersUpdateError) {
+        setLoading(false);
+        Alert.alert("Error", usersUpdateError.message || "Failed to update users table.");
+        return;
       }
 
       // Keep the cache in sync so the next visit reflects saved values

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "./theme/colors";
 import { supabase } from "../server/supabaseService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
+import { getSession, getCurrentActiveProfileForSession } from "./_storage/authStorage";
+import {
+  dentistListCache,
+  DENTIST_LIST_CACHE_TTL_MS,
+} from "./_storage/profileCache";
+
+const FAVORITES_STORAGE_KEY = "@dc_dentist_favorites_by_scope";
 
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -61,6 +70,55 @@ function getEarliestAvailability(rows, branch) {
   }
 
   return `Available at ${branch}`;
+}
+
+function buildDentistDirectory(dentistRows, scheduleRows) {
+  const dentistMap = new Map((dentistRows || []).map((d) => [d.id, d]));
+  const groupedByDentistBranch = new Map();
+  const branchSet = new Set(["All"]);
+
+  (scheduleRows || []).forEach((row) => {
+    const branchName = row.branch?.trim();
+    const dentist = dentistMap.get(row.dentist_id);
+    if (!branchName || !dentist) return;
+
+    branchSet.add(branchName);
+
+    const key = `${row.dentist_id}::${branchName}`;
+    if (!groupedByDentistBranch.has(key)) {
+      groupedByDentistBranch.set(key, {
+        dentist,
+        branch: branchName,
+        rows: [],
+      });
+    }
+
+    groupedByDentistBranch.get(key).rows.push(row);
+  });
+
+  const mappedDentists = Array.from(groupedByDentistBranch.values()).map((entry) => {
+    const daysText = formatDays(entry.rows.map((r) => r.day_of_week));
+    return {
+      id: `${entry.dentist.id}-${entry.branch}`,
+      dentistId: entry.dentist.id,
+      name: entry.dentist.name,
+      branch: entry.branch,
+      specialty: entry.dentist.specialization || "Dentist",
+      specialties: `Days in Branch | ${daysText}`,
+      availability: getEarliestAvailability(entry.rows, entry.branch),
+      photo: null,
+    };
+  });
+
+  mappedDentists.sort((a, b) => a.name.localeCompare(b.name));
+
+  const sortedBranches = Array.from(branchSet).sort((a, b) => {
+    if (a === "All") return -1;
+    if (b === "All") return 1;
+    return a.localeCompare(b);
+  });
+
+  return { mappedDentists, sortedBranches };
 }
 
 function DentistCard({ item, liked, onToggleLike, onBook }) {
@@ -113,6 +171,8 @@ export default function Dentists() {
   const [q, setQ] = useState("");
   const [branch, setBranch] = useState("All");
   const [likedMap, setLikedMap] = useState({});
+  const [favoriteScopeKey, setFavoriteScopeKey] = useState("");
+  const [dentistCacheKey, setDentistCacheKey] = useState("");
   const [dentists, setDentists] = useState([]);
   const [branchOptions, setBranchOptions] = useState(["All"]);
   const [loading, setLoading] = useState(true);
@@ -120,79 +180,147 @@ export default function Dentists() {
   const [flowModalVisible, setFlowModalVisible] = useState(false);
   const [selectedDentist, setSelectedDentist] = useState(null);
 
-  useEffect(() => {
-    const fetchDentists = async () => {
+  const buildFavoriteScopeKey = useCallback(async () => {
+    const session = await getSession();
+    const activeProfile = await getCurrentActiveProfileForSession();
+
+    const userKey =
+      (session?.user?.id || session?.user?.email || "__anon__").toString();
+    const profileKey = (activeProfile?.id || "__no_profile__").toString();
+
+    return `${userKey}::${profileKey}`;
+  }, []);
+
+  const loadFavorites = useCallback(async () => {
+    try {
+      const scopeKey = await buildFavoriteScopeKey();
+      setFavoriteScopeKey(scopeKey);
+
+      const raw = await AsyncStorage.getItem(FAVORITES_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      setLikedMap(parsed?.[scopeKey] || {});
+    } catch (err) {
+      console.log("loadFavorites error:", err);
+      setLikedMap({});
+    }
+  }, [buildFavoriteScopeKey]);
+
+  const persistFavorites = useCallback(
+    async (nextMap) => {
       try {
-        setLoading(true);
-        const [{ data: dentistRows, error: dentistsError }, { data: scheduleRows, error: schedulesError }] =
-          await Promise.all([
-            supabase
-              .from("dentist_list")
-              .select("id, name, specialization, experience_years, total_patients, success_rate"),
-            supabase
-              .from("dentist_schedule")
-              .select("dentist_id, branch, day_of_week, start_time, end_time")
-              .eq("is_active", true),
-          ]);
+        const scopeKey = favoriteScopeKey || (await buildFavoriteScopeKey());
+        if (!favoriteScopeKey) setFavoriteScopeKey(scopeKey);
 
-        if (dentistsError) throw dentistsError;
-        if (schedulesError) throw schedulesError;
+        const raw = await AsyncStorage.getItem(FAVORITES_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : {};
+        parsed[scopeKey] = nextMap;
+        await AsyncStorage.setItem(
+          FAVORITES_STORAGE_KEY,
+          JSON.stringify(parsed)
+        );
+      } catch (err) {
+        console.log("persistFavorites error:", err);
+      }
+    },
+    [favoriteScopeKey, buildFavoriteScopeKey]
+  );
 
-        const dentistMap = new Map((dentistRows || []).map((d) => [d.id, d]));
-        const groupedByDentistBranch = new Map();
-        const branchSet = new Set(["All"]);
+  const fetchDentistsFromServer = useCallback(async () => {
+    const [{ data: dentistRows, error: dentistsError }, { data: scheduleRows, error: schedulesError }] =
+      await Promise.all([
+        supabase
+          .from("dentist_list")
+          .select("id, name, specialization, experience_years, total_patients, success_rate"),
+        supabase
+          .from("dentist_schedule")
+          .select("dentist_id, branch, day_of_week, start_time, end_time")
+          .eq("is_active", true),
+      ]);
 
-        (scheduleRows || []).forEach((row) => {
-          const branchName = row.branch?.trim();
-          const dentist = dentistMap.get(row.dentist_id);
-          if (!branchName || !dentist) return;
+    if (dentistsError) throw dentistsError;
+    if (schedulesError) throw schedulesError;
 
-          branchSet.add(branchName);
+    return buildDentistDirectory(dentistRows, scheduleRows);
+  }, []);
 
-          const key = `${row.dentist_id}::${branchName}`;
-          if (!groupedByDentistBranch.has(key)) {
-            groupedByDentistBranch.set(key, {
-              dentist,
-              branch: branchName,
-              rows: [],
-            });
-          }
+  const refreshDentists = useCallback(
+    async (force = false) => {
+      try {
+        const session = await getSession();
+        const cacheKey = (
+          session?.user?.id || session?.user?.email || "__anon__"
+        ).toString();
+        setDentistCacheKey(cacheKey);
 
-          groupedByDentistBranch.get(key).rows.push(row);
-        });
+        const cached = dentistListCache[cacheKey];
+        const now = Date.now();
+        const isStale =
+          force ||
+          !cached ||
+          now - cached.fetchedAt > DENTIST_LIST_CACHE_TTL_MS;
 
-        const mapped = Array.from(groupedByDentistBranch.values()).map((entry) => {
-          const daysText = formatDays(entry.rows.map((r) => r.day_of_week));
-          return {
-            id: `${entry.dentist.id}-${entry.branch}`,
-            dentistId: entry.dentist.id,
-            name: entry.dentist.name,
-            branch: entry.branch,
-            specialty: entry.dentist.specialization || "Dentist",
-            specialties: `Days in Branch | ${daysText}`,
-            availability: getEarliestAvailability(entry.rows, entry.branch),
-            photo: null,
-          };
-        });
+        if (cached) {
+          setDentists(cached.dentists || []);
+          setBranchOptions(cached.branchOptions || ["All"]);
+          setLoading(false);
+        }
 
-        mapped.sort((a, b) => a.name.localeCompare(b.name));
+        if (!isStale) return;
 
-        setDentists(mapped);
-        setBranchOptions(Array.from(branchSet).sort((a, b) => {
-          if (a === "All") return -1;
-          if (b === "All") return 1;
-          return a.localeCompare(b);
-        }));
+        if (!cached || force) setLoading(true);
+
+        const { mappedDentists, sortedBranches } = await fetchDentistsFromServer();
+        setDentists(mappedDentists);
+        setBranchOptions(sortedBranches);
+        setBranch((prev) => (sortedBranches.includes(prev) ? prev : "All"));
+
+        dentistListCache[cacheKey] = {
+          dentists: mappedDentists,
+          branchOptions: sortedBranches,
+          fetchedAt: Date.now(),
+        };
       } catch (err) {
         console.error("Error loading dentist schedules:", err);
         Alert.alert("Error", "Failed to load dentist schedules.");
       } finally {
         setLoading(false);
       }
-    };
+    },
+    [fetchDentistsFromServer]
+  );
 
-    fetchDentists();
-  }, []);
+  useEffect(() => {
+    const channel = supabase
+      .channel("dentist-directory-refresh")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "dentist_schedule" },
+        async () => {
+          if (dentistCacheKey) delete dentistListCache[dentistCacheKey];
+          await refreshDentists(true);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "dentist_list" },
+        async () => {
+          if (dentistCacheKey) delete dentistListCache[dentistCacheKey];
+          await refreshDentists(true);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [dentistCacheKey, refreshDentists]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadFavorites();
+      refreshDentists(false);
+    }, [loadFavorites, refreshDentists])
+  );
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -292,9 +420,13 @@ export default function Dentists() {
         <DentistCard
           item={d}
           liked={!!likedMap[d.id]}
-          onToggleLike={() =>
-            setLikedMap((prev) => ({ ...prev, [d.id]: !prev[d.id] }))
-          }
+          onToggleLike={() => {
+            setLikedMap((prev) => {
+              const next = { ...prev, [d.id]: !prev[d.id] };
+              persistFavorites(next);
+              return next;
+            });
+          }}
           onBook={() => {
             setSelectedDentist(d);
             setFlowModalVisible(true);

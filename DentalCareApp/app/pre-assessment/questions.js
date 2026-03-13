@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
@@ -7,6 +7,13 @@ import { usePreAssessment } from "./_layout";
 import { supabase } from "../../server/supabaseService";
 import { getCurrentUser } from "../../server/supabaseService";
 import { getCurrentActiveProfileForSession } from "../_storage/authStorage";
+
+function isUuid(value) {
+  if (!value) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value)
+  );
+}
 
 export default function Questions() {
   const router = useRouter();
@@ -94,26 +101,35 @@ export default function Questions() {
       try {
         const user = await getCurrentUser();
         const activeProfile = await getCurrentActiveProfileForSession();
-        if (user) {
-          const { data, error } = await supabase
-            .from('patient_preassessment')
-            .insert([{
-              user_id: user.id,
-              profile_id: activeProfile?.id || null,
-              answers: state.answers,
-              description: null
-            }])
-            .select()
-            .single();
-
-          if (error) {
-            console.error('Error saving preassessment:', error);
-          } else {
-            dispatch({ type: "SET_PREASSESSMENT_ID", payload: data.id });
-          }
+        if (!user) {
+          Alert.alert("Error", "No logged-in user found. Please sign in again.");
+          return;
         }
+
+        const profileId = isUuid(activeProfile?.id) ? activeProfile.id : null;
+
+        const { data, error } = await supabase
+          .from('patient_preassessment')
+          .insert([{
+            user_id: user.id,
+            profile_id: profileId,
+            answers: state.answers,
+            description: null
+          }])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error saving preassessment:', error);
+          Alert.alert("Error", error.message || "Failed to save pre-assessment. Please try again.");
+          return;
+        }
+
+        dispatch({ type: "SET_PREASSESSMENT_ID", payload: data.id });
       } catch (err) {
         console.error('Error saving preassessment:', err);
+        Alert.alert("Error", "Failed to save pre-assessment. Please try again.");
+        return;
       } finally {
         setSaving(false);
       }
