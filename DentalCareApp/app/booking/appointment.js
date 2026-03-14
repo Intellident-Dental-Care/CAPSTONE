@@ -32,6 +32,12 @@ function toISODate(d) {
   const day = pad2(d.getDate());
   return `${y}-${m}-${day}`;
 }
+
+function getCurrentMinutesOfDay() {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+}
+
 function formatMonthDay(d) {
   return `${monthShort(d)} ${pad2(d.getDate())}`;
 }
@@ -62,6 +68,10 @@ function buildSlotsForDate(scheduleRows, isoDate) {
   const weekday = getWeekdayFromISO(isoDate);
   if (weekday === null) return [];
 
+  const todayIso = toISODate(new Date());
+  const isToday = isoDate === todayIso;
+  const currentMinutes = getCurrentMinutesOfDay();
+
   const rowsForDay = (scheduleRows || []).filter(
     (row) => Number(row.day_of_week) === weekday
   );
@@ -75,6 +85,7 @@ function buildSlotsForDate(scheduleRows, isoDate) {
     if (start === null || end === null || end <= start || step <= 0) return;
 
     for (let minutes = start; minutes + step <= end; minutes += step) {
+      if (isToday && minutes <= currentMinutes) continue;
       slotSet.add(minutesTo12Hour(minutes));
     }
   });
@@ -102,7 +113,12 @@ function buildAvailableDates(scheduleRows, horizonDays = 45, maxDates = 10) {
     d.setHours(0, 0, 0, 0);
 
     if (!allowedDays.has(d.getDay())) continue;
-    out.push({ iso: toISODate(d), label: formatMonthDay(d) });
+
+    const iso = toISODate(d);
+    const hasBookableSlots = buildSlotsForDate(scheduleRows, iso).length > 0;
+    if (!hasBookableSlots) continue;
+
+    out.push({ iso, label: formatMonthDay(d) });
   }
 
   return out;
@@ -339,18 +355,21 @@ export default function BookingAppointment() {
       (row) => Number(row.day_of_week) === weekday
     );
 
-    if (!branchHasSchedule) {
+    const iso = toISODate(date);
+    const hasBookableSlots = buildSlotsForDate(dentistSchedules, iso).length > 0;
+
+    if (!branchHasSchedule || !hasBookableSlots) {
       Alert.alert(
         "No Schedule",
-        "This dentist is not available at this branch on the selected day."
+        iso === toISODate(new Date())
+          ? "No available times left for today. Please choose another date."
+          : "This dentist is not available at this branch on the selected day."
       );
       if (Platform.OS === "ios") setShowCalendar(false);
       return;
     }
 
     setPickedDate(date);
-
-    const iso = toISODate(date);
     const label = formatMonthDay(date);
 
     setSelectedISO(iso);
