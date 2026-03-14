@@ -12,6 +12,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
 import { getSession, setOnboardingSeenForUser } from "./_storage/authStorage";
+import { updateOnboardingStatus } from "../server/supabaseService";
 
 const { width } = Dimensions.get("window");
 
@@ -55,6 +56,10 @@ export default function Onboarding() {
 
         if (session?.email) {
           await setOnboardingSeenForUser(session.email);
+        }
+
+        if (session?.user?.id) {
+          await updateOnboardingStatus(session.user.id);
         }
 
         router.replace("/patient-first-setup");

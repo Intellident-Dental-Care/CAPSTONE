@@ -193,8 +193,12 @@ export default function Branches() {
   const handleDirections = async () => {
     if (!selectedBranch) return;
     
-    // Use instant location
-    const currentLocation = await mapLocation.getUserLocationInstant();
+    // Reuse the already-rendered location first, then fall back to shared cache/service.
+    const currentLocation =
+      userLocation ||
+      mapLocation.getCurrentUserLocation() ||
+      await mapLocation.getUserLocationInstant();
+
     if (!currentLocation) {
       console.log('⚠️ No location for navigation');
       return;

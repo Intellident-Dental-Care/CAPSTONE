@@ -122,7 +122,7 @@ export default function Login() {
     // Now fetch the user profile with the authenticated user
     const { data: userProfile, error: profileError } = await supabase
       .from("users")
-      .select("is_verified, full_name")
+      .select("is_verified, full_name, onboarding_seen")
       .eq("id", data.user.id)
       .single();
 
@@ -149,10 +149,9 @@ export default function Login() {
       // Run status cleanup right after login so overdue bookings are handled immediately.
       await cancelOverdueAppointments({ userId: data.user.id });
 
-      // Success - redirect based on onboarding status
-      const firstTimeOnboarding = !data.user?.user_metadata?.onboardingSeen;
-      const needsPatientSetup = !!data.user?.user_metadata?.needsPatientSetup;
-      navigateAfterLogin(firstTimeOnboarding, needsPatientSetup);
+      // Success - redirect based on onboarding status from DB
+      const firstTimeOnboarding = !userProfile.onboarding_seen;
+      navigateAfterLogin(firstTimeOnboarding, false);
     } catch (err) {
       console.error("Login error:", err);
       setLoading(false);
@@ -191,7 +190,7 @@ export default function Login() {
         // Fetch user profile for social login users too
         const { data: userProfile } = await supabase
           .from("users")
-          .select("full_name")
+          .select("full_name, onboarding_seen")
           .eq("id", user.id)
           .single();
           
@@ -206,8 +205,9 @@ export default function Login() {
         
         setError("Login successful! Welcome to DentalCare!");
         
-        // Navigate to home after successful social login
-        navigateAfterLogin(false, false);
+        // For Google login, check onboarding_seen from DB; always go to home for others
+        const firstTimeOnboarding = provider === 'google' ? !userProfile?.onboarding_seen : false;
+        navigateAfterLogin(firstTimeOnboarding, false);
       }
     } catch (error) {
       console.error(`${provider} login error:`, error);

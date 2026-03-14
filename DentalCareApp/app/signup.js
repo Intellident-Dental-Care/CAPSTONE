@@ -179,6 +179,28 @@ export default function Signup() {
         return;
       }
 
+      // Send OTP verification email
+      console.log("2. Sending OTP email for:", cleanEmail);
+      const url = serverUrl || await getServerUrl();
+      const emailResponse = await fetch(`${url}/send-verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: cleanEmail,
+          fullName: cleanFullName,
+          userId: signUpData.user?.id,
+        }),
+      });
+
+      if (!emailResponse.ok) {
+        const emailError = await emailResponse.json();
+        console.error("Failed to send OTP email:", emailError);
+        setLoading(false);
+        setError("Account created but failed to send verification email. Please try resending.");
+      } else {
+        console.log("OTP email sent successfully");
+      }
+
       Animated.parallel([
         Animated.timing(backdrop, {
           toValue: 0,
@@ -247,7 +269,7 @@ export default function Signup() {
         // Fetch user profile for social login users too
         const { data: userProfile } = await supabase
           .from("users")
-          .select("full_name")
+          .select("full_name, onboarding_seen")
           .eq("id", user.id)
           .single();
           
@@ -259,8 +281,12 @@ export default function Signup() {
         });
         
         setError("Signup successful! Welcome to DentalCare!");
-        
-        // Navigate to home after successful social signup
+
+        // For Google signup, check onboarding_seen and route accordingly
+        const destination = (provider === 'google' && !userProfile?.onboarding_seen)
+          ? "/onboarding"
+          : "/home";
+
         Animated.parallel([
           Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
           Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
@@ -268,7 +294,7 @@ export default function Signup() {
         ]).start(() => {
           router.back();
           setTimeout(() => {
-            router.replace("/home");
+            router.replace(destination);
           }, 100);
         });
       }
