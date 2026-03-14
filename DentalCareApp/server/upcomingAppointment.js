@@ -2,6 +2,14 @@ import { supabase } from './supabaseService';
 import { getCurrentUser } from './supabaseService';
 import { cancelOverdueAppointments } from './cancelOverdueAppointments';
 
+function getLocalISODate() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function isUuid(value) {
   if (!value) return false;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -82,6 +90,68 @@ export const fetchUpcomingAppointment = async (profileId) => {
     return { data: null, error: null };
   } catch (err) {
     console.error('Error fetching upcoming appointment:', err);
+    return { data: null, error: err.message };
+  }
+};
+
+// Fetch queue details for a specific upcoming appointment.
+export const fetchCurrentQueueForAppointment = async (appointment) => {
+  try {
+    if (!appointment?.id || !appointment?.branch || !appointment?.date) {
+      return { data: null, error: null };
+    }
+
+    // Queue is only meaningful on the same day as the appointment.
+    const today = getLocalISODate();
+    if (appointment.date !== today) {
+      return { data: null, error: null };
+    }
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('id, appointment_time, created_at')
+      .eq('branch', appointment.branch)
+      .eq('appointment_date', appointment.date)
+      .in('status', ['pending', 'confirmed'])
+      .order('appointment_time', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching queue details:', error);
+      return { data: null, error: error.message };
+    }
+
+    if (!data?.length) {
+      return { data: null, error: null };
+    }
+
+    let index = data.findIndex((item) => item.id === appointment.id);
+
+    // Fallback when the list changed and specific booking id is not found.
+    if (index < 0 && appointment.time) {
+      index = data.findIndex((item) => item.appointment_time === appointment.time);
+    }
+
+    if (index < 0) {
+      return { data: null, error: null };
+    }
+
+    const queueNumber = index + 1;
+    const ahead = Math.max(0, index);
+    const estimatedWaitMinutes = ahead * 15;
+
+    return {
+      data: {
+        queueNumber,
+        ahead,
+        totalInQueue: data.length,
+        estimatedWaitMinutes,
+        refreshedAt: Date.now(),
+      },
+      error: null,
+    };
+  } catch (err) {
+    console.error('Error fetching queue details:', err);
     return { data: null, error: err.message };
   }
 };

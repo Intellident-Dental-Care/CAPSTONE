@@ -27,7 +27,12 @@ import {
   APPOINTMENT_CACHE_TTL_MS,
   clearAllProfileCaches,
 } from "./_storage/profileCache";
-import { fetchUpcomingAppointment, formatAppointmentDate, formatAppointmentTime } from "../server/upcomingAppointment";
+import {
+  fetchUpcomingAppointment,
+  fetchCurrentQueueForAppointment,
+  formatAppointmentDate,
+  formatAppointmentTime,
+} from "../server/upcomingAppointment";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import ProfileSwitcherModal from "./components/ProfileSwitcherModal";
@@ -39,6 +44,29 @@ function isUuid(value) {
   );
 }
 
+function formatQueueWait(minutes) {
+  if (!minutes || minutes <= 0) return "Estimated wait: It's your turn soon";
+
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+
+  if (hours && mins) {
+    return `Estimated wait: ${hours} hour${hours > 1 ? "s" : ""} and ${mins} minute${mins > 1 ? "s" : ""}`;
+  }
+  if (hours) {
+    return `Estimated wait: ${hours} hour${hours > 1 ? "s" : ""}`;
+  }
+  return `Estimated wait: ${mins} minute${mins > 1 ? "s" : ""}`;
+}
+
+function getLocalISODate() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export default function Home() {
   const router = useRouter();
 
@@ -48,31 +76,56 @@ export default function Home() {
   // These were missing, so I added placeholder states to prevent crashes
   const [loadingAppointment, setLoadingAppointment] = useState(false);
   const [upcomingAppointment, setUpcomingAppointment] = useState(null);
+  const [loadingQueue, setLoadingQueue] = useState(false);
+  const [queueData, setQueueData] = useState(null);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [profiles, setProfiles] = useState([]);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [loggedInEmail, setLoggedInEmail] = useState(profileIndexCache.loggedInEmail || "");
   const [flowModalVisible, setFlowModalVisible] = useState(false);
 
-  const loadUpcomingForProfile = useCallback(async (activeProfile) => {
+  const loadQueueForAppointment = useCallback(async (appointment, { showLoader = true } = {}) => {
+    if (!appointment) {
+      setQueueData(null);
+      return;
+    }
+
+    try {
+      if (showLoader) setLoadingQueue(true);
+      const { data } = await fetchCurrentQueueForAppointment(appointment);
+      setQueueData(data || null);
+    } catch (error) {
+      console.log("loadQueueForAppointment error:", error);
+      setQueueData(null);
+    } finally {
+      if (showLoader) setLoadingQueue(false);
+    }
+  }, []);
+
+  const loadUpcomingForProfile = useCallback(async (activeProfile, options = {}) => {
+    const { forceRefresh = false } = options;
     const safeProfileId = isUuid(activeProfile?.id) ? activeProfile.id : null;
     const cacheKey = safeProfileId || "__no_profile__";
     const cached = appointmentCache[cacheKey];
     const now = Date.now();
-    const isStale = !cached || (now - cached.fetchedAt) > APPOINTMENT_CACHE_TTL_MS;
+    const isStale = forceRefresh || !cached || (now - cached.fetchedAt) > APPOINTMENT_CACHE_TTL_MS;
+    let appointmentData = cached?.data || null;
 
     if (cached) {
       setUpcomingAppointment(cached.data);
     }
 
     if (isStale) {
-      if (!cached) setLoadingAppointment(true);
+      if (!cached || forceRefresh) setLoadingAppointment(true);
       const { data } = await fetchUpcomingAppointment(safeProfileId);
       appointmentCache[cacheKey] = { data, fetchedAt: Date.now() };
       setUpcomingAppointment(data);
+      appointmentData = data;
       setLoadingAppointment(false);
     }
-  }, []);
+
+    await loadQueueForAppointment(appointmentData, { showLoader: forceRefresh || !cached });
+  }, [loadQueueForAppointment]);
 
   const loadProfiles = useCallback(async () => {
     try {
@@ -211,6 +264,17 @@ export default function Home() {
     router.push("/booking");
   };
 
+  const handleRefreshQueue = async () => {
+    const activeProfile = selectedProfile || profileIndexCache.selectedProfile || null;
+    await loadUpcomingForProfile(activeProfile, { forceRefresh: true });
+  };
+
+  const isQueueDay = !!upcomingAppointment?.date && upcomingAppointment.date === getLocalISODate();
+
+  const queueProgress = isQueueDay && queueData?.totalInQueue
+    ? Math.max(8, Math.round((queueData.queueNumber / queueData.totalInQueue) * 100))
+    : 0;
+
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -321,6 +385,59 @@ export default function Home() {
             onPress={() => router.push("/services")}
           />
         </View>
+
+        {isQueueDay ? (
+        <View style={styles.queueCard}>
+          <View style={styles.queueTopRow}>
+            <Text style={styles.queueTitle}>Current Queue</Text>
+
+            <Pressable
+              style={[styles.refreshBtn, (loadingQueue || loadingAppointment) && { opacity: 0.7 }]}
+              onPress={handleRefreshQueue}
+              disabled={loadingQueue || loadingAppointment}
+            >
+              {(loadingQueue || loadingAppointment) ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Ionicons name="refresh" size={12} color={colors.white} />
+              )}
+              <Text style={styles.refreshText}>Refresh Now</Text>
+            </Pressable>
+          </View>
+
+          <Text style={styles.queueNumber}>
+            {isQueueDay && queueData?.queueNumber ? `#${queueData.queueNumber}` : "--"}
+          </Text>
+          <Text style={styles.queueSub}>
+            {!upcomingAppointment
+              ? "No active queue right now"
+              : !isQueueDay
+                ? "Live queue appears on your appointment day"
+                : queueData?.queueNumber
+                  ? "Your position in queue"
+                  : "No active queue right now"}
+          </Text>
+
+          <View style={styles.queueProgressTrack}>
+            <View
+              style={[
+                styles.queueProgressFill,
+                { width: `${queueProgress}%` },
+              ]}
+            />
+          </View>
+
+          <Text style={styles.queueWait}>
+            {isQueueDay && queueData?.queueNumber
+              ? formatQueueWait(queueData.estimatedWaitMinutes)
+              : !upcomingAppointment
+                ? "Book an appointment to get a live queue number"
+                : !isQueueDay
+                  ? "Queue updates will start on your appointment date"
+                  : "No queue data available yet"}
+          </Text>
+        </View>
+        ) : null}
 
         <Text style={styles.sectionTitle}>Upcoming Appointment</Text>
 
@@ -651,6 +768,83 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
     color: "#777",
+  },
+
+  queueCard: {
+    marginTop: 14,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    padding: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+
+  queueTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  queueTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.white,
+  },
+
+  refreshBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+
+  refreshText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: colors.white,
+  },
+
+  queueNumber: {
+    marginTop: 10,
+    fontSize: 40,
+    fontWeight: "900",
+    color: colors.white,
+    textAlign: "center",
+  },
+
+  queueSub: {
+    marginTop: 2,
+    fontSize: 10,
+    color: "rgba(255,255,255,0.85)",
+    textAlign: "center",
+    fontWeight: "700",
+  },
+
+  queueProgressTrack: {
+    marginTop: 12,
+    height: 6,
+    borderRadius: 99,
+    backgroundColor: "rgba(255,255,255,0.35)",
+    overflow: "hidden",
+  },
+
+  queueProgressFill: {
+    height: "100%",
+    borderRadius: 99,
+    backgroundColor: colors.white,
+  },
+
+  queueWait: {
+    marginTop: 10,
+    fontSize: 10,
+    color: colors.white,
+    textAlign: "center",
+    fontWeight: "800",
   },
 
   upcomingCard: {
