@@ -1,0 +1,58 @@
+@media (max-width: 1280px) {
+  html,
+  body,
+  #root {
+    overflow: auto;
+  }
+
+  .dentist-dashboard {
+    height: auto;
+    overflow: visible;
+  }
+
+  .main-content {
+    height: auto;
+    overflow: visible;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .left-mini-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .right-section,
+  .right-extra-grid {
+    overflow: visible;
+  }
+
+  .preassessment-content,
+  .procedure-content {
+    grid-template-columns: 1fr;
+  }
+
+  .preassessment-left {
+    padding-top: 40px;
+  }
+
+  .preassessment-title {
+    font-size: 28px;
+  }
+
+  .preassessment-subtitle {
+    font-size: 18px;
+  }
+
+  .profile-form-grid.three,
+  .profile-form-grid.two,
+  .schedule-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-row {
+    grid-template-columns: 90px 1fr 36px 1fr;
+  }
+}
