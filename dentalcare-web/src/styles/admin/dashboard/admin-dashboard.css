@@ -1,0 +1,684 @@
+.admin-dashboard-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(360px, 1fr);
+  gap: 16px;
+  padding: 16px;
+  min-height: 0;
+  overflow: hidden;
+  background: #f8f7f8;
+}
+
+.admin-live-queue-card,
+.admin-right-info-card,
+.admin-mini-stat-card,
+.admin-kpi-card {
+  background: #ffffff;
+  border: 1px solid #f2d7e1;
+  border-radius: 24px;
+  box-shadow: 0 14px 34px rgba(232, 80, 132, 0.06);
+}
+
+.admin-left-section {
+  display: grid;
+  grid-template-rows: minmax(320px, 0.98fr) minmax(0, 1.02fr);
+  gap: 16px;
+  min-height: 0;
+}
+
+.admin-live-queue-card {
+  padding: 24px 26px;
+  background: linear-gradient(180deg, #fff4f8 0%, #ffffff 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+}
+
+.admin-card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.admin-live-queue-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #5b5b64;
+  margin: 0;
+}
+
+.admin-soft-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #fde6ef;
+  color: #e85084;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-live-queue-content {
+  text-align: center;
+}
+
+.admin-live-queue-number {
+  font-size: 110px;
+  font-weight: 900;
+  line-height: 1;
+  color: #17171c;
+}
+
+.admin-live-queue-status {
+  font-size: 30px;
+  font-weight: 800;
+  color: #e85084;
+  margin: 10px 0 22px;
+}
+
+.admin-live-queue-extra {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.admin-live-queue-extra-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: #ffffff;
+  border: 1px solid #f3dbe4;
+  border-radius: 16px;
+  padding: 15px;
+  text-align: left;
+}
+
+.admin-live-queue-extra-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #a1a1aa;
+}
+
+.admin-live-queue-extra-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #53535b;
+  line-height: 1.4;
+}
+
+.admin-live-queue-progress {
+  width: 100%;
+  height: 10px;
+  background: #f3dbe4;
+  border-radius: 999px;
+  margin: 0 0 14px;
+  overflow: hidden;
+}
+
+.admin-live-queue-progress-fill {
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, #f6a7c1 0%, #e85084 100%);
+  border-radius: 999px;
+}
+
+.admin-live-queue-wait {
+  font-size: 15px;
+  font-weight: 700;
+  color: #66666f;
+  margin: 0;
+}
+
+.admin-live-queue-wait strong {
+  color: #e85084;
+}
+
+.admin-left-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: minmax(220px, 220px) minmax(185px, 1fr);
+  gap: 16px;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.admin-patient-card,
+.admin-dentists-card {
+  min-height: 220px;
+}
+
+.admin-activity-card {
+  grid-column: 1 / -1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-mini-stat-card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.admin-mini-stat-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #70707a;
+  margin: 0;
+}
+
+.admin-patient-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-patient-top {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.admin-patient-name {
+  font-size: 22px;
+  color: #e85084;
+  margin: 0;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.admin-patient-treatment {
+  color: #66666f;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.35;
+  font-size: 15px;
+}
+
+.admin-patient-schedule {
+  font-size: 13px;
+  color: #8b8b94;
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.admin-patient-bottom {
+  margin-top: auto;
+  padding: 14px 16px;
+  border: 1px solid #f4d9e3;
+  border-radius: 16px;
+  background: #fffafb;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-assigned-label {
+  font-size: 11px;
+  color: #9a9aa3;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  line-height: 1.2;
+}
+
+.admin-assigned-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #e85084;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.admin-dentists-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.admin-dentists-list::-webkit-scrollbar,
+.admin-activity-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-dentists-list::-webkit-scrollbar-thumb,
+.admin-activity-list::-webkit-scrollbar-thumb {
+  background: #edc1d1;
+  border-radius: 999px;
+}
+
+.admin-dentist-item {
+  border: 1px solid #f4c8d8;
+  border-radius: 14px;
+  padding: 12px 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  flex-shrink: 0;
+  background: #fff8fb;
+}
+
+.admin-dentist-meta {
+  min-width: 0;
+}
+
+.admin-dentist-name {
+  margin: 0;
+  color: #e85084;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.admin-dentist-patients {
+  display: inline-block;
+  margin-top: 5px;
+  color: #8a8a93;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.admin-dentist-status {
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.admin-dentist-status.green {
+  color: #4f9f59;
+}
+
+.admin-dentist-status.yellow {
+  color: #c5a92f;
+}
+
+.admin-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.admin-activity-item {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.admin-activity-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #e84f87;
+  margin-top: 5px;
+}
+
+.admin-activity-content {
+  min-width: 0;
+}
+
+.admin-activity-title {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #55555d;
+}
+
+.admin-activity-description {
+  margin: 0;
+  font-size: 12px;
+  color: #9797a0;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.admin-activity-time {
+  font-size: 11px;
+  color: #b0b0b8;
+  font-weight: 700;
+  white-space: nowrap;
+  padding-left: 8px;
+}
+
+.admin-right-section {
+  display: grid;
+  grid-template-rows: auto auto minmax(250px, 0.9fr) minmax(280px, 1fr);
+  gap: 16px;
+  min-height: 0;
+}
+
+.admin-summary-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-kpi-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100px;
+}
+
+.admin-kpi-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #9a9aa3;
+}
+
+.admin-kpi-value {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.1;
+  color: #e85084;
+  font-weight: 900;
+}
+
+.admin-kpi-subtext {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #8f8f98;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.admin-right-info-card {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.admin-appointments-card {
+  min-height: 0;
+}
+
+.admin-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-right-info-label {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #70707a;
+}
+
+.admin-treatments-layout {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.admin-treatments-chart {
+  width: 126px;
+  height: 126px;
+  border-radius: 50%;
+  background: conic-gradient(
+    #e8427d 0% 45%,
+    #ebb8cb 45% 67%,
+    #f4dbe6 67% 85%,
+    #f0a9c2 85% 100%
+  );
+  margin: 0 auto;
+}
+
+.admin-treatments-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-treatment-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #66666f;
+  font-weight: 700;
+  font-size: 13px;
+  gap: 10px;
+}
+
+.admin-treatment-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-treatment-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.admin-treatment-dot.dot-1 {
+  background: #e8427d;
+}
+
+.admin-treatment-dot.dot-2 {
+  background: #ebb8cb;
+}
+
+.admin-treatment-dot.dot-3 {
+  background: #f4dbe6;
+}
+
+.admin-treatment-dot.dot-4 {
+  background: #f0a9c2;
+}
+
+.admin-appointments-head {
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.admin-chart-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: #b0b0b8;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+
+.admin-chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-chart-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.admin-chart-dot.scheduled {
+  background: #e8427d;
+}
+
+.admin-chart-dot.walkin {
+  background: #f2b8cd;
+}
+
+.admin-line-chart-wrapper {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.admin-line-chart {
+  width: 100%;
+  flex: 1;
+  min-height: 170px;
+  overflow: visible;
+}
+
+.admin-chart-grid-line {
+  stroke: #ececf1;
+  stroke-width: 0.5;
+}
+
+.admin-chart-line-scheduled {
+  stroke: #e8427d;
+  stroke-width: 1.2;
+}
+
+.admin-chart-line-walkin {
+  stroke: #f2b8cd;
+  stroke-width: 1.2;
+}
+
+.admin-line-chart-months {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  margin-top: 6px;
+  font-size: 11px;
+  color: #6f6f78;
+  text-align: center;
+}
+
+@media (max-width: 1280px) {
+  .admin-dashboard-page,
+  .admin-main-content {
+    height: auto;
+    overflow: visible;
+  }
+
+  .admin-dashboard-grid {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .admin-left-section,
+  .admin-right-section {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .admin-left-bottom-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    row-gap: 14px;
+  }
+
+  .admin-patient-card,
+  .admin-dentists-card {
+    height: auto;
+    min-height: auto;
+  }
+
+  .admin-activity-card {
+    grid-column: auto;
+  }
+
+  .admin-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-treatments-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-treatments-chart {
+    margin-bottom: 8px;
+  }
+
+  .admin-dentists-list,
+  .admin-activity-list {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-live-queue-extra {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-card-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-dashboard-grid {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .admin-summary-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-live-queue-card,
+  .admin-mini-stat-card,
+  .admin-right-info-card,
+  .admin-kpi-card {
+    padding: 16px;
+  }
+
+  .admin-live-queue-number {
+    font-size: 80px;
+  }
+
+  .admin-live-queue-status {
+    font-size: 22px;
+  }
+
+  .admin-live-queue-progress {
+    width: 100%;
+  }
+
+  .admin-activity-item {
+    grid-template-columns: 10px 1fr;
+  }
+
+  .admin-activity-time {
+    grid-column: 2;
+    padding-left: 0;
+  }
+
+  .admin-line-chart-months {
+    font-size: 10px;
+  }
+}
