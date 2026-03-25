@@ -1,6 +1,6 @@
 import express from "express";
 import { requireAuth, requireRole } from "../../shared/authMiddleware.js";
-import { getQueueForAdminBranch, updateBookingQueueStatus } from "./queueService.js";
+import { applyQueueDelay, getQueueForAdminBranch, updateBookingQueueStatus } from "./queueService.js";
 
 const router = express.Router();
 
@@ -17,6 +17,17 @@ router.patch("/status", requireAuth, requireRole("admin"), async (req, res) => {
   }
 
   const result = await updateBookingQueueStatus(req.user.profileId || req.user.id, bookingId, status);
+  return res.status(result.statusCode || 500).json(result);
+});
+
+router.post("/delay", requireAuth, requireRole("admin"), async (req, res) => {
+  const { delayMinutes, message } = req.body || {};
+
+  const result = await applyQueueDelay(req.user.profileId || req.user.id, {
+    delayMinutes,
+    message,
+  });
+
   return res.status(result.statusCode || 500).json(result);
 });
 

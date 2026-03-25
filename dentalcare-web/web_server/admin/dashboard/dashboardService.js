@@ -50,9 +50,179 @@ const monthLabel = (monthIndex) => {
 
 const toStatusClass = (status) => (status === "On-Duty" ? "green" : "yellow");
 
+const toISODate = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+const startOfDay = (date) => {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+};
+
+const addDays = (date, days) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
+const attendanceLabel = (targetDate) => {
+  const today = startOfDay(new Date());
+  const selected = startOfDay(targetDate);
+  const diff = Math.round((selected.getTime() - today.getTime()) / 86400000);
+
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Tomorrow";
+  return selected.toLocaleDateString("en-US", { weekday: "short" });
+};
+
 const toServiceName = (booking) => {
   const value = booking?.service || booking?.treatment || booking?.procedure || booking?.service_name;
   return value ? String(value) : "Dental Appointment";
+};
+
+const getAttendingDentistsByBranchSchedule = async (branch) => {
+  const normalizedBranch = normalize(branch);
+  if (!normalizedBranch) return [];
+
+  const { data: schedules, error: schedulesError } = await supabaseAdmin
+    .from("dentist_schedule")
+    .select("dentist_id, branch, day_of_week, is_active")
+    .eq("is_active", true);
+
+  if (schedulesError) {
+    return [];
+  }
+
+  const branchSchedules = (schedules || []).filter(
+    (row) => normalize(row.branch) === normalizedBranch
+  );
+
+  if (!branchSchedules.length) {
+    return [];
+  }
+
+  const dentistIds = [...new Set(branchSchedules.map((row) => row.dentist_id).filter(Boolean))];
+  if (!dentistIds.length) {
+    return [];
+  }
+
+  const { data: dentists, error: dentistsError } = await supabaseAdmin
+    .from("dentist_list")
+    .select("id, name")
+    .in("id", dentistIds);
+
+  if (dentistsError) {
+    return [];
+  }
+
+  const today = startOfDay(new Date());
+  const targetDates = [today, addDays(today, 1)];
+
+  const scheduleGroups = targetDates
+    .map((date) => {
+      const day = date.getDay();
+      const dentistIdsForDay = [
+        ...new Set(
+          branchSchedules
+            .filter((row) => Number(row.day_of_week) === day)
+            .map((row) => row.dentist_id)
+            .filter(Boolean)
+        ),
+      ];
+
+      return {
+        iso: toISODate(date),
+        label: attendanceLabel(date),
+        dayOrder: Math.round((startOfDay(date).getTime() - today.getTime()) / 86400000),
+        dentistIds: dentistIdsForDay,
+      };
+    })
+    .filter((group) => group.dentistIds.length > 0);
+
+  if (!scheduleGroups.length) {
+    return [];
+  }
+
+  const allDentistIds = [...new Set(scheduleGroups.flatMap((group) => group.dentistIds))];
+  const allDates = [...new Set(scheduleGroups.map((group) => group.iso))];
+
+  const { data: dayBookings, error: bookingsError } = await supabaseAdmin
+    .from("bookings")
+    .select("dentist_id, status, branch, appointment_date")
+    .in("appointment_date", allDates)
+    .in("dentist_id", allDentistIds);
+
+  if (bookingsError) {
+    return [];
+  }
+
+  const countByDentistAndDate = new Map();
+  for (const booking of dayBookings || []) {
+    if (normalize(booking.branch) !== normalizedBranch) continue;
+    if (normalize(booking.status) === "cancelled") continue;
+
+    const key = `${booking.dentist_id}__${booking.appointment_date}`;
+    countByDentistAndDate.set(key, (countByDentistAndDate.get(key) || 0) + 1);
+  }
+
+  const dentistById = new Map((dentists || []).map((d) => [d.id, d]));
+
+  let rowId = 1;
+  return scheduleGroups
+    .flatMap((group) =>
+      group.dentistIds.map((dentistId) => {
+        const name = dentistById.get(dentistId)?.name || "Unassigned";
+        const count = countByDentistAndDate.get(`${dentistId}__${group.iso}`) || 0;
+
+        return {
+          id: rowId++,
+          name,
+          patients: `${count} Appointment${count > 1 ? "s" : ""} (${group.label})`,
+          status: group.label,
+          statusClass: toStatusClass(group.label === "Today" ? "On-Duty" : "Upcoming"),
+          dayOrder: group.dayOrder,
+          appointmentCount: count,
+        };
+      })
+    )
+    .sort((a, b) => {
+      if (a.dayOrder !== b.dayOrder) return a.dayOrder - b.dayOrder;
+      if (b.appointmentCount !== a.appointmentCount) return b.appointmentCount - a.appointmentCount;
+      return a.name.localeCompare(b.name);
+    })
+    .map(({ dayOrder, appointmentCount, ...row }) => row);
+};
+
+const getBranchDelayForDate = async (branch, effectiveDate) => {
+  const { data, error } = await supabaseAdmin
+    .from("queue_delay_state")
+    .select("total_delay_minutes, last_message, updated_at")
+    .eq("branch", branch)
+    .eq("effective_date", effectiveDate)
+    .maybeSingle();
+
+  if (error) {
+    const tableMissing =
+      error.code === "PGRST205" ||
+      error.code === "42P01" ||
+      String(error.message || "").toLowerCase().includes("does not exist");
+
+    if (tableMissing) {
+      return { totalDelayMinutes: 0, lastMessage: "", updatedAt: null };
+    }
+
+    throw error;
+  }
+
+  return {
+    totalDelayMinutes: Number(data?.total_delay_minutes || 0),
+    lastMessage: data?.last_message || "",
+    updatedAt: data?.updated_at || null,
+  };
 };
 
 export const getAdminBranch = async (adminProfileId) => {
@@ -82,6 +252,7 @@ export const getTodayBranchBookings = async (adminProfileId) => {
     .from("bookings")
     .select(`
       id,
+      user_id,
       patient_name,
       branch,
       service,
@@ -112,6 +283,7 @@ export const getTodayBranchBookings = async (adminProfileId) => {
       date: today,
       bookings: filtered.map((row, index) => ({
         id: row.id,
+        userId: row.user_id,
         queueNumber: index + 1,
         patientName: row.patient_name,
         branch: row.branch,
@@ -173,6 +345,13 @@ export const getDashboardSnapshot = async (adminProfileId) => {
     return annualResult;
   }
 
+  let delayInfo = { totalDelayMinutes: 0, lastMessage: "", updatedAt: null };
+  try {
+    delayInfo = await getBranchDelayForDate(queueResult.data.admin.branch, queueResult.data.date);
+  } catch {
+    delayInfo = { totalDelayMinutes: 0, lastMessage: "", updatedAt: null };
+  }
+
   const todayBookings = queueResult.data.bookings;
   const yearlyBookings = annualResult.data || [];
 
@@ -183,26 +362,9 @@ export const getDashboardSnapshot = async (adminProfileId) => {
   const walkins = todayBookings.filter((b) => !b.preassessmentId).length;
 
   const dentistCount = new Set(todayBookings.map((b) => b.dentist).filter((name) => name && name !== "Unassigned")).size;
+  const nextPatientWaitMinutes = waiting.length ? 15 + delayInfo.totalDelayMinutes : 0;
 
-  const attendingDentistsMap = new Map();
-  for (const booking of todayBookings) {
-    const key = booking.dentist || "Unassigned";
-    if (key === "Unassigned") continue;
-    const currentDentist = attendingDentistsMap.get(key) || { name: key, count: 0 };
-    currentDentist.count += 1;
-    attendingDentistsMap.set(key, currentDentist);
-  }
-
-  const attendingDentists = Array.from(attendingDentistsMap.values())
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 6)
-    .map((item, index) => ({
-      id: index + 1,
-      name: item.name,
-      patients: `${item.count} Patient${item.count > 1 ? "s" : ""}`,
-      status: "On-Duty",
-      statusClass: toStatusClass("On-Duty"),
-    }));
+  const attendingDentists = await getAttendingDentistsByBranchSchedule(queueResult.data.admin.branch);
 
   const recentActivity = todayBookings
     .slice()
@@ -288,6 +450,8 @@ export const getDashboardSnapshot = async (adminProfileId) => {
       },
       liveQueue: current,
       nextPatient: waiting[0] || null,
+      nextPatientWaitMinutes,
+      queueDelay: delayInfo,
       bookings: todayBookings,
       attendingDentists,
       recentActivity,

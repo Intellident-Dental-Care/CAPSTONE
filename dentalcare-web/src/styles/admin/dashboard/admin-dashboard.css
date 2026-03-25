@@ -141,7 +141,7 @@
 .admin-left-bottom-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: minmax(220px, 220px) minmax(185px, 1fr);
+  grid-template-rows: minmax(250px, auto) minmax(185px, 1fr);
   gap: 16px;
   min-height: 0;
   align-items: stretch;
@@ -149,7 +149,7 @@
 
 .admin-patient-card,
 .admin-dentists-card {
-  min-height: 220px;
+  min-height: 250px;
 }
 
 .admin-activity-card {
@@ -178,6 +178,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+  min-height: 0;
 }
 
 .admin-patient-top {
@@ -305,6 +307,13 @@
 
 .admin-dentist-status.yellow {
   color: #c5a92f;
+}
+
+.admin-empty-text {
+  margin: 0;
+  color: #8a8a93;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .admin-activity-list {

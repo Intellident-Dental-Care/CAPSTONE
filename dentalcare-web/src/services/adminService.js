@@ -117,6 +117,24 @@ export const updateQueueStatus = async (bookingId, status) => {
   }
 };
 
+export const applyQueueDelay = async (payload) => {
+  try {
+    const data = await fetchJson("/admin/queuecontrol/delay", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    if (data?.success) {
+      adminCache.queue = null;
+      adminCache.dashboard = null;
+    }
+
+    return data;
+  } catch (error) {
+    return { success: false, message: "Failed to apply queue delay" };
+  }
+};
+
 export const getAdminProfile = async () => {
   if (adminCache.profile) {
     return { success: true, data: adminCache.profile };

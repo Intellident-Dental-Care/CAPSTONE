@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminSidebar from "../../components/admin/layout/AdminSidebar";
 import AdminTopbar from "../../components/admin/layout/AdminTopbar";
-import { getTodayQueue, updateQueueStatus } from "../../services/adminService";
+import { applyQueueDelay, getTodayQueue, updateQueueStatus } from "../../services/adminService";
 
 import "../../styles/admin/dashboard/admin-layout.css";
 import "../../styles/admin/layout/admin-sidebar.css";
@@ -43,6 +43,8 @@ export default function Queue() {
   const [customDelay, setCustomDelay] = useState("");
   const [delayUnit, setDelayUnit] = useState("minutes");
   const [notificationMessage, setNotificationMessage] = useState("");
+  const [delayOffsetMinutes, setDelayOffsetMinutes] = useState(0);
+  const [isApplyingDelay, setIsApplyingDelay] = useState(false);
 
   const loadQueue = async () => {
     const response = await getTodayQueue();
@@ -59,6 +61,8 @@ export default function Queue() {
       procedure: item.procedure,
       dentist: item.dentist,
     }));
+
+    setDelayOffsetMinutes(Number(response?.data?.delay?.totalDelayMinutes || 0));
 
     setQueueList(mapped.length ? mapped : []);
   };
@@ -96,7 +100,8 @@ export default function Queue() {
   );
 
   const waitingCount = waitingPatients.length;
-  const estimatedWait = waitingCount > 0 ? waitingCount * 15 : 0;
+  const estimatedWait = waitingCount > 0 ? (waitingCount * 15) + delayOffsetMinutes : 0;
+  const nextPatientWait = nextPatient ? 15 + delayOffsetMinutes : 0;
 
   const today = new Date();
   const todayFormatted = today.toLocaleDateString("en-US", {
@@ -180,24 +185,52 @@ export default function Queue() {
     await loadQueue();
   };
 
-  const handleDelayConfirm = () => {
+  const handleDelayConfirm = async () => {
+    if (isApplyingDelay) return;
+
+    let delayMinutes = 0;
     let chosenDelayText = "";
 
     if (selectedDelay === "custom") {
-      const value = customDelay || "0";
-      chosenDelayText = `${value} ${delayUnit}`;
+      const raw = Number(customDelay || 0);
+      if (!Number.isFinite(raw) || raw <= 0) {
+        return;
+      }
+
+      delayMinutes = delayUnit === "hours" ? raw * 60 : raw;
+      chosenDelayText = `${raw} ${delayUnit}`;
     } else {
+      delayMinutes = Number(selectedDelay || 0);
+      if (!Number.isFinite(delayMinutes) || delayMinutes <= 0) {
+        return;
+      }
       chosenDelayText = `${selectedDelay} minutes`;
     }
+
+    setIsApplyingDelay(true);
+
+    const finalMessage =
+      notificationMessage.trim() !== ""
+        ? notificationMessage.trim()
+        : `Queue delayed by ${chosenDelayText}`;
+
+    const response = await applyQueueDelay({
+      delayMinutes,
+      message: finalMessage,
+    });
+
+    if (!response?.success) {
+      setIsApplyingDelay(false);
+      return;
+    }
+
+    setDelayOffsetMinutes(Number(response?.data?.delay?.totalDelayMinutes || 0));
 
     setNotifications((prev) => [
       {
         id: Date.now(),
         title: "Schedule Delay:",
-        message:
-          notificationMessage.trim() !== ""
-            ? notificationMessage
-            : `Queue delayed by ${chosenDelayText}`,
+        message: finalMessage,
         time: "Just now",
       },
       ...prev,
@@ -208,6 +241,9 @@ export default function Queue() {
     setCustomDelay("");
     setDelayUnit("minutes");
     setNotificationMessage("");
+
+    await loadQueue();
+    setIsApplyingDelay(false);
   };
 
   return (
@@ -262,7 +298,7 @@ export default function Queue() {
             <div className="queue-stat-card">
               <span className="queue-stat-label">Estimated Wait</span>
               <h3>{estimatedWait} min</h3>
-              <p>For remaining patients</p>
+              <p>Includes {delayOffsetMinutes} min delay offset</p>
             </div>
           </div>
 
@@ -310,7 +346,7 @@ export default function Queue() {
                       <p>
                         Estimated wait for the next patient:{" "}
                         <strong>
-                          {nextPatient ? "15 minutes" : "No patient waiting"}
+                          {nextPatient ? `${nextPatientWait} minutes` : "No patient waiting"}
                         </strong>
                       </p>
 
@@ -615,8 +651,9 @@ export default function Queue() {
                 <button
                   className="queue-primary-btn"
                   onClick={handleDelayConfirm}
+                  disabled={isApplyingDelay}
                 >
-                  Confirm Delay and Notify
+                  {isApplyingDelay ? "Applying..." : "Confirm Delay and Notify"}
                 </button>
               </div>
             </div>

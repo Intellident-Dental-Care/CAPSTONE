@@ -38,6 +38,7 @@ export default function AdminDashboard() {
   const recentActivities = snapshot?.recentActivity || [];
   const topTreatments = (snapshot?.topTreatments || []).slice(0, 4);
   const monthlyAppointments = snapshot?.monthlyAppointments || [];
+  const nextPatientWaitMinutes = Number(snapshot?.nextPatientWaitMinutes || 0);
 
   const [notifications, setNotifications] = useState([
     {
@@ -173,7 +174,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <p className="admin-live-queue-wait">
-                  Estimated wait for the next patient: <strong>{nextPatientFromApi ? "15 minutes" : "N/A"}</strong>
+                  Estimated wait for the next patient: <strong>{nextPatientFromApi ? `${nextPatientWaitMinutes} minutes` : "N/A"}</strong>
                 </p>
               </div>
             </div>
@@ -208,22 +209,26 @@ export default function AdminDashboard() {
                 <p className="admin-mini-stat-title">Attending Dentists</p>
 
                 <div className="admin-dentists-list">
-                  {attendingDentists.map((dentist) => (
-                    <div key={dentist.id} className="admin-dentist-item">
-                      <div className="admin-dentist-meta">
-                        <p className="admin-dentist-name">{dentist.name}</p>
-                        <span className="admin-dentist-patients">
-                          {dentist.patients}
+                  {attendingDentists.length ? (
+                    attendingDentists.map((dentist) => (
+                      <div key={dentist.id} className="admin-dentist-item">
+                        <div className="admin-dentist-meta">
+                          <p className="admin-dentist-name">{dentist.name}</p>
+                          <span className="admin-dentist-patients">
+                            {dentist.patients}
+                          </span>
+                        </div>
+
+                        <span
+                          className={`admin-dentist-status ${dentist.statusClass}`}
+                        >
+                          {dentist.status}
                         </span>
                       </div>
-
-                      <span
-                        className={`admin-dentist-status ${dentist.statusClass}`}
-                      >
-                        {dentist.status}
-                      </span>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="admin-empty-text">No dentists scheduled for this branch.</p>
+                  )}
                 </div>
               </div>
 
