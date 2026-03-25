@@ -64,16 +64,7 @@ export default function DentistSchedule() {
   useEffect(() => {
     let mounted = true;
 
-    const loadSchedule = async () => {
-      const result = await getDentistSchedule({
-        date: selectedDate,
-        branch: selectedBranch || undefined,
-        forceRefresh: true,
-      });
-
-      if (!mounted || !result?.success) return;
-
-      const payload = result.data || {};
+    const applySchedulePayload = (payload = {}) => {
       const nextBranches = payload.branches || [];
       setBranches(nextBranches);
 
@@ -83,6 +74,29 @@ export default function DentistSchedule() {
 
       setAppointments(payload.appointments || []);
       setNotifications(payload.notifications || []);
+    };
+
+    const loadSchedule = async () => {
+      const cached = await getDentistSchedule({
+        date: selectedDate,
+        branch: selectedBranch || undefined,
+      });
+
+      if (!mounted) return;
+
+      if (cached?.success) {
+        applySchedulePayload(cached.data || {});
+      }
+
+      const fresh = await getDentistSchedule({
+        date: selectedDate,
+        branch: selectedBranch || undefined,
+        forceRefresh: true,
+      });
+
+      if (!mounted || !fresh?.success) return;
+
+      applySchedulePayload(fresh.data || {});
     };
 
     loadSchedule();

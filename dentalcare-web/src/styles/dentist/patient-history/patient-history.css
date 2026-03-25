@@ -146,7 +146,10 @@
 }
 
 .patient-history-empty {
-  text-align: center;
+  text-align: center !important;
+  width: auto !important;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
   color: #969cab !important;
   background: #fff !important;
   box-shadow: none !important;
@@ -501,4 +504,38 @@
     flex-wrap: wrap;
   }
   
+}
+
+.save-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 10020;
+  background: #2fb46e;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(47, 180, 110, 0.28);
+  animation: toastInOut 1.8s ease forwards;
+}
+
+@keyframes toastInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  82% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }

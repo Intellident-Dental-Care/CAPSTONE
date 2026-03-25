@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import AuthService from "../../services/authService";
 import { preloadAdminData } from "../../services/adminService";
+import { preloadDentistData } from "../../services/dentistService";
 
 export default function Login() {
   const RESEND_COOLDOWN_SECONDS = 60;
@@ -180,6 +181,8 @@ export default function Login() {
 
       if (activeRole === "admin") {
         await preloadAdminData();
+      } else {
+        await preloadDentistData();
       }
 
       navigate(activeRole === "admin" ? "/admin/dashboard" : "/dentist/dashboard");

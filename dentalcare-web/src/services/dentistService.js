@@ -36,6 +36,22 @@ export const clearDentistCache = () => {
   dentistCache.patientHistory = null;
 };
 
+export const preloadDentistData = async () => {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    await Promise.all([
+      getDentistDashboardSnapshot({ forceRefresh: true }),
+      getDentistProfile({ forceRefresh: true }),
+      getDentistPatientHistory({ forceRefresh: true }),
+      getDentistSchedule({ date: today, forceRefresh: true }),
+    ]);
+
+    return { success: true };
+  } catch {
+    return { success: false, message: "Failed to preload dentist data" };
+  }
+};
+
 export const getDentistDashboardSnapshot = async (options = {}) => {
   const forceRefresh = !!options.forceRefresh;
 
@@ -129,5 +145,24 @@ export const getDentistPatientHistory = async (options = {}) => {
     return data;
   } catch {
     return { success: false, message: "Failed to load patient history" };
+  }
+};
+
+export const createDentistProcedure = async (payload) => {
+  try {
+    const data = await fetchJson("/dentist/patients/procedures", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    if (data?.success) {
+      // Invalidate dependent caches so timeline/dashboard refreshes with new procedure.
+      dentistCache.patientHistory = null;
+      dentistCache.dashboard = null;
+    }
+
+    return data;
+  } catch {
+    return { success: false, message: "Failed to save procedure" };
   }
 };

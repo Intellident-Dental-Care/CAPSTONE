@@ -185,6 +185,31 @@
   box-shadow: 0 8px 18px rgba(239, 75, 132, 0.22);
 }
 
+.save-procedure-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+.save-procedure-btn.loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.save-procedure-btn.loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  transform: translateX(-100%);
+  animation: saveBtnSweep 1s linear infinite;
+}
+
+@keyframes saveBtnSweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
 @media (max-width: 900px) {
   .procedure-content {
     grid-template-columns: 1fr;

@@ -51,7 +51,8 @@
 }
 
 .profile-field input,
-.schedule-row select {
+.schedule-row select,
+.schedule-row input {
   height: 42px;
   border: 1.5px solid #ef4b84;
   border-radius: 10px;
@@ -81,7 +82,7 @@
 
 .schedule-row {
   display: grid;
-  grid-template-columns: 90px 1fr 36px 1fr;
+  grid-template-columns: 90px 1fr 1fr 36px 1fr;
   align-items: center;
   gap: 10px;
 
@@ -123,4 +124,8 @@
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 10px 20px rgba(239, 75, 132, 0.22);
+}
+
+.schedule-row input::placeholder {
+  color: #adb4c2;
 }

@@ -29,6 +29,55 @@ const parseMinutes = (timeValue) => {
   return hour * 60 + minute;
 };
 
+const resolveQuestionText = (rawKey, questionnaireLookup) => {
+  const key = String(rawKey ?? "").trim();
+  if (!key) return key;
+
+  if (questionnaireLookup.has(key)) return questionnaireLookup.get(key);
+
+  const numericKey = Number(key);
+  if (!Number.isNaN(numericKey)) {
+    const plusOneKey = String(numericKey + 1);
+    if (questionnaireLookup.has(plusOneKey)) return questionnaireLookup.get(plusOneKey);
+  }
+
+  return key;
+};
+
+const toPreAssessmentPayload = (row, fallbackService, questionnaireLookup = new Map()) => {
+  if (!row) return null;
+
+  const answers = row.answers && typeof row.answers === "object" ? row.answers : null;
+
+  const questions = Array.isArray(answers)
+    ? answers.map((entry, index) => ({
+        question: entry?.question || `Question ${index + 1}`,
+        answer: entry?.answer || entry?.value || String(entry || ""),
+      }))
+    : answers && typeof answers === "object"
+      ? Object.entries(answers)
+          .filter(([key]) => !["uploadedPhotos", "photos", "tooth", "suggestedTreatment", "suggestedPrice"].includes(key))
+          .map(([key, value]) => ({
+            question: resolveQuestionText(key, questionnaireLookup),
+            answer: String(value ?? ""),
+          }))
+      : [];
+
+  const uploadedPhotos = Array.isArray(answers?.uploadedPhotos)
+    ? answers.uploadedPhotos
+    : Array.isArray(answers?.photos)
+      ? answers.photos
+      : [];
+
+  return {
+    tooth: answers?.tooth || "Not specified",
+    uploadedPhotos,
+    questions,
+    suggestedTreatment: row.description || answers?.suggestedTreatment || fallbackService || "Dental Appointment",
+    suggestedPrice: answers?.suggestedPrice || "-",
+  };
+};
+
 const mapPatientStatus = (status, queuePosition) => {
   const normalized = normalize(status);
 
@@ -69,7 +118,7 @@ export const getDentistDashboardSnapshot = async (dentistProfileId) => {
   const today = new Date();
   const todayIso = toIsoDate(today);
 
-  const [dentistResult, todayBookingsResult, weeklyBookingsResult] = await Promise.all([
+  const [dentistResult, todayBookingsResult, weeklyBookingsResult, allBookingsResult] = await Promise.all([
     supabaseAdmin
       .from("dentist_list")
       .select("id, name, specialization, email")
@@ -77,7 +126,7 @@ export const getDentistDashboardSnapshot = async (dentistProfileId) => {
       .single(),
     supabaseAdmin
       .from("bookings")
-      .select("id, patient_name, branch, service, appointment_date, appointment_time, status, created_at, preassessment_id")
+      .select("id, user_id, patient_name, branch, service, appointment_date, appointment_time, status, created_at, preassessment_id")
       .eq("dentist_id", dentistProfileId)
       .eq("appointment_date", todayIso)
       .order("appointment_time", { ascending: true }),
@@ -87,31 +136,69 @@ export const getDentistDashboardSnapshot = async (dentistProfileId) => {
       .eq("dentist_id", dentistProfileId)
       .gte("appointment_date", toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6)))
       .lte("appointment_date", todayIso),
+    supabaseAdmin
+      .from("bookings")
+      .select("id, user_id, patient_name, branch, service, appointment_date, appointment_time, status, created_at, preassessment_id")
+      .eq("dentist_id", dentistProfileId)
+      .order("appointment_date", { ascending: false })
+      .order("appointment_time", { ascending: false }),
   ]);
 
   if (dentistResult.error || !dentistResult.data) {
     return { success: false, statusCode: 404, message: "Dentist profile not found" };
   }
 
-  if (todayBookingsResult.error) {
+  if (todayBookingsResult.error || allBookingsResult.error) {
     return { success: false, statusCode: 500, message: "Failed to load dashboard data" };
   }
 
   const todayBookings = (todayBookingsResult.data || []).filter((item) => normalize(item.status) !== "cancelled");
-  const branchOptions = await getDentistBranchOptions(dentistProfileId, todayBookings);
+  const allBookings = (allBookingsResult.data || []).filter((item) => normalize(item.status) !== "cancelled");
+  const branchOptions = await getDentistBranchOptions(dentistProfileId, allBookings);
 
-  const queueOnly = todayBookings
-    .filter((item) => ["confirmed", "in_progress", "in_treatment", "waiting"].includes(normalize(item.status)))
+  const preassessmentIds = [...new Set(allBookings.map((item) => item.preassessment_id).filter(Boolean))];
+  let preassessmentById = new Map();
+  let questionnaireLookup = new Map();
+
+  const questionnaireResult = await supabaseAdmin
+    .from("questionnaire")
+    .select("id, question_text, question_order")
+    .eq("is_active", true)
+    .order("question_order", { ascending: true });
+
+  if (!questionnaireResult.error) {
+    questionnaireLookup = new Map();
+    for (const row of questionnaireResult.data || []) {
+      questionnaireLookup.set(String(row.id), row.question_text);
+      questionnaireLookup.set(String(row.question_order), row.question_text);
+      questionnaireLookup.set(String((row.question_order || 1) - 1), row.question_text);
+    }
+  }
+
+  if (preassessmentIds.length) {
+    const preassessmentResult = await supabaseAdmin
+      .from("patient_preassessment")
+      .select("id, answers, description")
+      .in("id", preassessmentIds);
+
+    if (!preassessmentResult.error) {
+      preassessmentById = new Map((preassessmentResult.data || []).map((row) => [row.id, row]));
+    }
+  }
+
+  const queueOnly = allBookings
     .sort((a, b) => {
-      const left = parseMinutes(a.appointment_time) ?? 0;
-      const right = parseMinutes(b.appointment_time) ?? 0;
-      return left - right;
+      const leftDate = new Date(`${a.appointment_date || "1970-01-01"}T${a.appointment_time || "00:00"}`);
+      const rightDate = new Date(`${b.appointment_date || "1970-01-01"}T${b.appointment_time || "00:00"}`);
+      return rightDate - leftDate;
     });
 
   const patients = queueOnly.map((booking, index) => {
     const mapped = mapPatientStatus(booking.status, index);
     return {
       id: booking.id,
+      bookingId: booking.id,
+      patientId: booking.user_id || null,
       status: mapped.status,
       type: mapped.type,
       name: booking.patient_name || "Unknown Patient",
@@ -119,7 +206,11 @@ export const getDentistDashboardSnapshot = async (dentistProfileId) => {
       note: booking.service ? `Service: ${booking.service}` : "Dental appointment",
       branch: booking.branch || "-",
       appointmentDate: booking.appointment_date,
-      preAssessment: null,
+      preAssessment: toPreAssessmentPayload(
+        preassessmentById.get(booking.preassessment_id),
+        booking.service,
+        questionnaireLookup
+      ),
     };
   });
 

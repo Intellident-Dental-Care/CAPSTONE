@@ -19,6 +19,7 @@ export default function ProcedureModal({
   onClose,
   onSave,
   tooth,
+  isSaving = false,
 }) {
   const [selectedService, setSelectedService] = useState("Restoration");
   const [remarks, setRemarks] = useState("");
@@ -26,6 +27,11 @@ export default function ProcedureModal({
   const [afterPhoto, setAfterPhoto] = useState(null);
 
   if (!open) return null;
+
+  const safeClose = () => {
+    if (isSaving) return;
+    onClose?.();
+  };
 
   const handleFileChange = (event, type) => {
     const file = event.target.files?.[0];
@@ -40,7 +46,9 @@ export default function ProcedureModal({
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (isSaving) return;
+
     const payload = {
       service: selectedService,
       remarks,
@@ -49,11 +57,11 @@ export default function ProcedureModal({
       tooth,
     };
 
-    onSave?.(payload);
+    await onSave?.(payload);
   };
 
   return (
-    <div className="procedure-overlay" onClick={onClose}>
+    <div className="procedure-overlay" onClick={safeClose}>
       <div
         className="procedure-modal"
         onClick={(e) => e.stopPropagation()}
@@ -61,7 +69,8 @@ export default function ProcedureModal({
         <button
           type="button"
           className="procedure-back-btn"
-          onClick={onClose}
+          onClick={safeClose}
+          disabled={isSaving}
         >
           ‹
         </button>
@@ -165,10 +174,11 @@ export default function ProcedureModal({
             <div className="procedure-actions">
               <button
                 type="button"
-                className="save-procedure-btn"
+                className={`save-procedure-btn ${isSaving ? "loading" : ""}`}
                 onClick={handleSave}
+                disabled={isSaving}
               >
-                Save Procedure
+                {isSaving ? "Saving..." : "Save Procedure"}
               </button>
             </div>
           </div>

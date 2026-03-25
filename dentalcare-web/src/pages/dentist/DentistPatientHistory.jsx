@@ -5,7 +5,7 @@ import ProcedureModal from "../../components/dentist/patients/ProcedureModal";
 import PreAssessmentModal from "../../components/dentist/patients/PreAssessmentModal";
 import toothModel from "../../assets/tooth_model.png";
 import profileImage from "../../assets/profile_sample.jpg";
-import { getDentistPatientHistory } from "../../services/dentistService";
+import { createDentistProcedure, getDentistPatientHistory } from "../../services/dentistService";
 
 import "../../styles/dentist/layout/sidebar.css";
 import "../../styles/dentist/layout/topbar.css";
@@ -23,6 +23,7 @@ export default function DentistPatientHistory() {
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [preAssessmentOpen, setPreAssessmentOpen] = useState(false);
   const [procedureModalOpen, setProcedureModalOpen] = useState(false);
+  const [isProcedureSaving, setIsProcedureSaving] = useState(false);
 
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedProcedure, setSelectedProcedure] = useState(null);
@@ -30,18 +31,32 @@ export default function DentistPatientHistory() {
   const [notifications, setNotifications] = useState([]);
   const [patients, setPatients] = useState([]);
   const [branchOptions, setBranchOptions] = useState([]);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [showSaveToast, setShowSaveToast] = useState(false);
+
+  const applyHistoryPayload = (payload = {}) => {
+    setPatients(payload.patients || []);
+    setNotifications(payload.notifications || []);
+    setBranchOptions(payload.branches || []);
+  };
 
   useEffect(() => {
     let mounted = true;
 
     const loadHistory = async () => {
-      const result = await getDentistPatientHistory({ forceRefresh: true });
-      if (!mounted || !result?.success) return;
+      const cached = await getDentistPatientHistory();
+      if (!mounted) return;
 
-      const payload = result.data || {};
-      setPatients(payload.patients || []);
-      setNotifications(payload.notifications || []);
-      setBranchOptions(payload.branches || []);
+      if (cached?.success) {
+        const cachedPayload = cached.data || {};
+        applyHistoryPayload(cachedPayload);
+      }
+
+      const fresh = await getDentistPatientHistory({ forceRefresh: true });
+      if (!mounted || !fresh?.success) return;
+
+      const payload = fresh.data || {};
+      applyHistoryPayload(payload);
     };
 
     loadHistory();
@@ -95,8 +110,46 @@ export default function DentistPatientHistory() {
     setProcedureModalOpen(true);
   };
 
-  const handleSaveProcedure = () => {
+  const handleSaveProcedure = async (payload) => {
+    setIsProcedureSaving(true);
+    setErrorMessage("");
+
+    const patientId = selectedPatient?.patientId;
+    if (!patientId) {
+      setErrorMessage("Unable to save procedure: patient UUID is missing.");
+      setIsProcedureSaving(false);
+      return;
+    }
+
+    const result = await createDentistProcedure({
+      patientId,
+      bookingId: selectedProcedure?.bookingId || null,
+      tooth: payload?.tooth || null,
+      procedure: payload?.service || "",
+      remarks: payload?.remarks || "",
+      beforeImageUrl: null,
+      afterImageUrl: null,
+    });
+
+    if (!result?.success) {
+      setErrorMessage(result?.message || "Failed to save procedure.");
+      setIsProcedureSaving(false);
+      return;
+    }
+
+    const refreshed = await getDentistPatientHistory({ forceRefresh: true });
+    if (refreshed?.success) {
+      applyHistoryPayload(refreshed.data || {});
+    }
+
+    // Close layered modals after successful save.
+    setPreAssessmentOpen(false);
+    setDetailsModalOpen(false);
+    setHistoryModalOpen(false);
     setProcedureModalOpen(false);
+    setShowSaveToast(true);
+    setTimeout(() => setShowSaveToast(false), 1800);
+    setIsProcedureSaving(false);
   };
 
   return (
@@ -143,6 +196,7 @@ export default function DentistPatientHistory() {
             </div>
 
             <div className="patient-history-table-wrap">
+              {errorMessage ? <div className="section-subtitle">{errorMessage}</div> : null}
               <table className="patient-history-table">
                 <thead>
                   <tr>
@@ -338,7 +392,9 @@ export default function DentistPatientHistory() {
         onClose={() => setProcedureModalOpen(false)}
         onSave={handleSaveProcedure}
         tooth={selectedProcedure?.tooth || selectedPatient?.preAssessment?.tooth || "Not specified"}
+        isSaving={isProcedureSaving}
       />
+      {showSaveToast ? <div className="save-toast">Procedure saved successfully</div> : null}
     </div>
   );
 }

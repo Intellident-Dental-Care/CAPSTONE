@@ -7,7 +7,11 @@ import PatientCard from "../../components/dentist/patients/PatientCard";
 import PreAssessmentModal from "../../components/dentist/patients/PreAssessmentModal";
 import ProcedureModal from "../../components/dentist/patients/ProcedureModal";
 import profileImage from "../../assets/profile_sample.jpg";
-import { getDentistDashboardSnapshot } from "../../services/dentistService";
+import {
+  createDentistProcedure,
+  getDentistDashboardSnapshot,
+  getDentistPatientHistory,
+} from "../../services/dentistService";
 import "../../styles/dentist/dashboard/dashboard.css";
 import "../../styles/dentist/dashboard/layout.css";
 import "../../styles/dentist/patients/patient-card.css";
@@ -23,9 +27,25 @@ import "../../styles/dentist/notifications/notification-popup.css";
 
 const normalizeDate = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
+const parseDateValue = (value) => {
+  if (!value) return null;
+
+  // Treat YYYY-MM-DD as a local calendar date (not UTC) to avoid off-by-one filtering.
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+};
+
 const withinSelectedRange = (appointmentDate, selectedDateRange) => {
   if (!appointmentDate) return true;
-  const date = normalizeDate(new Date(appointmentDate));
+  const parsedAppointmentDate = parseDateValue(appointmentDate);
+  if (!parsedAppointmentDate) return true;
+  const date = normalizeDate(parsedAppointmentDate);
 
   if (Array.isArray(selectedDateRange)) {
     const [start, end] = selectedDateRange;
@@ -52,7 +72,10 @@ export default function DentistDashboard() {
   const [selectedPreAssessment, setSelectedPreAssessment] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProcedureModalOpen, setIsProcedureModalOpen] = useState(false);
+  const [isProcedureSaving, setIsProcedureSaving] = useState(false);
   const [procedureTarget, setProcedureTarget] = useState(null);
+  const [procedurePatientContext, setProcedurePatientContext] = useState(null);
+  const [showSaveToast, setShowSaveToast] = useState(false);
 
   const [dentistName, setDentistName] = useState("Dentist");
   const [branches, setBranches] = useState([]);
@@ -65,21 +88,42 @@ export default function DentistDashboard() {
 
   useEffect(() => {
     let mounted = true;
+    let refreshTimer;
 
-    const loadSnapshot = async () => {
-      setIsLoading(true);
-      setError("");
+    const mapHistoryPatientsToDashboard = (historyPatients = []) => {
+      return (historyPatients || []).map((item) => ({
+        id: item.id,
+        bookingId: item.procedures?.find((entry) => entry.source === "booking")?.bookingId || null,
+        patientId: item.patientId || null,
+        status: "Waiting",
+        type: "waiting",
+        name: item.name || "Unknown Patient",
+        time: item.dateOfVisit || "-",
+        note: item.procedures?.[0]?.procedure ? `Service: ${item.procedures[0].procedure}` : "Dental appointment",
+        branch: item.branch || "-",
+        appointmentDate: item.rawDateOfVisit || item.dateOfVisit || null,
+        preAssessment: item.preAssessment || null,
+      }));
+    };
 
-      const result = await getDentistDashboardSnapshot({ forceRefresh: true });
-      if (!mounted) return;
+    const withPatientFallback = async (payload = {}) => {
+      if ((payload.patients || []).length > 0) return payload;
 
-      if (!result?.success) {
-        setError(result?.message || "Failed to load dentist dashboard data.");
-        setIsLoading(false);
-        return;
-      }
+      const historyResult = await getDentistPatientHistory({ forceRefresh: true });
+      if (!historyResult?.success) return payload;
 
-      const payload = result.data || {};
+      const historyData = historyResult.data || {};
+      return {
+        ...payload,
+        patients: mapHistoryPatientsToDashboard(historyData.patients || []),
+        branchOptions:
+          (payload.branchOptions || []).length > 0
+            ? payload.branchOptions
+            : (historyData.branches || []),
+      };
+    };
+
+    const applySnapshot = (payload = {}) => {
       setDentistName(payload.dentist?.name || "Dentist");
       setBranches(payload.branchOptions || []);
       setNotifications(payload.notifications || []);
@@ -88,20 +132,64 @@ export default function DentistDashboard() {
       setTreatmentCompletion(payload.treatmentCompletion || []);
       setWeeklyFlow(payload.weeklyFlow || []);
       setSummary(payload.summary || { totalClients: 0, pendingPreAssessments: 0 });
+    };
+
+    const loadSnapshot = async () => {
+      setError("");
+
+      const cached = await getDentistDashboardSnapshot();
+      if (!mounted) return;
+
+      if (cached?.success) {
+        applySnapshot(cached.data || {});
+        setIsLoading(false);
+      }
+
+      const fresh = await getDentistDashboardSnapshot({ forceRefresh: true });
+      if (!mounted) return;
+
+      if (fresh?.success) {
+        const mergedPayload = await withPatientFallback(fresh.data || {});
+        if (!mounted) return;
+        applySnapshot(mergedPayload);
+        setError("");
+      } else if (!cached?.success) {
+        setError(fresh?.message || "Failed to load dentist dashboard data.");
+      }
+
       setIsLoading(false);
     };
 
     loadSnapshot();
 
+    refreshTimer = setInterval(async () => {
+      const fresh = await getDentistDashboardSnapshot({ forceRefresh: true });
+      if (!mounted || !fresh?.success) return;
+      const payload = await withPatientFallback(fresh.data || {});
+      if (!mounted) return;
+      setDentistName(payload.dentist?.name || "Dentist");
+      setBranches(payload.branchOptions || []);
+      setNotifications(payload.notifications || []);
+      setPatients(payload.patients || []);
+      setQuickStats(payload.quickStats || []);
+      setTreatmentCompletion(payload.treatmentCompletion || []);
+      setWeeklyFlow(payload.weeklyFlow || []);
+      setSummary(payload.summary || { totalClients: 0, pendingPreAssessments: 0 });
+    }, 15000);
+
     return () => {
       mounted = false;
+      if (refreshTimer) clearInterval(refreshTimer);
     };
   }, []);
 
   const filteredPatients = useMemo(() => {
     return patients.filter((patient) => {
-      const branchMatch =
-        selectedBranch === "All Branches" || patient.branch === selectedBranch;
+      if (selectedBranch === "All Branches") {
+        return true;
+      }
+
+      const branchMatch = patient.branch === selectedBranch;
       const dateMatch = withinSelectedRange(patient.appointmentDate, selectedDateRange);
       return branchMatch && dateMatch;
     });
@@ -137,6 +225,11 @@ export default function DentistDashboard() {
   const maxWeeklyValue = Math.max(1, ...weeklyFlow.map((item) => item.value || 0));
 
   const handleOpenPreAssessment = (patient) => {
+    setProcedurePatientContext({
+      patientId: patient.patientId || null,
+      bookingId: patient.bookingId || patient.id || null,
+    });
+
     setSelectedPreAssessment(patient.preAssessment || {
       tooth: "Not specified",
       uploadedPhotos: [],
@@ -161,8 +254,56 @@ export default function DentistDashboard() {
     setIsProcedureModalOpen(false);
   };
 
-  const handleSaveProcedure = () => {
+  const handleSaveProcedure = async (payload) => {
+    setIsProcedureSaving(true);
+
+    const patientId = procedurePatientContext?.patientId;
+
+    if (!patientId) {
+      setError("Unable to save procedure: patient UUID is missing.");
+      setIsProcedureSaving(false);
+      return;
+    }
+
+    const result = await createDentistProcedure({
+      patientId,
+      bookingId: procedurePatientContext?.bookingId || null,
+      tooth: payload?.tooth || null,
+      procedure: payload?.service || "",
+      remarks: payload?.remarks || "",
+      // File upload to storage is not wired yet; keep DB fields nullable for now.
+      beforeImageUrl: null,
+      afterImageUrl: null,
+    });
+
+    if (!result?.success) {
+      setError(result?.message || "Failed to save procedure.");
+      setIsProcedureSaving(false);
+      return;
+    }
+
+    // Refresh snapshot so newly saved procedure context is reflected as soon as possible.
+    const fresh = await getDentistDashboardSnapshot({ forceRefresh: true });
+    if (fresh?.success) {
+      const payloadData = fresh.data || {};
+      setDentistName(payloadData.dentist?.name || "Dentist");
+      setBranches(payloadData.branchOptions || []);
+      setNotifications(payloadData.notifications || []);
+      setPatients(payloadData.patients || []);
+      setQuickStats(payloadData.quickStats || []);
+      setTreatmentCompletion(payloadData.treatmentCompletion || []);
+      setWeeklyFlow(payloadData.weeklyFlow || []);
+      setSummary(payloadData.summary || { totalClients: 0, pendingPreAssessments: 0 });
+    }
+
+    setError("");
+    setIsModalOpen(false);
+    setSelectedPreAssessment(null);
     setIsProcedureModalOpen(false);
+    setProcedureTarget(null);
+    setShowSaveToast(true);
+    setTimeout(() => setShowSaveToast(false), 1800);
+    setIsProcedureSaving(false);
   };
 
   const handleCloseNotifications = () => {
@@ -356,7 +497,9 @@ export default function DentistDashboard() {
         onClose={handleCloseProcedureModal}
         onSave={handleSaveProcedure}
         tooth={procedureTarget?.tooth}
+        isSaving={isProcedureSaving}
       />
+      {showSaveToast ? <div className="save-toast">Procedure saved successfully</div> : null}
     </>
   );
 }
