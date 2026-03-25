@@ -333,7 +333,7 @@ function PatientDetailsModal({ patient, onClose }) {
             <div className="patient-procedure-list">
               {patient.procedures?.length > 0 ? (
                 patient.procedures.map((procedure, index) => (
-                  <div className="patient-procedure-item" key={index}>
+                  <div className={`patient-procedure-item ${getStatusClass(procedure.status)}`} key={index}>
                     <div className="patient-procedure-top">
                       <strong>{procedure.name}</strong>
                       <span
@@ -419,9 +419,12 @@ export default function AdminPatient() {
   }, [patients, searchTerm]);
 
   const totalPatients = filteredPatients.length;
-  const completedPatients = filteredPatients.filter(
-    (patient) => patient.status === "Completed"
-  ).length;
+  const completedPatients = filteredPatients.reduce((count, patient) => {
+    const completedProcedures = (patient.procedures || []).filter(
+      (procedure) => procedure.status === "Completed"
+    ).length;
+    return count + completedProcedures;
+  }, 0);
 
   const handleToggleNotifications = () => {
     setIsNotificationOpen((prev) => !prev);
@@ -511,7 +514,16 @@ export default function AdminPatient() {
                   {filteredPatients.length > 0 ? (
                     filteredPatients.map((patient) => (
                       <tr key={patient.id}>
-                        <td>{patient.name}</td>
+                        <td>
+                          <div className="patient-name-cell">
+                            <strong>{patient.name}</strong>
+                            {patient.accountName && patient.accountName !== patient.name ? (
+                              <span className="patient-account-label">
+                                Profile under {patient.accountName}
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
                         <td>{patient.gender}</td>
                         <td>{patient.age}</td>
                         <td>{patient.phone}</td>

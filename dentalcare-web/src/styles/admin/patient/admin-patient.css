@@ -264,6 +264,24 @@
   border-bottom-right-radius: 16px;
 }
 
+.patient-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.patient-name-cell strong {
+  color: #ff5c93;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.patient-account-label {
+  font-size: 11px;
+  color: #8f8f9b;
+  font-weight: 500;
+}
+
 .patient-action-header {
   text-align: right !important;
   padding-right: 20px !important;
@@ -305,6 +323,16 @@
 .patient-badge.ongoing {
   background: #f2edff;
   color: #7a4de8;
+}
+
+.patient-badge.active {
+  background: #e9fff1;
+  color: #1f9d57;
+}
+
+.patient-badge.cancelled {
+  background: #ffecef;
+  color: #d62839;
 }
 
 .patient-view-btn {
@@ -475,6 +503,11 @@
   border: 1px solid #f3d8e3;
   border-radius: 16px;
   padding: 16px;
+}
+
+.patient-procedure-item.cancelled {
+  background: #fff6f7;
+  border-color: #f4b4bd;
 }
 
 .patient-procedure-top {

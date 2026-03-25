@@ -21,18 +21,28 @@ const computeAge = (dob) => {
   return Math.max(0, age);
 };
 
+const toServiceName = (value) => {
+  const text = String(value || "").trim();
+  return text || "Dental Appointment";
+};
+
+const normalizeText = (value) => String(value || "").trim().toLowerCase();
+
 export const listPatients = async () => {
-  const [usersResult, bookingsResult, dentistsResult] = await Promise.all([
+  const [usersResult, bookingsResult, dentistsResult, profilesResult] = await Promise.all([
     supabaseAdmin
       .from("users")
       .select("id, full_name, email, mobile, dob, created_at"),
     supabaseAdmin
       .from("bookings")
-      .select("id, user_id, patient_name, branch, appointment_date, appointment_time, status, dentist_id")
+      .select("id, user_id, patient_name, branch, service, appointment_date, appointment_time, status, dentist_id")
       .order("appointment_date", { ascending: false }),
     supabaseAdmin
       .from("dentist_list")
       .select("id, name"),
+    supabaseAdmin
+      .from("user_profiles")
+      .select("id, user_id, name, email"),
   ]);
 
   if (usersResult.error) {
@@ -40,41 +50,94 @@ export const listPatients = async () => {
   }
 
   const dentistById = new Map((dentistsResult.data || []).map((item) => [item.id, item.name]));
-  const bookingsByUser = new Map();
+  const userById = new Map((usersResult.data || []).map((item) => [item.id, item]));
+  const profilesByUser = new Map();
+  const groupedPatients = new Map();
+
+  for (const profile of profilesResult.data || []) {
+    if (!profile?.user_id) continue;
+    const list = profilesByUser.get(profile.user_id) || [];
+    list.push(profile);
+    profilesByUser.set(profile.user_id, list);
+  }
+
+  const ensurePatientEntry = (user, profileName, profileId = null, profileEmail = "") => {
+    const normalizedProfileName = normalizeText(profileName) || "main";
+    const profileKey = `${user.id}::${normalizedProfileName}`;
+
+    if (!groupedPatients.has(profileKey)) {
+      groupedPatients.set(profileKey, {
+        id: profileKey,
+        accountId: user.id,
+        profileId,
+        profileName: profileName || user.full_name || "Unknown Patient",
+        accountName: user.full_name || "Main Account",
+        accountEmail: user.email || profileEmail || "",
+        gender: "-",
+        age: computeAge(user.dob),
+        phone: user.mobile || "",
+        visitDate: user.created_at,
+        email: user.email || profileEmail || "",
+        birthday: user.dob || "",
+        address: "-",
+        branch: "-",
+        status: "Active",
+        service: "-",
+        procedures: [],
+      });
+    }
+
+    return profileKey;
+  };
+
+  for (const user of usersResult.data || []) {
+    const userProfiles = profilesByUser.get(user.id) || [];
+
+    if (userProfiles.length > 0) {
+      for (const profile of userProfiles) {
+        ensurePatientEntry(user, profile.name, profile.id, profile.email);
+      }
+    } else {
+      ensurePatientEntry(user, user.full_name, null, user.email);
+    }
+  }
 
   for (const booking of bookingsResult.data || []) {
     if (!booking.user_id) continue;
-    const list = bookingsByUser.get(booking.user_id) || [];
-    list.push(booking);
-    bookingsByUser.set(booking.user_id, list);
+    const user = userById.get(booking.user_id) || null;
+    if (!user) continue;
+
+    const userProfiles = profilesByUser.get(booking.user_id) || [];
+    const bookingPatientName = String(booking.patient_name || "").trim();
+    const matchedProfile = userProfiles.find(
+      (profile) => normalizeText(profile.name) === normalizeText(bookingPatientName)
+    ) || null;
+
+    const profileName = bookingPatientName || matchedProfile?.name || user.full_name;
+    const profileKey = ensurePatientEntry(user, profileName, matchedProfile?.id || null, matchedProfile?.email || "");
+    const current = groupedPatients.get(profileKey);
+
+    current.visitDate = current.visitDate && String(current.visitDate) > String(booking.appointment_date)
+      ? current.visitDate
+      : booking.appointment_date;
+    current.service = toServiceName(booking.service);
+    current.branch = booking.branch || current.branch;
+
+    current.procedures.push({
+      name: toServiceName(booking.service),
+      date: booking.appointment_date,
+      time: booking.appointment_time,
+      doctor: dentistById.get(booking.dentist_id) || "Unassigned Dentist",
+      status: statusMap(booking.status),
+    });
+
+    groupedPatients.set(profileKey, current);
   }
 
-  const mapped = (usersResult.data || []).map((user) => {
-    const history = bookingsByUser.get(user.id) || [];
-    const latest = history[0] || null;
-
-    return {
-      id: user.id,
-      name: user.full_name || latest?.patient_name || "Unknown Patient",
-      gender: "-",
-      age: computeAge(user.dob),
-      phone: user.mobile || "",
-      visitDate: latest?.appointment_date || user.created_at,
-      email: user.email || "",
-      birthday: user.dob || "",
-      address: "-",
-      branch: latest?.branch || "-",
-      status: statusMap(latest?.status),
-      service: "Dental Appointment",
-      procedures: history.map((item) => ({
-        name: "Dental Appointment",
-        date: item.appointment_date,
-        time: item.appointment_time,
-        doctor: dentistById.get(item.dentist_id) || "Unassigned Dentist",
-        status: statusMap(item.status),
-      })),
-    };
-  });
+  const mapped = Array.from(groupedPatients.values()).map((item) => ({
+    ...item,
+    name: item.profileName,
+  }));
 
   return { success: true, statusCode: 200, data: mapped };
 };
