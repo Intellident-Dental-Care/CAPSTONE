@@ -32,7 +32,7 @@ const formatTime = (timeValue) => {
 export const listAppointments = async () => {
   const { data: bookings, error } = await supabaseAdmin
     .from("bookings")
-    .select("id, user_id, patient_name, dentist_id, branch, appointment_date, appointment_time, status, created_at")
+    .select("id, user_id, patient_name, dentist_id, branch, service, appointment_date, appointment_time, status, created_at")
     .order("appointment_date", { ascending: false })
     .order("appointment_time", { ascending: false });
 
@@ -75,7 +75,7 @@ export const listAppointments = async () => {
       age: 0,
       dentist: dentist.name || "Unassigned Dentist",
       branch: row.branch || "-",
-      treatment: "Dental Appointment",
+      treatment: row.service || "Dental Appointment",
       date: row.appointment_date,
       time: formatTime(row.appointment_time),
       type: "Online",
@@ -113,6 +113,7 @@ export const createWalkInAppointment = async (payload) => {
     patient_name: payload.patientName,
     dentist_id: payload.dentistId || null,
     branch: payload.branch,
+    service: payload.service || null,
     appointment_date: payload.date,
     appointment_time: payload.time24,
     status: "waiting",

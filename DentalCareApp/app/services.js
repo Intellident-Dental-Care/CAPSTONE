@@ -91,7 +91,7 @@ export default function Services() {
   const onBookNow = (service) => {
     router.push({
       pathname: "/booking",
-      params: { serviceName: service.name, category: service.category },
+      params: { service: service.name, category: service.category },
     });
   };
 

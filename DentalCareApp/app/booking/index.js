@@ -47,12 +47,19 @@ export default function BookingBranchDoctor() {
   const router = useRouter();
   const {
     service: passedService,
+    serviceName: passedServiceName,
     preassessmentId,
     branch: passedBranch,
     doctor: passedDoctor,
   } = useLocalSearchParams();
+  const incomingService =
+    typeof passedService === "string" && passedService.trim()
+      ? passedService
+      : typeof passedServiceName === "string"
+        ? passedServiceName
+        : "";
   const [service, setService] = useState(
-    typeof passedService === "string" ? passedService : ""
+    incomingService
   );
   const [branch, setBranch] = useState(
     typeof passedBranch === "string" ? passedBranch : ""
@@ -154,7 +161,7 @@ export default function BookingBranchDoctor() {
     return doctorsByBranch[branch] || [];
   }, [branch, doctorsByBranch]);
 
-  const canProceed = !!(branch && doctor);
+  const canProceed = !!(service && branch && doctor);
 
   if (loading) {
     return (

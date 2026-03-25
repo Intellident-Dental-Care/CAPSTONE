@@ -632,6 +632,7 @@ export default function AdminAppointments() {
       patientName: walkInForm.patientName,
       dentistId: selectedDentist?.id || null,
       branch: walkInForm.branch,
+      service: walkInForm.treatment,
       date: today,
       time24,
     });
@@ -750,7 +751,7 @@ export default function AdminAppointments() {
             <div className="appointments-search">
               <input
                 type="text"
-                placeholder="Search patient, dentist, treatment, or branch"
+                placeholder="Search patient, dentist, service, or branch"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -826,7 +827,7 @@ export default function AdminAppointments() {
               <span>Branch</span>
               <span>Date</span>
               <span>Time</span>
-              <span>Treatment</span>
+              <span>Service</span>
               <span>Status</span>
               <span>Action</span>
             </div>
@@ -957,7 +958,7 @@ export default function AdminAppointments() {
                   <p>{selectedAppointment.time}</p>
                 </div>
                 <div className="detail-box">
-                  <label>Treatment</label>
+                  <label>Service</label>
                   <p>{selectedAppointment.treatment}</p>
                 </div>
                 <div className="detail-box">
