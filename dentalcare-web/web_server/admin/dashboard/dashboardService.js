@@ -21,6 +21,20 @@ const parseTime = (timeValue) => {
   return `${normalizedHour}:${String(minutes).padStart(2, "0")} ${suffix}`;
 };
 
+const timeToMinutes = (timeValue) => {
+  if (!timeValue) return null;
+  const [h = "0", m = "0"] = String(timeValue).split(":");
+  const hour = Number.parseInt(h, 10);
+  const minute = Number.parseInt(m, 10);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+  return (hour * 60) + minute;
+};
+
+const currentMinutesOfDay = () => {
+  const now = new Date();
+  return (now.getHours() * 60) + now.getMinutes();
+};
+
 const formatRelativeTime = (value) => {
   if (!value) return "just now";
   const date = new Date(value);
@@ -288,6 +302,7 @@ export const getTodayBranchBookings = async (adminProfileId) => {
         patientName: row.patient_name,
         branch: row.branch,
         date: row.appointment_date,
+        appointmentTimeRaw: row.appointment_time,
         time: parseTime(row.appointment_time),
         status: mapStatus(row.status),
         rawStatus: row.status,
@@ -357,12 +372,21 @@ export const getDashboardSnapshot = async (adminProfileId) => {
 
   const current = todayBookings.find((b) => b.status === "In Queue") || todayBookings[0] || null;
   const waiting = todayBookings.filter((b) => b.status === "Waiting");
+  const nextWaiting = waiting[0] || null;
   const completed = todayBookings.filter((b) => b.status === "Completed");
   const confirmed = todayBookings.filter((b) => normalize(b.rawStatus) === "confirmed").length;
   const walkins = todayBookings.filter((b) => !b.preassessmentId).length;
 
   const dentistCount = new Set(todayBookings.map((b) => b.dentist).filter((name) => name && name !== "Unassigned")).size;
-  const nextPatientWaitMinutes = waiting.length ? 15 + delayInfo.totalDelayMinutes : 0;
+
+  const nextAppointmentMinutes = timeToMinutes(nextWaiting?.appointmentTimeRaw);
+  const untilNext = nextAppointmentMinutes === null ? 15 : Math.max(0, nextAppointmentMinutes - currentMinutesOfDay());
+  const nextPatientWaitBase = waiting.length ? untilNext : 0;
+  const queueSpreadMinutes = waiting.length > 1 ? (waiting.length - 1) * 15 : 0;
+  const estimatedWaitBase = waiting.length ? Math.max(waiting.length * 15, nextPatientWaitBase + queueSpreadMinutes) : 0;
+
+  const nextPatientWaitMinutes = waiting.length ? nextPatientWaitBase + delayInfo.totalDelayMinutes : 0;
+  const estimatedWaitMinutes = waiting.length ? estimatedWaitBase + delayInfo.totalDelayMinutes : 0;
 
   const attendingDentists = await getAttendingDentistsByBranchSchedule(queueResult.data.admin.branch);
 
@@ -449,8 +473,9 @@ export const getDashboardSnapshot = async (adminProfileId) => {
         availableDentists: dentistCount,
       },
       liveQueue: current,
-      nextPatient: waiting[0] || null,
+      nextPatient: nextWaiting,
       nextPatientWaitMinutes,
+      estimatedWaitMinutes,
       queueDelay: delayInfo,
       bookings: todayBookings,
       attendingDentists,

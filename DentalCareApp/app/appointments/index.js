@@ -128,7 +128,14 @@ export default function AppointmentsScreen() {
         const { data: authData } = await supabase.auth.getUser();
         const user = authData?.user;
         if (!user) { setLoading(false); return; }
-        dbQuery = dbQuery.eq('user_id', user.id);
+
+        if (activeProfile?.name) {
+          dbQuery = dbQuery
+            .eq('user_id', user.id)
+            .eq('patient_name', activeProfile.name);
+        } else {
+          dbQuery = dbQuery.eq('user_id', user.id);
+        }
       }
 
       const { data, error } = await dbQuery;

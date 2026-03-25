@@ -45,9 +45,11 @@ export default function Queue() {
   const [notificationMessage, setNotificationMessage] = useState("");
   const [delayOffsetMinutes, setDelayOffsetMinutes] = useState(0);
   const [isApplyingDelay, setIsApplyingDelay] = useState(false);
+  const [estimatedWaitMinutes, setEstimatedWaitMinutes] = useState(0);
+  const [nextPatientWaitMinutes, setNextPatientWaitMinutes] = useState(0);
 
   const loadQueue = async () => {
-    const response = await getTodayQueue();
+    const response = await getTodayQueue({ forceRefresh: true });
     if (!response?.success) {
       return;
     }
@@ -63,6 +65,8 @@ export default function Queue() {
     }));
 
     setDelayOffsetMinutes(Number(response?.data?.delay?.totalDelayMinutes || 0));
+    setEstimatedWaitMinutes(Number(response?.data?.estimatedWaitMinutes || 0));
+    setNextPatientWaitMinutes(Number(response?.data?.nextPatientWaitMinutes || 0));
 
     setQueueList(mapped.length ? mapped : []);
   };
@@ -100,8 +104,12 @@ export default function Queue() {
   );
 
   const waitingCount = waitingPatients.length;
-  const estimatedWait = waitingCount > 0 ? (waitingCount * 15) + delayOffsetMinutes : 0;
-  const nextPatientWait = nextPatient ? 15 + delayOffsetMinutes : 0;
+  const estimatedWait = nextPatient
+    ? Math.max(0, Number.isFinite(nextPatientWaitMinutes) ? nextPatientWaitMinutes : 0)
+    : 0;
+  const nextPatientWait = nextPatient
+    ? Math.max(0, Number.isFinite(nextPatientWaitMinutes) ? nextPatientWaitMinutes : 0)
+    : 0;
 
   const today = new Date();
   const todayFormatted = today.toLocaleDateString("en-US", {
@@ -298,7 +306,7 @@ export default function Queue() {
             <div className="queue-stat-card">
               <span className="queue-stat-label">Estimated Wait</span>
               <h3>{estimatedWait} min</h3>
-              <p>Includes {delayOffsetMinutes} min delay offset</p>
+              <p>For next patient, includes {delayOffsetMinutes} min delay offset</p>
             </div>
           </div>
 

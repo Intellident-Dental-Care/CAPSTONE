@@ -19,7 +19,7 @@ export default function AdminDashboard() {
     let mounted = true;
 
     const loadSnapshot = async () => {
-      const response = await getDashboardSnapshot();
+      const response = await getDashboardSnapshot({ forceRefresh: true });
       if (mounted && response?.success) {
         setSnapshot(response.data);
       }

@@ -66,8 +66,10 @@ export const preloadAdminData = async () => {
   }
 };
 
-export const getDashboardSnapshot = async () => {
-  if (adminCache.dashboard) {
+export const getDashboardSnapshot = async (options = {}) => {
+  const forceRefresh = !!options.forceRefresh;
+
+  if (!forceRefresh && adminCache.dashboard) {
     return { success: true, data: adminCache.dashboard };
   }
 
@@ -82,8 +84,10 @@ export const getDashboardSnapshot = async () => {
   }
 };
 
-export const getTodayQueue = async () => {
-  if (adminCache.queue) {
+export const getTodayQueue = async (options = {}) => {
+  const forceRefresh = !!options.forceRefresh;
+
+  if (!forceRefresh && adminCache.queue) {
     return { success: true, data: adminCache.queue };
   }
 

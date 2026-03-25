@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -6,51 +6,91 @@ import {
   SafeAreaView,
   ScrollView,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "./theme/colors";
+import { useFocusEffect } from "@react-navigation/native";
+import { supabase } from "../server/supabaseService";
 
-const notificationData = [
-  {
-    id: 1,
-    title: "Appointment Confirmed",
-    message: "Your dental check-up appointment has been confirmed.",
-    time: "2 mins ago",
-    type: "success",
-  },
-  {
-    id: 2,
-    title: "New Reminder",
-    message: "You have an upcoming tooth cleaning appointment tomorrow.",
-    time: "10 mins ago",
-    type: "reminder",
-  },
-  {
-    id: 3,
-    title: "Treatment Update",
-    message: "Your braces treatment status is now marked as InProgress.",
-    time: "1 hour ago",
-    type: "update",
-  },
-  {
-    id: 4,
-    title: "Payment Received",
-    message: "Your recent payment for cosmetic whitening was received.",
-    time: "3 hours ago",
-    type: "success",
-  },
-  {
-    id: 5,
-    title: "Clinic Announcement",
-    message: "The clinic will open at 9:00 AM tomorrow.",
-    time: "Yesterday",
-    type: "info",
-  },
-];
+function toRelativeTime(value) {
+  if (!value) return "just now";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "just now";
+
+  const diffMs = Date.now() - date.getTime();
+  const mins = Math.max(1, Math.floor(diffMs / 60000));
+
+  if (mins < 60) return `${mins} min${mins > 1 ? "s" : ""} ago`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Yesterday";
+  return `${days} days ago`;
+}
+
+function isMissingTableError(error) {
+  if (!error) return false;
+  if (error.code === "PGRST205" || error.code === "42P01") return true;
+  return String(error.message || "").toLowerCase().includes("does not exist");
+}
 
 export default function Notification() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [notificationData, setNotificationData] = useState([]);
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData?.user;
+      if (!user?.id) {
+        setNotificationData([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("queue_delay_notifications")
+        .select("id, message, delay_minutes, branch, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) {
+        if (!isMissingTableError(error)) {
+          console.log("loadNotifications error:", error);
+        }
+        setNotificationData([]);
+        return;
+      }
+
+      const mapped = (data || []).map((row) => ({
+        id: row.id,
+        title: "Queue Delay Update",
+        message: row.message || `Queue delayed by ${row.delay_minutes || 0} minutes at ${row.branch || "your branch"}.`,
+        time: toRelativeTime(row.created_at),
+        type: "reminder",
+      }));
+
+      setNotificationData(mapped);
+    } catch (error) {
+      console.log("loadNotifications fatal error:", error);
+      setNotificationData([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadNotifications();
+    }, [loadNotifications])
+  );
 
   const getIcon = (type) => {
     switch (type) {
@@ -113,7 +153,16 @@ export default function Notification() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {notificationData.map((item) => (
+          {loading ? (
+            <View style={styles.emptyWrap}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={styles.emptyText}>Loading notifications...</Text>
+            </View>
+          ) : notificationData.length === 0 ? (
+            <View style={styles.emptyWrap}>
+              <Text style={styles.emptyText}>No notifications yet.</Text>
+            </View>
+          ) : notificationData.map((item) => (
             <Pressable key={item.id} style={styles.card}>
               <View
                 style={[
@@ -181,6 +230,19 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     paddingBottom: 30,
+  },
+
+  emptyWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 28,
+    gap: 8,
+  },
+
+  emptyText: {
+    fontSize: 12,
+    color: "#8a8a93",
+    fontWeight: "700",
   },
 
   card: {

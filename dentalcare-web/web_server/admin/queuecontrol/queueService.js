@@ -16,6 +16,45 @@ const isTableMissing = (error) => {
   return String(error.message || "").toLowerCase().includes("does not exist");
 };
 
+const timeToMinutes = (timeValue) => {
+  if (!timeValue) return null;
+  const [h = "0", m = "0"] = String(timeValue).split(":");
+  const hour = Number.parseInt(h, 10);
+  const minute = Number.parseInt(m, 10);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+  return (hour * 60) + minute;
+};
+
+const currentMinutesOfDay = () => {
+  const now = new Date();
+  return (now.getHours() * 60) + now.getMinutes();
+};
+
+const computeWaitMetrics = (bookings, totalDelayMinutes) => {
+  const waiting = (bookings || []).filter((item) => item.status === "Waiting");
+  if (!waiting.length) {
+    return {
+      estimatedWaitMinutes: 0,
+      nextPatientWaitMinutes: 0,
+    };
+  }
+
+  const nextWaiting = waiting[0] || null;
+  const nextAppointmentMinutes = timeToMinutes(nextWaiting?.appointmentTimeRaw);
+  const untilNext = nextAppointmentMinutes === null
+    ? 15
+    : Math.max(0, nextAppointmentMinutes - currentMinutesOfDay());
+
+  const nextPatientWaitBase = untilNext;
+  const queueSpreadMinutes = waiting.length > 1 ? (waiting.length - 1) * 15 : 0;
+  const estimatedWaitBase = Math.max(waiting.length * 15, nextPatientWaitBase + queueSpreadMinutes);
+
+  return {
+    estimatedWaitMinutes: estimatedWaitBase + totalDelayMinutes,
+    nextPatientWaitMinutes: nextPatientWaitBase + totalDelayMinutes,
+  };
+};
+
 const getDelayState = async (branch, effectiveDate) => {
   const { data, error } = await supabaseAdmin
     .from("queue_delay_state")
@@ -136,12 +175,13 @@ const insertDelayNotifications = async ({ bookings, message, delayMinutes, admin
 };
 
 const normalizeQueueWithDelay = async (queueResult) => {
-  const waitingCount = (queueResult.data.bookings || []).filter((item) => item.status === "Waiting").length;
+  const bookings = queueResult.data.bookings || [];
   const branch = queueResult.data.admin.branch;
   const effectiveDate = queueResult.data.date;
 
   const delayState = await getDelayState(branch, effectiveDate);
   const totalDelayMinutes = delayState.row ? Number(delayState.row.total_delay_minutes || 0) : 0;
+  const waitMetrics = computeWaitMetrics(bookings, totalDelayMinutes);
 
   return {
     ...queueResult,
@@ -154,8 +194,8 @@ const normalizeQueueWithDelay = async (queueResult) => {
         lastMessage: delayState.row?.last_message || "",
         updatedAt: delayState.row?.updated_at || null,
       },
-      estimatedWaitMinutes: waitingCount > 0 ? (waitingCount * 15) + totalDelayMinutes : 0,
-      nextPatientWaitMinutes: waitingCount > 0 ? 15 + totalDelayMinutes : 0,
+      estimatedWaitMinutes: waitMetrics.estimatedWaitMinutes,
+      nextPatientWaitMinutes: waitMetrics.nextPatientWaitMinutes,
     },
   };
 };
@@ -169,6 +209,8 @@ export const getQueueForAdminBranch = async (adminProfileId) => {
   try {
     return await normalizeQueueWithDelay(queueResult);
   } catch (error) {
+    const waitMetrics = computeWaitMetrics(queueResult.data.bookings || [], 0);
+
     return {
       ...queueResult,
       data: {
@@ -180,8 +222,8 @@ export const getQueueForAdminBranch = async (adminProfileId) => {
           lastMessage: "",
           updatedAt: null,
         },
-        estimatedWaitMinutes: (queueResult.data.bookings || []).filter((item) => item.status === "Waiting").length * 15,
-        nextPatientWaitMinutes: (queueResult.data.bookings || []).some((item) => item.status === "Waiting") ? 15 : 0,
+        estimatedWaitMinutes: waitMetrics.estimatedWaitMinutes,
+        nextPatientWaitMinutes: waitMetrics.nextPatientWaitMinutes,
       },
     };
   }

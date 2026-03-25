@@ -17,7 +17,79 @@ function isUuid(value) {
   );
 }
 
-export const fetchUpcomingAppointment = async (profileId) => {
+function normalizeBranch(value) {
+  return (value || "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/gc\s*dental\s*care/g, "")
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+}
+
+function branchMatches(left, right) {
+  const a = normalizeBranch(left);
+  const b = normalizeBranch(right);
+  if (!a || !b) return false;
+  return a === b || a.includes(b) || b.includes(a);
+}
+
+function isMissingTableError(error) {
+  if (!error) return false;
+  if (error.code === "PGRST205" || error.code === "42P01") return true;
+  return String(error.message || "").toLowerCase().includes("does not exist");
+}
+
+function timeToMinutes(timeValue) {
+  if (!timeValue) return null;
+  const [h = "0", m = "0"] = String(timeValue).split(":");
+  const hour = Number.parseInt(h, 10);
+  const minute = Number.parseInt(m, 10);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+  return (hour * 60) + minute;
+}
+
+async function fetchBranchDelayMinutes(branch, effectiveDate) {
+  try {
+    const exact = await supabase
+      .from('queue_delay_state')
+      .select('branch, total_delay_minutes')
+      .eq('branch', branch)
+      .eq('effective_date', effectiveDate)
+      .maybeSingle();
+
+    if (exact.error && !isMissingTableError(exact.error)) {
+      console.log('Delay exact lookup error:', exact.error);
+      return 0;
+    }
+
+    if (exact.data) {
+      return Number(exact.data.total_delay_minutes || 0);
+    }
+
+    // Fallback: branch names may have formatting differences.
+    const byDate = await supabase
+      .from('queue_delay_state')
+      .select('branch, total_delay_minutes')
+      .eq('effective_date', effectiveDate);
+
+    if (byDate.error) {
+      if (!isMissingTableError(byDate.error)) {
+        console.log('Delay fallback lookup error:', byDate.error);
+      }
+      return 0;
+    }
+
+    const matched = (byDate.data || []).find((row) => branchMatches(row.branch, branch));
+    return Number(matched?.total_delay_minutes || 0);
+  } catch (error) {
+    console.log('fetchBranchDelayMinutes error:', error);
+    return 0;
+  }
+}
+
+export const fetchUpcomingAppointment = async (profileId, options = {}) => {
   try {
     const user = await getCurrentUser();
     
@@ -54,9 +126,16 @@ export const fetchUpcomingAppointment = async (profileId) => {
       .order('appointment_time', { ascending: true })
       .limit(1);
 
-    // Filter by profile if provided, otherwise fall back to user_id
+    const fallbackProfileName =
+      typeof options?.profileName === 'string' ? options.profileName.trim() : '';
+
+    // Filter by profile when possible.
+    // If profile id is not a UUID (legacy local profile ids), narrow by patient_name to avoid
+    // mixing multiple profiles under one account.
     if (isUuid(profileId)) {
       query = query.eq('profile_id', profileId);
+    } else if (fallbackProfileName) {
+      query = query.eq('patient_name', fallbackProfileName).eq('user_id', user.id);
     } else {
       query = query.eq('user_id', user.id);
     }
@@ -138,13 +217,27 @@ export const fetchCurrentQueueForAppointment = async (appointment) => {
 
     const queueNumber = index + 1;
     const ahead = Math.max(0, index);
-    const estimatedWaitMinutes = ahead * 15;
+    const queueWaitMinutes = ahead * 15;
+    const now = new Date();
+    const currentMinutes = (now.getHours() * 60) + now.getMinutes();
+    const appointmentMinutes = timeToMinutes(appointment.time);
+
+    // Time-based wait should reflect the actual appointment clock time.
+    // Use queue wait as a fallback lower bound when appointment time is unavailable.
+    const timeUntilAppointmentMinutes =
+      appointmentMinutes === null ? 0 : Math.max(0, appointmentMinutes - currentMinutes);
+
+    const baseWaitMinutes = Math.max(queueWaitMinutes, timeUntilAppointmentMinutes);
+    const delayMinutes = await fetchBranchDelayMinutes(appointment.branch, appointment.date);
+    const estimatedWaitMinutes = baseWaitMinutes + delayMinutes;
 
     return {
       data: {
         queueNumber,
         ahead,
         totalInQueue: data.length,
+        baseWaitMinutes,
+        delayMinutes,
         estimatedWaitMinutes,
         refreshedAt: Date.now(),
       },

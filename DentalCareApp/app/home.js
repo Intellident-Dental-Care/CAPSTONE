@@ -117,7 +117,9 @@ export default function Home() {
 
     if (isStale) {
       if (!cached || forceRefresh) setLoadingAppointment(true);
-      const { data } = await fetchUpcomingAppointment(safeProfileId);
+      const { data } = await fetchUpcomingAppointment(safeProfileId, {
+        profileName: activeProfile?.name || "",
+      });
       appointmentCache[cacheKey] = { data, fetchedAt: Date.now() };
       setUpcomingAppointment(data);
       appointmentData = data;
