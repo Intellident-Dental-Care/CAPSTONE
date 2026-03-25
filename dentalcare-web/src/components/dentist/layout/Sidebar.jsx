@@ -1,11 +1,36 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import logo from "../../../assets/logo.png";
 import doctorProfile from "../../../assets/profile_sample.jpg";
+import AuthService from "../../../services/authService";
+import { getDentistProfile } from "../../../services/dentistService";
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [displayName, setDisplayName] = useState("Dentist");
+  const [displaySpecialty, setDisplaySpecialty] = useState("General Dentistry");
+
+  useEffect(() => {
+    const localUser = AuthService.getCurrentUser();
+    if (localUser?.fullName || localUser?.name) {
+      setDisplayName(localUser.fullName || localUser.name);
+      setDisplaySpecialty(localUser.specialty || localUser.specialization || "General Dentistry");
+    }
+
+    let mounted = true;
+    getDentistProfile()
+      .then((result) => {
+        if (!mounted || !result?.success || !result?.data) return;
+        setDisplayName(result.data.fullName || localUser?.fullName || "Dentist");
+        setDisplaySpecialty(result.data.specialization || localUser?.specialty || "General Dentistry");
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleOpenLogoutModal = () => {
     setShowLogoutModal(true);
@@ -17,6 +42,7 @@ export default function Sidebar() {
 
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);
+    AuthService.clearAuth();
     navigate("/login");
   };
 
@@ -34,8 +60,8 @@ export default function Sidebar() {
 
           <div className="profile-card">
             <img src={doctorProfile} alt="Dentist" />
-            <h3>Dr. Edward Crizzie Amparo</h3>
-            <p>Orthodontist</p>
+            <h3>{displayName}</h3>
+            <p>{displaySpecialty}</p>
           </div>
 
           <nav className="sidebar-menu">

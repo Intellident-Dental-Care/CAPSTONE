@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import Sidebar from "../../components/dentist/layout/Sidebar";
 import Topbar from "../../components/dentist/layout/Topbar";
 import profileImage from "../../assets/profile_sample.jpg";
+import { getDentistSchedule } from "../../services/dentistService";
 
 import "../../styles/dentist/layout/sidebar.css";
 import "../../styles/dentist/layout/topbar.css";
@@ -29,7 +30,7 @@ function formatTimeLabel(hour, minute = 0) {
 
 function generateTimeSlots(startHour, endHour) {
   const slots = [];
-  for (let hour = startHour; hour < endHour; hour++) {
+  for (let hour = startHour; hour < endHour; hour += 1) {
     slots.push({ hour, minute: 0, label: formatTimeLabel(hour, 0) });
     slots.push({ hour, minute: 30, label: formatTimeLabel(hour, 30) });
   }
@@ -37,8 +38,10 @@ function generateTimeSlots(startHour, endHour) {
 }
 
 function timeToMinutes(timeStr) {
-  const [time, modifier] = timeStr.split(" ");
-  let [hours, minutes] = time.split(":").map(Number);
+  const [time, modifier] = String(timeStr || "").split(" ");
+  const [hoursText, minutesText] = String(time || "0:0").split(":");
+  let hours = Number(hoursText);
+  const minutes = Number(minutesText);
 
   if (modifier === "PM" && hours !== 12) hours += 12;
   if (modifier === "AM" && hours === 12) hours = 0;
@@ -56,114 +59,38 @@ export default function DentistSchedule() {
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()));
   const [branches, setBranches] = useState([]);
   const [appointments, setAppointments] = useState([]);
-
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: "New Appointment Requests:",
-      message: "John Doe for Consultation",
-      time: "2 mins ago",
-    },
-    {
-      id: 2,
-      title: "Pre-Assessment Completed:",
-      message: "Jane Smith for Tooth Extraction",
-      time: "10 mins ago",
-    },
-    {
-      id: 3,
-      title: "Pre-Assessment Completed:",
-      message: "Jane Smith for Tooth Extraction",
-      time: "10 mins ago",
-    },
-    {
-      id: 4,
-      title: "Pre-Assessment Completed:",
-      message: "Jane Smith for Tooth Extraction",
-      time: "10 mins ago",
-    },
-    {
-      id: 5,
-      title: "Pre-Assessment Completed:",
-      message: "Jane Smith for Tooth Extraction",
-      time: "10 mins ago",
-    },
-    {
-      id: 6,
-      title: "New Appointment Requests:",
-      message: "John Doe for Consultation",
-      time: "2 mins ago",
-    },
-  ]);
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    const branchData = [
-      { id: 1, name: "General Trias Cavite" },
-      { id: 2, name: "Dasmariñas Cavite" },
-    ];
+    let mounted = true;
 
-    setBranches(branchData);
-    setSelectedBranch(branchData[0].name);
-  }, []);
-
-  useEffect(() => {
-    if (!selectedBranch || !selectedDate) return;
-
-    const sampleData = [
-      {
-        id: 1,
-        patientName: "Sarah Kim",
-        startTime: "9:00 AM",
-        endTime: "10:00 AM",
-        status: "completed",
-        service: "Consultation",
-        branch: "General Trias Cavite",
+    const loadSchedule = async () => {
+      const result = await getDentistSchedule({
         date: selectedDate,
-        dentistId: 1,
-      },
-      {
-        id: 2,
-        patientName: "Sarah Kim",
-        startTime: "12:00 PM",
-        endTime: "1:00 PM",
-        status: "completed",
-        service: "Cleaning",
-        branch: "General Trias Cavite",
-        date: selectedDate,
-        dentistId: 1,
-      },
-      {
-        id: 3,
-        patientName: "Sarah Kim",
-        startTime: "2:00 PM",
-        endTime: "3:00 PM",
-        status: "in_treatment",
-        service: "Braces Adjustment",
-        branch: "General Trias Cavite",
-        date: selectedDate,
-        dentistId: 1,
-      },
-      {
-        id: 4,
-        patientName: "Sarah Kim",
-        startTime: "3:30 PM",
-        endTime: "5:00 PM",
-        status: "waiting",
-        service: "Follow-up Checkup",
-        branch: "General Trias Cavite",
-        date: selectedDate,
-        dentistId: 1,
-      },
-    ];
+        branch: selectedBranch || undefined,
+        forceRefresh: true,
+      });
 
-    const filtered = sampleData.filter(
-      (item) =>
-        item.branch === selectedBranch &&
-        item.date === selectedDate 
-    );
+      if (!mounted || !result?.success) return;
 
-    setAppointments(filtered);
-  }, [selectedBranch, selectedDate]);
+      const payload = result.data || {};
+      const nextBranches = payload.branches || [];
+      setBranches(nextBranches);
+
+      if (!selectedBranch && nextBranches.length) {
+        setSelectedBranch(nextBranches[0]);
+      }
+
+      setAppointments(payload.appointments || []);
+      setNotifications(payload.notifications || []);
+    };
+
+    loadSchedule();
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedDate, selectedBranch]);
 
   const handleToggleNotifications = () => {
     setIsNotificationOpen((prev) => !prev);
@@ -222,8 +149,8 @@ export default function DentistSchedule() {
                 onChange={(e) => setSelectedBranch(e.target.value)}
               >
                 {branches.map((branch) => (
-                  <option key={branch.id} value={branch.name}>
-                    {branch.name}
+                  <option key={branch} value={branch}>
+                    {branch}
                   </option>
                 ))}
               </select>
@@ -241,52 +168,44 @@ export default function DentistSchedule() {
 
           <div className="schedule-board">
             <div className="schedule-scroll-area">
-                <div className="schedule-grid-wrapper">
+              <div className="schedule-grid-wrapper">
                 <div className="time-column">
-                    {timeSlots.map((slot, index) => (
+                  {timeSlots.map((slot, index) => (
                     <div key={index} className="time-slot-label">
-                        {slot.label}
+                      {slot.label}
                     </div>
-                    ))}
+                  ))}
                 </div>
 
                 <div className="schedule-grid">
-                    {timeSlots.map((_, index) => (
+                  {timeSlots.map((_, index) => (
                     <div key={index} className="schedule-row" />
-                    ))}
+                  ))}
 
-                    {positionedAppointments.map((appointment) => (
+                  {positionedAppointments.map((appointment) => (
                     <div
-                        key={appointment.id}
-                        className={`appointment-card ${
-                        STATUS_CLASS[appointment.status] || "confirmed"
-                        }`}
-                        style={{
+                      key={appointment.id}
+                      className={`appointment-card ${STATUS_CLASS[appointment.status] || "confirmed"}`}
+                      style={{
                         top: `${appointment.top}px`,
                         height: `${appointment.height - 6}px`,
-                        }}
+                      }}
                     >
-                        <div className="appointment-status">
-                        {appointment.status.replace("_", " ")}
-                        </div>
-                        <div className="appointment-patient">
-                        {appointment.patientName}
-                        </div>
-                        <div className="appointment-time">
+                      <div className="appointment-status">{appointment.status.replace("_", " ")}</div>
+                      <div className="appointment-patient">{appointment.patientName}</div>
+                      <div className="appointment-time">
                         {appointment.startTime} to {appointment.endTime}
-                        </div>
+                      </div>
                     </div>
-                    ))}
+                  ))}
 
-                    {appointments.length === 0 && (
-                    <div className="schedule-empty">
-                        No appointments for this date and branch.
-                    </div>
-                    )}
+                  {appointments.length === 0 && (
+                    <div className="schedule-empty">No appointments for this date and branch.</div>
+                  )}
                 </div>
-                </div>
+              </div>
             </div>
-            </div>
+          </div>
         </section>
       </main>
     </div>

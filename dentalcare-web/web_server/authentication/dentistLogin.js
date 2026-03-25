@@ -1,5 +1,38 @@
 import { supabaseAdmin, supabaseAuth, signToken, signTokenWithExpiry, verifyToken } from "./authUtils.js";
 
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+
+const resolveDentistProfileByIdentifier = async (identifier) => {
+  const normalized = String(identifier || "").trim().toLowerCase();
+  const raw = String(identifier || "").trim();
+
+  if (!raw) return null;
+
+  const byEmail = await supabaseAdmin
+    .from("dentist_list")
+    .select("*")
+    .eq("email", normalized)
+    .maybeSingle();
+
+  if (!byEmail.error && byEmail.data) {
+    return byEmail.data;
+  }
+
+  if (!raw.includes("@")) {
+    const byName = await supabaseAdmin
+      .from("dentist_list")
+      .select("*")
+      .ilike("name", raw)
+      .maybeSingle();
+
+    if (!byName.error && byName.data) {
+      return byName.data;
+    }
+  }
+
+  return null;
+};
+
 /**
  * Authenticate dentist with email and password
  * @param {string} email - Dentist email
@@ -16,14 +49,10 @@ export const authenticateDentist = async (email, password) => {
       };
     }
 
-    const cleanEmail = (email || "").trim().toLowerCase();
+    const identifier = String(email || "").trim();
+    const dentist = await resolveDentistProfileByIdentifier(identifier);
 
-    const { data: authResult, error: authError } = await supabaseAuth.auth.signInWithPassword({
-      email: cleanEmail,
-      password,
-    });
-
-    if (authError || !authResult?.user) {
+    if (!dentist) {
       return {
         success: false,
         message: "Invalid email or password",
@@ -31,16 +60,54 @@ export const authenticateDentist = async (email, password) => {
       };
     }
 
-    const { data: dentist, error: queryError } = await supabaseAdmin
-      .from("dentist_list")
-      .select("*")
-      .eq("email", cleanEmail)
-      .single();
-
-    if (queryError || !dentist) {
+    const authEmail = String(dentist.email || "").trim().toLowerCase();
+    if (!isValidEmail(authEmail)) {
       return {
         success: false,
-        message: "Dentist profile not found",
+        message: "Account setup incomplete. Contact administrator.",
+        statusCode: 403,
+      };
+    }
+
+    const { data: authResult, error: authError } = await supabaseAuth.auth.signInWithPassword({
+      email: authEmail,
+      password,
+    });
+
+    if (authError) {
+      const authMessage = String(authError?.message || "");
+      const lowerAuthMessage = authMessage.toLowerCase();
+      const isSchemaIssue =
+        lowerAuthMessage.includes("database error querying schema") ||
+        lowerAuthMessage.includes("database error") ||
+        lowerAuthMessage.includes("querying schema");
+
+      console.log("[DENTIST_LOGIN_AUTH_ERROR]", {
+        message: authMessage,
+        code: authError?.code,
+        status: authError?.status,
+        isSchemaIssue,
+      });
+
+      if (isSchemaIssue) {
+        return {
+          success: false,
+          message: "Authentication service is misconfigured. Please contact administrator.",
+          statusCode: 500,
+        };
+      }
+
+      return {
+        success: false,
+        message: "Invalid email or password",
+        statusCode: 401,
+      };
+    }
+
+    if (!authResult?.user) {
+      return {
+        success: false,
+        message: "Invalid email or password",
         statusCode: 401,
       };
     }

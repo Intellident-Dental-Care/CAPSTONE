@@ -446,10 +446,10 @@ export default function Login() {
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-600">
-                  Email
+                  Email or Username
                 </label>
                 <input
-                  type="email"
+                  type="text"
                   placeholder="youremail@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

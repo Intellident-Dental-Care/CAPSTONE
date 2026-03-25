@@ -9,6 +9,10 @@ import profileRoutes from "./admin/profile/profileRoutes.js";
 import appointmentsRoutes from "./admin/appointments/appointmentsRoutes.js";
 import dentistsRoutes from "./admin/dentists/dentistsRoutes.js";
 import patientsRoutes from "./admin/patients/patientsRoutes.js";
+import dentistDashboardRoutes from "./dentist/dashboard/dashboardRoutes.js";
+import dentistScheduleRoutes from "./dentist/schedule/scheduleRoutes.js";
+import dentistProfileRoutes from "./dentist/profile/profileRoutes.js";
+import dentistPatientsRoutes from "./dentist/patients/patientsRoutes.js";
 import { getLocalIpAddress, getServerDiscoveryUrls } from "./shared/getServerUrl.js";
 import { verifyEmailTransport } from "./nodemailer/emailOtpService.js";
 
@@ -45,6 +49,10 @@ app.use("/api/admin/profile", profileRoutes);
 app.use("/api/admin/appointments", appointmentsRoutes);
 app.use("/api/admin/dentists", dentistsRoutes);
 app.use("/api/admin/patients", patientsRoutes);
+app.use("/api/dentist/dashboard", dentistDashboardRoutes);
+app.use("/api/dentist/schedule", dentistScheduleRoutes);
+app.use("/api/dentist/profile", dentistProfileRoutes);
+app.use("/api/dentist/patients", dentistPatientsRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error("Unhandled server error:", err);

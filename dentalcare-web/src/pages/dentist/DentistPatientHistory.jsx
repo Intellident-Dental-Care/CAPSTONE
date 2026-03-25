@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Sidebar from "../../components/dentist/layout/Sidebar";
 import Topbar from "../../components/dentist/layout/Topbar";
 import ProcedureModal from "../../components/dentist/patients/ProcedureModal";
 import PreAssessmentModal from "../../components/dentist/patients/PreAssessmentModal";
 import toothModel from "../../assets/tooth_model.png";
+import profileImage from "../../assets/profile_sample.jpg";
+import { getDentistPatientHistory } from "../../services/dentistService";
 
 import "../../styles/dentist/layout/sidebar.css";
 import "../../styles/dentist/layout/topbar.css";
@@ -25,557 +27,37 @@ export default function DentistPatientHistory() {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedProcedure, setSelectedProcedure] = useState(null);
 
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: "New Appointment Requests:",
-      message: "John Doe for Consultation",
-      time: "2 mins ago",
-    },
-    {
-      id: 2,
-      title: "Pre-Assessment Completed:",
-      message: "Jane Smith for Tooth Extraction",
-      time: "10 mins ago",
-    },
-    {
-      id: 3,
-      title: "Pre-Assessment Completed:",
-      message: "Jane Smith for Tooth Extraction",
-      time: "10 mins ago",
-    },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+  const [patients, setPatients] = useState([]);
+  const [branchOptions, setBranchOptions] = useState([]);
 
-  const patients = [
-    {
-      id: 1,
-      name: "Sarah Kim",
-      gender: "Female",
-      age: 25,
-      phone: "09123456789",
-      branch: "Dasmariñas Branch",
-      dateOfVisit: "Feb. 05, 2026",
-      currentDentalRecordLabel: "Current Dental Record",
-      preAssessment: {
-        tooth: "Tooth (#18) 3rd Molar",
-        uploadedPhotos: [],
-        questions: [
-          {
-            question: "What discomfort are you feeling?",
-            answer: "Pain while chewing on the lower right side.",
-          },
-          {
-            question: "How long have you experienced it?",
-            answer: "For around 3 days already.",
-          },
-          {
-            question: "Is there swelling or bleeding?",
-            answer: "Slight swelling, no bleeding.",
-          },
-        ],
-        suggestedTreatment: "Restoration",
-        suggestedPrice: "₱1,500",
-      },
-      procedures: [
-        {
-          id: 101,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Patient presented with cavity on the 3rd molar. Restoration was completed successfully.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 102,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 103,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 104,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 105,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 106,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 107,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 108,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 109,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 110,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Patient presented with cavity on the 3rd molar. Restoration was completed successfully.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 111,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 112,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 113,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 114,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 115,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 116,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 117,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-        {
-          id: 118,
-          date: "Feb. 05, 2026",
-          procedure: "Restoration",
-          tooth: "Tooth (#18) 3rd Molar",
-          dentist: "Dr. Nicole Hernandezz",
-          remarks:
-            "Follow-up record for restoration and occlusion checking.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: "John Cruz",
-      gender: "Male",
-      age: 31,
-      phone: "09987654321",
-      branch: "Imus Branch",
-      dateOfVisit: "Feb. 03, 2026",
-      currentDentalRecordLabel: "Current Dental Record",
-      preAssessment: null,
-      procedures: [
-        {
-          id: 201,
-          date: "Feb. 03, 2026",
-          procedure: "Tooth Extraction",
-          tooth: "Tooth (#28) Premolar",
-          dentist: "Dr. Edward Crizzie Amparo",
-          remarks:
-            "Extraction completed. Patient advised on post-extraction care.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-      ],
-    },
-    {
-      id: 3,
-      name: "John Cruz",
-      gender: "Male",
-      age: 31,
-      phone: "09987654321",
-      branch: "Imus Branch",
-      dateOfVisit: "Feb. 03, 2026",
-      currentDentalRecordLabel: "Current Dental Record",
-      preAssessment: null,
-      procedures: [
-        {
-          id: 201,
-          date: "Feb. 03, 2026",
-          procedure: "Tooth Extraction",
-          tooth: "Tooth (#28) Premolar",
-          dentist: "Dr. Edward Crizzie Amparo",
-          remarks:
-            "Extraction completed. Patient advised on post-extraction care.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-      ],
-    },
-    {
-      id: 4,
-      name: "John Cruz",
-      gender: "Male",
-      age: 31,
-      phone: "09987654321",
-      branch: "Imus Branch",
-      dateOfVisit: "Feb. 03, 2026",
-      currentDentalRecordLabel: "Current Dental Record",
-      preAssessment: null,
-      procedures: [
-        {
-          id: 201,
-          date: "Feb. 03, 2026",
-          procedure: "Tooth Extraction",
-          tooth: "Tooth (#28) Premolar",
-          dentist: "Dr. Edward Crizzie Amparo",
-          remarks:
-            "Extraction completed. Patient advised on post-extraction care.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-      ],
-    },
-    {
-      id: 5,
-      name: "John Cruz",
-      gender: "Male",
-      age: 31,
-      phone: "09987654321",
-      branch: "Imus Branch",
-      dateOfVisit: "Feb. 03, 2026",
-      currentDentalRecordLabel: "Current Dental Record",
-      preAssessment: null,
-      procedures: [
-        {
-          id: 201,
-          date: "Feb. 03, 2026",
-          procedure: "Tooth Extraction",
-          tooth: "Tooth (#28) Premolar",
-          dentist: "Dr. Edward Crizzie Amparo",
-          remarks:
-            "Extraction completed. Patient advised on post-extraction care.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-      ],
-    },
-    {
-      id: 6,
-      name: "John Cruz",
-      gender: "Male",
-      age: 31,
-      phone: "09987654321",
-      branch: "Imus Branch",
-      dateOfVisit: "Feb. 03, 2026",
-      currentDentalRecordLabel: "Current Dental Record",
-      preAssessment: null,
-      procedures: [
-        {
-          id: 201,
-          date: "Feb. 03, 2026",
-          procedure: "Tooth Extraction",
-          tooth: "Tooth (#28) Premolar",
-          dentist: "Dr. Edward Crizzie Amparo",
-          remarks:
-            "Extraction completed. Patient advised on post-extraction care.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-      ],
-    },
-    {
-      id: 7,
-      name: "John Cruz",
-      gender: "Male",
-      age: 31,
-      phone: "09987654321",
-      branch: "Imus Branch",
-      dateOfVisit: "Feb. 03, 2026",
-      currentDentalRecordLabel: "Current Dental Record",
-      preAssessment: null,
-      procedures: [
-        {
-          id: 201,
-          date: "Feb. 03, 2026",
-          procedure: "Tooth Extraction",
-          tooth: "Tooth (#28) Premolar",
-          dentist: "Dr. Edward Crizzie Amparo",
-          remarks:
-            "Extraction completed. Patient advised on post-extraction care.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-      ],
-    },
-    {
-      id: 8,
-      name: "John Cruz",
-      gender: "Male",
-      age: 31,
-      phone: "09987654321",
-      branch: "Imus Branch",
-      dateOfVisit: "Feb. 03, 2026",
-      currentDentalRecordLabel: "Current Dental Record",
-      preAssessment: null,
-      procedures: [
-        {
-          id: 201,
-          date: "Feb. 03, 2026",
-          procedure: "Tooth Extraction",
-          tooth: "Tooth (#28) Premolar",
-          dentist: "Dr. Edward Crizzie Amparo",
-          remarks:
-            "Extraction completed. Patient advised on post-extraction care.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-      ],
-    },
-    {
-      id: 9,
-      name: "John Cruz",
-      gender: "Male",
-      age: 31,
-      phone: "09987654321",
-      branch: "Imus Branch",
-      dateOfVisit: "Feb. 03, 2026",
-      currentDentalRecordLabel: "Current Dental Record",
-      preAssessment: null,
-      procedures: [
-        {
-          id: 201,
-          date: "Feb. 03, 2026",
-          procedure: "Tooth Extraction",
-          tooth: "Tooth (#28) Premolar",
-          dentist: "Dr. Edward Crizzie Amparo",
-          remarks:
-            "Extraction completed. Patient advised on post-extraction care.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-      ],
-    },
-    {
-      id: 10,
-      name: "John Cruz",
-      gender: "Male",
-      age: 31,
-      phone: "09987654321",
-      branch: "Imus Branch",
-      dateOfVisit: "Feb. 03, 2026",
-      currentDentalRecordLabel: "Current Dental Record",
-      preAssessment: null,
-      procedures: [
-        {
-          id: 201,
-          date: "Feb. 03, 2026",
-          procedure: "Tooth Extraction",
-          tooth: "Tooth (#28) Premolar",
-          dentist: "Dr. Edward Crizzie Amparo",
-          remarks:
-            "Extraction completed. Patient advised on post-extraction care.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-      ],
-    },
-    {
-      id: 11,
-      name: "John Cruz",
-      gender: "Male",
-      age: 31,
-      phone: "09987654321",
-      branch: "Imus Branch",
-      dateOfVisit: "Feb. 03, 2026",
-      currentDentalRecordLabel: "Current Dental Record",
-      preAssessment: null,
-      procedures: [
-        {
-          id: 201,
-          date: "Feb. 03, 2026",
-          procedure: "Tooth Extraction",
-          tooth: "Tooth (#28) Premolar",
-          dentist: "Dr. Edward Crizzie Amparo",
-          remarks:
-            "Extraction completed. Patient advised on post-extraction care.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-      ],
-    },
-    {
-      id: 12,
-      name: "John Cruz",
-      gender: "Male",
-      age: 31,
-      phone: "09987654321",
-      branch: "Imus Branch",
-      dateOfVisit: "Feb. 03, 2026",
-      currentDentalRecordLabel: "Current Dental Record",
-      preAssessment: null,
-      procedures: [
-        {
-          id: 201,
-          date: "Feb. 03, 2026",
-          procedure: "Tooth Extraction",
-          tooth: "Tooth (#28) Premolar",
-          dentist: "Dr. Edward Crizzie Amparo",
-          remarks:
-            "Extraction completed. Patient advised on post-extraction care.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-      ],
-    },
-    {
-      id: 13,
-      name: "John Cruz",
-      gender: "Male",
-      age: 31,
-      phone: "09987654321",
-      branch: "Imus Branch",
-      dateOfVisit: "Feb. 03, 2026",
-      currentDentalRecordLabel: "Current Dental Record",
-      preAssessment: null,
-      procedures: [
-        {
-          id: 201,
-          date: "Feb. 03, 2026",
-          procedure: "Tooth Extraction",
-          tooth: "Tooth (#28) Premolar",
-          dentist: "Dr. Edward Crizzie Amparo",
-          remarks:
-            "Extraction completed. Patient advised on post-extraction care.",
-          beforePhoto: null,
-          afterPhoto: null,
-        },
-      ],
-    },
-  ];
+  useEffect(() => {
+    let mounted = true;
+
+    const loadHistory = async () => {
+      const result = await getDentistPatientHistory({ forceRefresh: true });
+      if (!mounted || !result?.success) return;
+
+      const payload = result.data || {};
+      setPatients(payload.patients || []);
+      setNotifications(payload.notifications || []);
+      setBranchOptions(payload.branches || []);
+    };
+
+    loadHistory();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const filteredPatients = useMemo(() => {
     return patients.filter((patient) => {
       const matchesSearch =
         patient.name.toLowerCase().includes(search.toLowerCase()) ||
-        patient.phone.includes(search);
+        String(patient.phone || "").includes(search);
 
-      const matchesBranch =
-        selectedBranch === "All Branch" || patient.branch === selectedBranch;
-
+      const matchesBranch = selectedBranch === "All Branch" || patient.branch === selectedBranch;
       return matchesSearch && matchesBranch;
     });
   }, [patients, search, selectedBranch]);
@@ -613,8 +95,7 @@ export default function DentistPatientHistory() {
     setProcedureModalOpen(true);
   };
 
-  const handleSaveProcedure = (savedData) => {
-    console.log("Saved procedure:", savedData);
+  const handleSaveProcedure = () => {
     setProcedureModalOpen(false);
   };
 
@@ -630,7 +111,7 @@ export default function DentistPatientHistory() {
           onToggleNotifications={handleToggleNotifications}
           onCloseNotifications={handleCloseNotifications}
           onMarkAllRead={handleMarkAllRead}
-          profileImage="/src/assets/profile_sample.jpg"
+          profileImage={profileImage}
         />
 
         <section className="patient-history-page">
@@ -644,7 +125,7 @@ export default function DentistPatientHistory() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
-                <span className="patient-history-search-icon">⌕</span>
+                <span className="patient-history-search-icon">S</span>
               </div>
 
               <select
@@ -653,9 +134,11 @@ export default function DentistPatientHistory() {
                 onChange={(e) => setSelectedBranch(e.target.value)}
               >
                 <option>All Branch</option>
-                <option>Dasmariñas Branch</option>
-                <option>Bacoor Branch</option>
-                <option>General Trias Branch</option>
+                {branchOptions.map((branch) => (
+                  <option key={branch} value={branch}>
+                    {branch}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -707,14 +190,8 @@ export default function DentistPatientHistory() {
       </main>
 
       {historyModalOpen && selectedPatient && (
-        <div
-          className="history-modal-overlay"
-          onClick={() => setHistoryModalOpen(false)}
-        >
-          <div
-            className="history-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="history-modal-overlay" onClick={() => setHistoryModalOpen(false)}>
+          <div className="history-modal" onClick={(e) => e.stopPropagation()}>
             <div className="history-modal-header">
               <h2 className="history-modal-title">Patient History</h2>
               <button
@@ -722,22 +199,16 @@ export default function DentistPatientHistory() {
                 className="history-modal-close"
                 onClick={() => setHistoryModalOpen(false)}
               >
-                ✕
+                X
               </button>
             </div>
 
             <div className="history-modal-body">
               <div className="history-modal-left">
                 <div className="history-modal-image-wrap">
-                  <img
-                    src={toothModel}
-                    alt="Dental Record"
-                    className="history-modal-image"
-                  />
+                  <img src={toothModel} alt="Dental Record" className="history-modal-image" />
                 </div>
-                <p className="history-modal-record-label">
-                  {selectedPatient.currentDentalRecordLabel}
-                </p>
+                <p className="history-modal-record-label">{selectedPatient.currentDentalRecordLabel}</p>
               </div>
 
               <div className="history-modal-right">
@@ -746,14 +217,9 @@ export default function DentistPatientHistory() {
                 <div className="history-timeline-list">
                   {selectedPatient.procedures?.length > 0 ? (
                     selectedPatient.procedures.map((procedure) => (
-                      <div
-                        className="history-timeline-card"
-                        key={procedure.id}
-                      >
+                      <div className="history-timeline-card" key={procedure.id}>
                         <div className="history-timeline-card-top">
-                          <span className="history-timeline-date">
-                            {procedure.date}
-                          </span>
+                          <span className="history-timeline-date">{procedure.date}</span>
 
                           <button
                             type="button"
@@ -776,26 +242,16 @@ export default function DentistPatientHistory() {
                       </div>
                     ))
                   ) : (
-                    <div className="history-timeline-empty">
-                      No procedure history found.
-                    </div>
+                    <div className="history-timeline-empty">No procedure history found.</div>
                   )}
                 </div>
 
                 <div className="history-modal-actions">
-                  <button
-                    type="button"
-                    className="history-close-btn"
-                    onClick={() => setHistoryModalOpen(false)}
-                  >
+                  <button type="button" className="history-close-btn" onClick={() => setHistoryModalOpen(false)}>
                     Close
                   </button>
 
-                  <button
-                    type="button"
-                    className="history-add-btn"
-                    onClick={handleOpenProcedureModal}
-                  >
+                  <button type="button" className="history-add-btn" onClick={handleOpenProcedureModal}>
                     Add Procedure
                   </button>
                 </div>
@@ -815,14 +271,8 @@ export default function DentistPatientHistory() {
       )}
 
       {detailsModalOpen && selectedProcedure && (
-        <div
-          className="history-detail-overlay"
-          onClick={() => setDetailsModalOpen(false)}
-        >
-          <div
-            className="history-detail-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="history-detail-overlay" onClick={() => setDetailsModalOpen(false)}>
+          <div className="history-detail-modal" onClick={(e) => e.stopPropagation()}>
             <div className="history-detail-header">
               <h2 className="history-detail-title">Patient History Details</h2>
               <button
@@ -830,24 +280,18 @@ export default function DentistPatientHistory() {
                 className="history-detail-close"
                 onClick={() => setDetailsModalOpen(false)}
               >
-                ✕
+                X
               </button>
             </div>
 
             <div className="history-detail-content">
               <div className="history-detail-section">
-                <h3 className="history-detail-section-title">
-                  Pre-Assessment
-                </h3>
-                <div className="history-detail-empty-box">
-                  No pre-assessment done for this patient.
-                </div>
+                <h3 className="history-detail-section-title">Pre-Assessment</h3>
+                <div className="history-detail-empty-box">No pre-assessment done for this patient.</div>
               </div>
 
               <div className="history-detail-section">
-                <h3 className="history-detail-section-title">
-                  Procedure Details
-                </h3>
+                <h3 className="history-detail-section-title">Procedure Details</h3>
 
                 <div className="history-detail-info-card">
                   <p>
@@ -869,11 +313,7 @@ export default function DentistPatientHistory() {
               </div>
 
               <div className="history-detail-actions">
-                <button
-                  type="button"
-                  className="history-detail-close-btn"
-                  onClick={() => setDetailsModalOpen(false)}
-                >
+                <button type="button" className="history-detail-close-btn" onClick={() => setDetailsModalOpen(false)}>
                   Close
                 </button>
 
@@ -897,11 +337,7 @@ export default function DentistPatientHistory() {
         open={procedureModalOpen}
         onClose={() => setProcedureModalOpen(false)}
         onSave={handleSaveProcedure}
-        tooth={
-          selectedProcedure?.tooth ||
-          selectedPatient?.preAssessment?.tooth ||
-          "Not specified"
-        }
+        tooth={selectedProcedure?.tooth || selectedPatient?.preAssessment?.tooth || "Not specified"}
       />
     </div>
   );

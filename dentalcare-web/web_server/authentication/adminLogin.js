@@ -1,5 +1,38 @@
 import { supabaseAdmin, supabaseAuth, signToken, signTokenWithExpiry, verifyToken } from "./authUtils.js";
 
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+
+const resolveAdminProfileByIdentifier = async (identifier) => {
+  const normalized = String(identifier || "").trim().toLowerCase();
+  const raw = String(identifier || "").trim();
+
+  if (!raw) return null;
+
+  const byEmail = await supabaseAdmin
+    .from("admin_list")
+    .select("*")
+    .eq("email", normalized)
+    .maybeSingle();
+
+  if (!byEmail.error && byEmail.data) {
+    return byEmail.data;
+  }
+
+  if (!raw.includes("@")) {
+    const byName = await supabaseAdmin
+      .from("admin_list")
+      .select("*")
+      .ilike("full_name", raw)
+      .maybeSingle();
+
+    if (!byName.error && byName.data) {
+      return byName.data;
+    }
+  }
+
+  return null;
+};
+
 /**
  * Authenticate admin with email and password
  * @param {string} email - Admin email
@@ -16,14 +49,54 @@ export const authenticateAdmin = async (email, password) => {
       };
     }
 
-    const cleanEmail = (email || "").trim().toLowerCase();
+    const identifier = String(email || "").trim();
+    const admin = await resolveAdminProfileByIdentifier(identifier);
+
+    if (!admin) {
+      return {
+        success: false,
+        message: 'Invalid email or password',
+        statusCode: 401,
+      };
+    }
+
+    const authEmail = String(admin.email || "").trim().toLowerCase();
+    if (!isValidEmail(authEmail)) {
+      return {
+        success: false,
+        message: "Account setup incomplete. Contact support.",
+        statusCode: 403,
+      };
+    }
 
     const { data: authResult, error: authError } = await supabaseAuth.auth.signInWithPassword({
-      email: cleanEmail,
+      email: authEmail,
       password,
     });
 
-    if (authError || !authResult?.user) {
+    if (authError) {
+      const authMessage = String(authError?.message || "");
+      const lowerAuthMessage = authMessage.toLowerCase();
+      const isSchemaIssue =
+        lowerAuthMessage.includes("database error querying schema") ||
+        lowerAuthMessage.includes("database error") ||
+        lowerAuthMessage.includes("querying schema");
+
+      console.log("[ADMIN_LOGIN_AUTH_ERROR]", {
+        message: authMessage,
+        code: authError?.code,
+        status: authError?.status,
+        isSchemaIssue,
+      });
+
+      if (isSchemaIssue) {
+        return {
+          success: false,
+          message: "Authentication service is misconfigured. Please contact support.",
+          statusCode: 500,
+        };
+      }
+
       return {
         success: false,
         message: "Invalid email or password",
@@ -31,16 +104,10 @@ export const authenticateAdmin = async (email, password) => {
       };
     }
 
-    const { data: admin, error: queryError } = await supabaseAdmin
-      .from("admin_list")
-      .select("*")
-      .eq("email", cleanEmail)
-      .single();
-
-    if (queryError || !admin) {
+    if (!authResult?.user) {
       return {
         success: false,
-        message: 'Invalid email or password',
+        message: "Invalid email or password",
         statusCode: 401,
       };
     }
