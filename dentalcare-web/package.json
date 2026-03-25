@@ -5,12 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "predev:api": "kill-port 5001 || echo Port 5001 already free",
+    "dev:api": "nodemon web_server/server.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:api\"",
+    "start:api": "node web_server/server.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.56.1",
     "@tailwindcss/vite": "^4.2.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^7.0.5",
     "react": "^19.2.4",
     "react-calendar": "^6.0.0",
     "react-dom": "^19.2.4",
@@ -22,10 +32,13 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.2.0",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
+    "kill-port": "^2.0.1",
+    "nodemon": "^3.1.10",
     "vite": "^7.3.1"
   }
 }

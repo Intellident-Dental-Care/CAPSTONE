@@ -1,6 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Navigate } from "react-router-dom";
 import AdminSidebar from "../../components/admin/layout/AdminSidebar";
 import AdminTopbar from "../../components/admin/layout/AdminTopbar";
+import AuthService from "../../services/authService";
+import { getAdminDentists, getAdminProfile } from "../../services/adminService";
 
 import "../../styles/admin/dentist/admin-dentist.css";
 import "../../styles/admin/dashboard/admin-layout.css";
@@ -9,7 +12,7 @@ import "../../styles/admin/layout/admin-topbar.css";
 import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
 
-const adminAssignedBranch = "General Trias";
+const defaultAssignedBranch = "General Trias";
 
 const dentistData = [
   {
@@ -147,7 +150,7 @@ function formatDate(dateString) {
   });
 }
 
-function DentistDetailsModal({ dentist, onClose }) {
+function DentistDetailsModal({ dentist, onClose, adminAssignedBranch }) {
   if (!dentist) return null;
 
   return (
@@ -223,7 +226,12 @@ function DentistDetailsModal({ dentist, onClose }) {
 
             <div className="dentist-info-row">
               <span>Assigned Branch View</span>
-              <strong>{adminAssignedBranch}</strong>
+              <strong>{dentist.currentBranchToday || adminAssignedBranch}</strong>
+            </div>
+
+            <div className="dentist-info-row">
+              <span>Today's Schedule</span>
+              <strong>{dentist.currentScheduleToday || "No Schedule Today"}</strong>
             </div>
           </div>
 
@@ -249,16 +257,49 @@ function DentistDetailsModal({ dentist, onClose }) {
 }
 
 export default function AdminDentist() {
+  const currentUser = AuthService.getCurrentUser() || {};
+  const isSuperAdmin = (currentUser?.admin_type || currentUser?.adminType) === "super_admin";
+
+  if (!isSuperAdmin) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDentist, setSelectedDentist] = useState(null);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
+  const [dentists, setDentists] = useState([]);
+  const [adminAssignedBranch, setAdminAssignedBranch] = useState(defaultAssignedBranch);
+
+  useEffect(() => {
+    let active = true;
+
+    const load = async () => {
+      const [dentistsResult, profileResult] = await Promise.all([getAdminDentists(), getAdminProfile()]);
+
+      if (active && dentistsResult?.success && Array.isArray(dentistsResult.data)) {
+        setDentists(dentistsResult.data);
+      }
+
+      if (active && profileResult?.success && profileResult?.data?.branch) {
+        setAdminAssignedBranch(profileResult.data.branch);
+      }
+    };
+
+    load();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filteredDentists = useMemo(() => {
-    return dentistData
+    return dentists
       .filter((dentist) =>
         dentist.schedules.some(
-          (schedule) => schedule.branch === adminAssignedBranch
+          (schedule) =>
+            !adminAssignedBranch ||
+            schedule.branch === adminAssignedBranch ||
+            String(schedule.branch || "").toLowerCase().includes(String(adminAssignedBranch).toLowerCase())
         )
       )
       .filter((dentist) => {
@@ -271,7 +312,7 @@ export default function AdminDentist() {
           dentist.phone.toLowerCase().includes(search)
         );
       });
-  }, [searchTerm]);
+  }, [adminAssignedBranch, dentists, searchTerm]);
 
   const totalDentists = filteredDentists.length;
   const activeDentists = filteredDentists.filter(
@@ -364,15 +405,13 @@ export default function AdminDentist() {
                 <tbody>
                   {filteredDentists.length > 0 ? (
                     filteredDentists.map((dentist) => {
-                      const visibleBranchSchedule = dentist.schedules.find(
-                        (schedule) => schedule.branch === adminAssignedBranch
-                      );
+                      const visibleBranch = dentist.currentBranchToday || adminAssignedBranch;
 
                       return (
                         <tr key={dentist.id}>
                           <td>{dentist.name}</td>
                           <td>{dentist.specialty}</td>
-                          <td>{visibleBranchSchedule?.branch || adminAssignedBranch}</td>
+                          <td>{visibleBranch}</td>
                           <td>{dentist.phone}</td>
                           <td>
                             <span
@@ -411,6 +450,7 @@ export default function AdminDentist() {
       <DentistDetailsModal
         dentist={selectedDentist}
         onClose={() => setSelectedDentist(null)}
+        adminAssignedBranch={adminAssignedBranch}
       />
     </div>
   );

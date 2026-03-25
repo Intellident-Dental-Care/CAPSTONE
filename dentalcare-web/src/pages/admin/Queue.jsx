@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AdminSidebar from "../../components/admin/layout/AdminSidebar";
 import AdminTopbar from "../../components/admin/layout/AdminTopbar";
+import { getTodayQueue, updateQueueStatus } from "../../services/adminService";
 
 import "../../styles/admin/dashboard/admin-layout.css";
 import "../../styles/admin/layout/admin-sidebar.css";
@@ -8,54 +9,6 @@ import "../../styles/admin/layout/admin-topbar.css";
 import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
 import "../../styles/admin/queue/queue.css";
-
-const initialQueue = [
-  {
-    id: 1,
-    queueNumber: 2,
-    name: "Riko Tanaka Suzuki",
-    time: "9:00 AM - 9:30 AM",
-    status: "In-Treatment",
-    procedure: "Dental Cleaning",
-    dentist: "Dr. Shin Tamura",
-  },
-  {
-    id: 2,
-    queueNumber: 3,
-    name: "Aiko Mendoza",
-    time: "9:30 AM - 10:00 AM",
-    status: "Waiting",
-    procedure: "Tooth Extraction",
-    dentist: "Dr. Angela Cruz",
-  },
-  {
-    id: 3,
-    queueNumber: 4,
-    name: "John Reyes",
-    time: "10:00 AM - 10:30 AM",
-    status: "Waiting",
-    procedure: "Braces Adjustment",
-    dentist: "Dr. Shin Tamura",
-  },
-  {
-    id: 4,
-    queueNumber: 5,
-    name: "Maria Santos",
-    time: "10:30 AM - 11:00 AM",
-    status: "Waiting",
-    procedure: "Consultation",
-    dentist: "Dr. Angela Cruz",
-  },
-  {
-    id: 5,
-    queueNumber: 6,
-    name: "Kevin Cruz",
-    time: "11:00 AM - 11:30 AM",
-    status: "Waiting",
-    procedure: "Filling",
-    dentist: "Dr. Shin Tamura",
-  },
-];
 
 export default function Queue() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -81,7 +34,7 @@ export default function Queue() {
     },
   ]);
 
-  const [queueList, setQueueList] = useState(initialQueue);
+  const [queueList, setQueueList] = useState([]);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showStartNextModal, setShowStartNextModal] = useState(false);
   const [showDelayModal, setShowDelayModal] = useState(false);
@@ -91,8 +44,42 @@ export default function Queue() {
   const [delayUnit, setDelayUnit] = useState("minutes");
   const [notificationMessage, setNotificationMessage] = useState("");
 
+  const loadQueue = async () => {
+    const response = await getTodayQueue();
+    if (!response?.success) {
+      return;
+    }
+
+    const mapped = (response?.data?.bookings || []).map((item) => ({
+      id: item.id,
+      queueNumber: item.queueNumber,
+      name: item.patientName,
+      time: item.time,
+      status: item.status === "In Queue" ? "In-Treatment" : item.status,
+      procedure: item.procedure,
+      dentist: item.dentist,
+    }));
+
+    setQueueList(mapped.length ? mapped : []);
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const refresh = async () => {
+      if (!mounted) return;
+      await loadQueue();
+    };
+
+    refresh();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const currentPatient = useMemo(
-    () => queueList.find((item) => item.status === "In-Treatment"),
+    () => queueList.find((item) => item.status === "In-Treatment" || item.status === "In Queue"),
     [queueList]
   );
 
@@ -141,8 +128,10 @@ export default function Queue() {
     setShowCompleteConfirm(true);
   };
 
-  const confirmCompleteTreatment = () => {
+  const confirmCompleteTreatment = async () => {
     if (!currentPatient) return;
+
+    await updateQueueStatus(currentPatient.id, "completed");
 
     setQueueList((prev) =>
       prev.map((item) =>
@@ -157,13 +146,17 @@ export default function Queue() {
     if (nextPatient) {
       setShowStartNextModal(true);
     }
+
+    await loadQueue();
   };
 
-  const startNextTreatment = () => {
+  const startNextTreatment = async () => {
     if (!nextPatient) {
       setShowStartNextModal(false);
       return;
     }
+
+    await updateQueueStatus(nextPatient.id, "in queue");
 
     setQueueList((prev) =>
       prev.map((item) =>
@@ -184,6 +177,7 @@ export default function Queue() {
     ]);
 
     setShowStartNextModal(false);
+    await loadQueue();
   };
 
   const handleDelayConfirm = () => {

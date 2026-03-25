@@ -2,10 +2,16 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import logo from "../../../assets/logo.png";
 import adminProfile from "../../../assets/profile_sample.jpg";
+import AuthService from "../../../services/authService";
 
 export default function AdminSidebar() {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const currentUser = AuthService.getCurrentUser() || {};
+  const isSuperAdmin = (currentUser?.admin_type || currentUser?.adminType) === "super_admin";
+  const displayName =
+    currentUser?.fullName || currentUser?.full_name || currentUser?.name || "Admin";
+  const displayRole = isSuperAdmin ? "System Administrator" : "Branch Administrator";
 
   const handleOpenLogoutModal = () => {
     setShowLogoutModal(true);
@@ -17,6 +23,7 @@ export default function AdminSidebar() {
 
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);
+    AuthService.clearAuth();
     navigate("/login");
   };
 
@@ -34,8 +41,8 @@ export default function AdminSidebar() {
 
           <div className="admin-profile-card">
             <img src={adminProfile} alt="Admin" />
-            <h3>Hello, Admin</h3>
-            <p>System Administrator</p>
+            <h3>Hello, {displayName}</h3>
+            <p>{displayRole}</p>
           </div>
 
           <nav className="admin-sidebar-menu">
@@ -67,14 +74,16 @@ export default function AdminSidebar() {
               Appointments
             </NavLink>
 
-            <NavLink
-              to="/admin/dentists"
-              className={({ isActive }) =>
-                `admin-menu-item ${isActive ? "active" : ""}`
-              }
-            >
-              Dentist
-            </NavLink>
+            {isSuperAdmin ? (
+              <NavLink
+                to="/admin/dentists"
+                className={({ isActive }) =>
+                  `admin-menu-item ${isActive ? "active" : ""}`
+                }
+              >
+                Dentist
+              </NavLink>
+            ) : null}
 
             <NavLink
               to="/admin/patients"

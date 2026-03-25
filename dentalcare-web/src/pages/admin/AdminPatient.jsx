@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AdminSidebar from "../../components/admin/layout/AdminSidebar";
 import AdminTopbar from "../../components/admin/layout/AdminTopbar";
+import { getAdminPatients, getAdminProfile } from "../../services/adminService";
 
 import "../../styles/admin/patient/admin-patient.css";
 import "../../styles/admin/dashboard/admin-layout.css";
@@ -9,7 +10,7 @@ import "../../styles/admin/layout/admin-topbar.css";
 import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
 
-const adminAssignedBranch = "General Trias";
+const defaultAssignedBranch = "General Trias";
 
 const patientData = [
   {
@@ -380,10 +381,31 @@ export default function AdminPatient() {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
+  const [patients, setPatients] = useState([]);
+  const [adminAssignedBranch, setAdminAssignedBranch] = useState(defaultAssignedBranch);
+
+  useEffect(() => {
+    let active = true;
+
+    const load = async () => {
+      const [patientsResult, profileResult] = await Promise.all([getAdminPatients(), getAdminProfile()]);
+      if (active && patientsResult?.success && Array.isArray(patientsResult.data)) {
+        setPatients(patientsResult.data);
+      }
+
+      if (active && profileResult?.success && profileResult?.data?.branch) {
+        setAdminAssignedBranch(profileResult.data.branch);
+      }
+    };
+
+    load();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filteredPatients = useMemo(() => {
-    return patientData
-      .filter((patient) => patient.branch === adminAssignedBranch)
+    return patients
       .filter((patient) => {
         const search = searchTerm.toLowerCase();
         return (
@@ -394,7 +416,7 @@ export default function AdminPatient() {
           patient.status.toLowerCase().includes(search)
         );
       });
-  }, [searchTerm]);
+  }, [patients, searchTerm]);
 
   const totalPatients = filteredPatients.length;
   const completedPatients = filteredPatients.filter(

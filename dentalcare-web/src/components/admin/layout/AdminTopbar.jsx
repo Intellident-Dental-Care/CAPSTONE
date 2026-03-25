@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import AdminNotificationPopup from "../notifications/AdminNotificationPopup";
 import AdminProfileModal from "../profile/AdminProfileModal";
+import { getAdminProfile } from "../../../services/adminService";
 
 export default function AdminTopbar({
   title = "Dashboard",
@@ -11,7 +12,24 @@ export default function AdminTopbar({
   onMarkAllRead,
 }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [profile, setProfile] = useState(null);
   const profileRef = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadProfile = async () => {
+      const result = await getAdminProfile();
+      if (active && result?.success && result?.data) {
+        setProfile(result.data);
+      }
+    };
+
+    loadProfile();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -63,7 +81,7 @@ export default function AdminTopbar({
               onClick={() => setIsProfileOpen((prev) => !prev)}
               aria-label="Open profile"
             >
-              <span className="admin-profile-label">Administrator</span>
+              <span className="admin-profile-label">{profile?.fullName || "Administrator"}</span>
               <span className={`admin-profile-arrow ${isProfileOpen ? "open" : ""}`}>
                 ▾
               </span>
@@ -75,6 +93,8 @@ export default function AdminTopbar({
       <AdminProfileModal
         open={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
+        profile={profile}
+        onProfileUpdated={setProfile}
       />
     </>
   );

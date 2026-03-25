@@ -1,4 +1,52 @@
-export default function AdminProfileModal({ open, onClose }) {
+import { useEffect, useState } from "react";
+import { updateAdminProfile } from "../../../services/adminService";
+
+export default function AdminProfileModal({ open, onClose, profile, onProfileUpdated }) {
+  const [form, setForm] = useState({
+    fullName: "",
+    dob: "",
+    gender: "",
+    phone: "",
+    email: "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!profile) return;
+    setForm({
+      fullName: profile.fullName || "",
+      dob: profile.dob || "",
+      gender: profile.gender || "",
+      phone: profile.phone || "",
+      email: profile.email || "",
+    });
+  }, [profile]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const result = await updateAdminProfile({
+      fullName: form.fullName,
+      dob: form.dob,
+      gender: form.gender,
+      phone: form.phone,
+      email: form.email,
+      contactDetail: form.email,
+    });
+    setSaving(false);
+
+    if (result?.success && result?.data && onProfileUpdated) {
+      onProfileUpdated(result.data);
+      localStorage.setItem("user_data", JSON.stringify({
+        ...(JSON.parse(localStorage.getItem("user_data") || "{}")),
+        fullName: result.data.fullName,
+        full_name: result.data.fullName,
+        email: result.data.email,
+        phone_number: result.data.phone,
+      }));
+      onClose();
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -34,21 +82,21 @@ export default function AdminProfileModal({ open, onClose }) {
 
           <div className="admin-profile-field">
             <label>Full Name</label>
-            <input type="text" defaultValue="Dian Mendoza" />
+            <input type="text" value={form.fullName} onChange={(e) => setForm((prev) => ({ ...prev, fullName: e.target.value }))} />
           </div>
 
           <div className="admin-profile-field">
             <label>Date of Birth</label>
-            <select defaultValue="1 January 2004">
-              <option>1 January 2004</option>
-            </select>
+            <input type="date" value={form.dob} onChange={(e) => setForm((prev) => ({ ...prev, dob: e.target.value }))} />
           </div>
 
           <div className="admin-profile-field">
             <label>Gender</label>
-            <select defaultValue="Female">
-              <option>Female</option>
-              <option>Male</option>
+            <select value={form.gender} onChange={(e) => setForm((prev) => ({ ...prev, gender: e.target.value }))}>
+              <option value="">Select gender</option>
+              <option value="Female">Female</option>
+              <option value="Male">Male</option>
+              <option value="Other">Other</option>
             </select>
           </div>
         </div>
@@ -58,17 +106,17 @@ export default function AdminProfileModal({ open, onClose }) {
 
           <div className="admin-profile-field">
             <label>Mobile Number</label>
-            <input type="text" defaultValue="+63 912 3456 789" />
+            <input type="text" value={form.phone} onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))} />
           </div>
 
           <div className="admin-profile-field">
             <label>Email Address</label>
-            <input type="email" defaultValue="andreab@gmail.com" />
+            <input type="email" value={form.email} onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))} />
           </div>
         </div>
 
-        <button type="button" className="admin-profile-save-btn">
-          Save
+        <button type="button" className="admin-profile-save-btn" onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : "Save"}
         </button>
       </div>
     </div>

@@ -1,6 +1,13 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import AdminSidebar from "../../components/admin/layout/AdminSidebar";
 import AdminTopbar from "../../components/admin/layout/AdminTopbar";
+import {
+  createWalkInAppointment,
+  getAdminAppointments,
+  getAdminDentists,
+  getAdminPatients,
+  updateAppointmentStatus,
+} from "../../services/adminService";
 import "../../styles/admin/appointments/admin-appointments.css";
 import "../../styles/admin/dashboard/admin-layout.css";
 import "../../styles/admin/layout/admin-sidebar.css";
@@ -240,6 +247,26 @@ function toAppointmentRange(time) {
   return `${time} - ${time}`;
 }
 
+function toTwentyFourHourTime(time) {
+  const match = String(time || "").trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) {
+    return null;
+  }
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const suffix = match[3].toUpperCase();
+
+  if (suffix === "PM" && hours !== 12) {
+    hours += 12;
+  }
+  if (suffix === "AM" && hours === 12) {
+    hours = 0;
+  }
+
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+}
+
 export default function AdminAppointments() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
@@ -264,7 +291,9 @@ export default function AdminAppointments() {
     },
   ]);
 
-  const [appointments, setAppointments] = useState(initialAppointments);
+  const [appointments, setAppointments] = useState([]);
+  const [patientCatalog, setPatientCatalog] = useState([]);
+  const [doctorCatalog, setDoctorCatalog] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [branchFilter, setBranchFilter] = useState("All");
@@ -296,6 +325,50 @@ export default function AdminAppointments() {
     notes: "",
   });
 
+  useEffect(() => {
+    let active = true;
+
+    const loadData = async () => {
+      const [appointmentsResult, patientsResult, dentistsResult] = await Promise.all([
+        getAdminAppointments(),
+        getAdminPatients(),
+        getAdminDentists(),
+      ]);
+
+      if (active && appointmentsResult?.success && Array.isArray(appointmentsResult.data)) {
+        setAppointments(appointmentsResult.data);
+      }
+
+      if (active && patientsResult?.success && Array.isArray(patientsResult.data)) {
+        setPatientCatalog(
+          patientsResult.data.map((patient) => ({
+            id: patient.id,
+            name: patient.name,
+            gender: patient.gender || "-",
+            age: Number(patient.age) || 0,
+            phone: patient.phone || "",
+          }))
+        );
+      }
+
+      if (active && dentistsResult?.success && Array.isArray(dentistsResult.data)) {
+        setDoctorCatalog(
+          dentistsResult.data.map((dentist) => ({
+            id: dentist.id,
+            name: dentist.name,
+            specialty: dentist.specialty || "General Dentistry",
+            branch: dentist.schedules?.[0]?.branch || "",
+          }))
+        );
+      }
+    };
+
+    loadData();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const branches = useMemo(() => {
     const uniqueBranches = [...new Set(appointments.map((item) => item.branch))];
     return ["All", ...uniqueBranches];
@@ -303,19 +376,19 @@ export default function AdminAppointments() {
 
   const patientSuggestions = useMemo(() => {
     if (!patientQuery.trim()) return [];
-    return patientOptions.filter((patient) =>
+    return patientCatalog.filter((patient) =>
       patient.name.toLowerCase().includes(patientQuery.toLowerCase())
     );
-  }, [patientQuery]);
+  }, [patientCatalog, patientQuery]);
 
   const filteredDoctors = useMemo(() => {
     if (!walkInForm.branch) return [];
-    return doctorOptions.filter((doctor) => doctor.branch === walkInForm.branch);
-  }, [walkInForm.branch]);
+    return doctorCatalog.filter((doctor) => doctor.branch === walkInForm.branch);
+  }, [doctorCatalog, walkInForm.branch]);
 
   const selectedDoctorDetails = useMemo(() => {
-    return doctorOptions.find((doctor) => doctor.name === walkInForm.dentist) || null;
-  }, [walkInForm.dentist]);
+    return doctorCatalog.find((doctor) => doctor.name === walkInForm.dentist) || null;
+  }, [doctorCatalog, walkInForm.dentist]);
 
   const filteredAppointments = useMemo(() => {
     return appointments.filter((appointment) => {
@@ -384,13 +457,18 @@ export default function AdminAppointments() {
     setShowCancelModal(false);
   };
 
-  const handleConfirmCancel = () => {
+  const handleConfirmCancel = async () => {
     if (!selectedAppointment) return;
+
+    const updateResult = await updateAppointmentStatus(selectedAppointment.id, "cancelled");
+    if (!updateResult?.success) {
+      return;
+    }
 
     setAppointments((prev) =>
       prev.map((appointment) =>
         appointment.id === selectedAppointment.id
-          ? { ...appointment, status: "Cancelled", notes: "Cancelled by admin." }
+          ? { ...appointment, status: "Cancelled", notes: "Cancelled due to not showing up" }
           : appointment
       )
     );
@@ -424,8 +502,14 @@ export default function AdminAppointments() {
     }
   };
 
-  const handleBulkStatusChange = (newStatus) => {
+  const handleBulkStatusChange = async (newStatus) => {
     if (selectedIds.length === 0) return;
+
+    await Promise.all(
+      selectedIds.map((id) =>
+        updateAppointmentStatus(id, newStatus.toLowerCase())
+      )
+    );
 
     setAppointments((prev) =>
       prev.map((appointment) =>
@@ -435,7 +519,7 @@ export default function AdminAppointments() {
               status: newStatus,
               notes:
                 newStatus === "Cancelled"
-                  ? "Cancelled by admin."
+                  ? "Cancelled due to not showing up"
                   : appointment.notes,
             }
           : appointment
@@ -526,7 +610,7 @@ export default function AdminAppointments() {
     setWalkInStep(3);
   };
 
-  const handleConfirmWalkIn = () => {
+  const handleConfirmWalkIn = async () => {
     if (
       !walkInForm.patientName.trim() ||
       !walkInForm.branch.trim() ||
@@ -537,8 +621,27 @@ export default function AdminAppointments() {
       return;
     }
 
+    const selectedDentist = doctorCatalog.find((doctor) => doctor.name === walkInForm.dentist);
+    const time24 = toTwentyFourHourTime(walkInForm.time);
+    if (!time24) {
+      return;
+    }
+
+    const createResult = await createWalkInAppointment({
+      userId: walkInForm.patientId,
+      patientName: walkInForm.patientName,
+      dentistId: selectedDentist?.id || null,
+      branch: walkInForm.branch,
+      date: today,
+      time24,
+    });
+
+    if (!createResult?.success) {
+      return;
+    }
+
     const newAppointment = {
-      id: Date.now(),
+      id: createResult?.data?.id || Date.now(),
       patientName: walkInForm.patientName,
       gender: walkInForm.gender || "Male",
       age: Number(walkInForm.age) || 0,
