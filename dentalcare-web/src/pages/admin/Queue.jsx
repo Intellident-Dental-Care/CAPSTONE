@@ -59,7 +59,8 @@ export default function Queue() {
       queueNumber: item.queueNumber,
       name: item.patientName,
       time: item.time,
-      status: item.status === "In Queue" ? "In-Treatment" : item.status,
+      status: item.status,
+      rawStatus: item.rawStatus,
       procedure: item.procedure,
       dentist: item.dentist,
     }));
@@ -86,13 +87,16 @@ export default function Queue() {
     };
   }, []);
 
-  const currentPatient = useMemo(
-    () => queueList.find((item) => item.status === "In-Treatment" || item.status === "In Queue"),
-    [queueList]
-  );
+  const currentPatient = useMemo(() => {
+    return (
+      queueList.find((item) => item.status === "In Treatment") ||
+      queueList.find((item) => item.status === "In Queue") ||
+      null
+    );
+  }, [queueList]);
 
   const waitingPatients = useMemo(
-    () => queueList.filter((item) => item.status === "Waiting"),
+    () => queueList.filter((item) => item.rawStatus === "pending" || item.status === "Waiting"),
     [queueList]
   );
 
@@ -144,12 +148,24 @@ export default function Queue() {
   const confirmCompleteTreatment = async () => {
     if (!currentPatient) return;
 
-    await updateQueueStatus(currentPatient.id, "completed");
+    const result = await updateQueueStatus(currentPatient.id, "completed");
+    if (!result?.success) {
+      setNotifications((prev) => [
+        {
+          id: Date.now(),
+          title: "Queue Update Failed:",
+          message: result?.message || "Could not mark patient as completed",
+          time: "Just now",
+        },
+        ...prev,
+      ]);
+      return;
+    }
 
     setQueueList((prev) =>
       prev.map((item) =>
         item.id === currentPatient.id
-          ? { ...item, status: "Completed" }
+          ? { ...item, status: "Completed", rawStatus: "completed" }
           : item
       )
     );
@@ -169,12 +185,25 @@ export default function Queue() {
       return;
     }
 
-    await updateQueueStatus(nextPatient.id, "in queue");
+    const result = await updateQueueStatus(nextPatient.id, "in treatment");
+    if (!result?.success) {
+      setNotifications((prev) => [
+        {
+          id: Date.now(),
+          title: "Queue Update Failed:",
+          message: result?.message || "Could not start treatment",
+          time: "Just now",
+        },
+        ...prev,
+      ]);
+      setShowStartNextModal(false);
+      return;
+    }
 
     setQueueList((prev) =>
       prev.map((item) =>
         item.id === nextPatient.id
-          ? { ...item, status: "In-Treatment" }
+          ? { ...item, status: "In Treatment", rawStatus: "in_treatment" }
           : item
       )
     );
@@ -451,7 +480,9 @@ export default function Queue() {
                     <div
                       key={patient.id}
                       className={`queue-list-item ${
-                        patient.status === "In-Treatment"
+                        patient.status === "In Treatment"
+                          ? "active-treatment"
+                          : patient.status === "In Queue"
                           ? "active"
                           : patient.status === "Completed"
                           ? "completed"

@@ -156,10 +156,45 @@ const patientOptions = [
 ];
 
 const branchOptions = [
-  "GC Dental Care | Dasmariñas",
-  "GC Dental Care | GenTri",
-  "GC Dental Care | Imus",
+  "Dasmarinas, Cavite",
+  "General Trias, Cavite",
+  "Bacoor, Cavite",
 ];
+
+const branchAliases = {
+  dasmarinas_cavite: ["dasmarinas, cavite", "dasmari\u00f1as, cavite", "gc dental care | dasmari\u00f1as", "gc dental care | dasmarinas"],
+  general_trias_cavite: ["general trias, cavite", "gc dental care | gentri", "gentri", "general trias"],
+  bacoor_cavite: ["bacoor, cavite", "gc dental care | bacoor", "bacoor"],
+};
+
+const toBranchKey = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return "";
+
+  const entry = Object.entries(branchAliases).find(([, aliases]) => aliases.includes(normalized));
+  return entry ? entry[0] : normalized;
+};
+
+const toBranchLabel = (value) => {
+  const key = toBranchKey(value);
+  if (key === "dasmarinas_cavite") return "Dasmarinas, Cavite";
+  if (key === "general_trias_cavite") return "General Trias, Cavite";
+  if (key === "bacoor_cavite") return "Bacoor, Cavite";
+  return String(value || "");
+};
+
+const getCurrentTimeLabel = () => {
+  const now = new Date();
+  return now.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+const getTodayDayShort = () => {
+  return new Date().toLocaleDateString("en-US", { weekday: "short" });
+};
 
 const doctorOptions = [
   {
@@ -357,7 +392,8 @@ export default function AdminAppointments() {
             id: dentist.id,
             name: dentist.name,
             specialty: dentist.specialty || "General Dentistry",
-            branch: dentist.schedules?.[0]?.branch || "",
+            branch: toBranchLabel(dentist.schedules?.[0]?.branch || ""),
+            schedules: Array.isArray(dentist.schedules) ? dentist.schedules : [],
           }))
         );
       }
@@ -371,7 +407,7 @@ export default function AdminAppointments() {
 
   const branches = useMemo(() => {
     const uniqueBranches = [...new Set(appointments.map((item) => item.branch))];
-    return ["All", ...uniqueBranches];
+    return ["All", ...new Set([...branchOptions, ...uniqueBranches])];
   }, [appointments]);
 
   const patientSuggestions = useMemo(() => {
@@ -383,7 +419,18 @@ export default function AdminAppointments() {
 
   const filteredDoctors = useMemo(() => {
     if (!walkInForm.branch) return [];
-    return doctorCatalog.filter((doctor) => doctor.branch === walkInForm.branch);
+    const selectedBranchKey = toBranchKey(walkInForm.branch);
+    const todayDayShort = getTodayDayShort();
+
+    return doctorCatalog.filter((doctor) => {
+      const schedules = Array.isArray(doctor.schedules) ? doctor.schedules : [];
+      return schedules.some(
+        (schedule) =>
+          schedule?.active &&
+          schedule?.day === todayDayShort &&
+          toBranchKey(schedule?.branch) === selectedBranchKey
+      );
+    });
   }, [doctorCatalog, walkInForm.branch]);
 
   const selectedDoctorDetails = useMemo(() => {
@@ -418,7 +465,7 @@ export default function AdminAppointments() {
     return {
       total: filteredAppointments.length,
       waiting: filteredAppointments.filter((a) => a.status === "Waiting").length,
-      queue: filteredAppointments.filter((a) => a.status === "In Queue").length,
+      queue: filteredAppointments.filter((a) => a.status === "In Queue" || a.status === "In Treatment").length,
       completed: filteredAppointments.filter((a) => a.status === "Completed").length,
       cancelled: filteredAppointments.filter((a) => a.status === "Cancelled").length,
     };
@@ -505,15 +552,21 @@ export default function AdminAppointments() {
   const handleBulkStatusChange = async (newStatus) => {
     if (selectedIds.length === 0) return;
 
-    await Promise.all(
-      selectedIds.map((id) =>
-        updateAppointmentStatus(id, newStatus.toLowerCase())
-      )
+    const updateResults = await Promise.all(
+      selectedIds.map(async (id) => {
+        const result = await updateAppointmentStatus(id, newStatus);
+        return { id, success: !!result?.success, message: result?.message || "" };
+      })
     );
+
+    const succeededIds = updateResults.filter((item) => item.success).map((item) => item.id);
+    if (!succeededIds.length) {
+      return;
+    }
 
     setAppointments((prev) =>
       prev.map((appointment) =>
-        selectedIds.includes(appointment.id)
+        succeededIds.includes(appointment.id)
           ? {
               ...appointment,
               status: newStatus,
@@ -530,13 +583,18 @@ export default function AdminAppointments() {
       {
         id: Date.now(),
         title: "Bulk Update:",
-        message: `${selectedIds.length} appointment(s) marked as ${newStatus}`,
+        message: `${succeededIds.length} appointment(s) marked as ${newStatus}`,
         time: "Just now",
       },
       ...prev,
     ]);
 
-    setSelectedIds([]);
+    setSelectedIds((prev) => prev.filter((id) => !succeededIds.includes(id)));
+
+    const refreshedAppointments = await getAdminAppointments();
+    if (refreshedAppointments?.success && Array.isArray(refreshedAppointments.data)) {
+      setAppointments(refreshedAppointments.data);
+    }
   };
 
   const resetWalkInModal = () => {
@@ -601,8 +659,9 @@ export default function AdminAppointments() {
     setWalkInForm((prev) => ({
       ...prev,
       date: today,
+      time: getCurrentTimeLabel(),
     }));
-    setWalkInStep(2);
+    setWalkInStep(3);
   };
 
   const handleProceedToReview = () => {
@@ -615,17 +674,12 @@ export default function AdminAppointments() {
       !walkInForm.patientName.trim() ||
       !walkInForm.branch.trim() ||
       !walkInForm.dentist.trim() ||
-      !walkInForm.treatment.trim() ||
-      !walkInForm.time.trim()
+      !walkInForm.treatment.trim()
     ) {
       return;
     }
 
     const selectedDentist = doctorCatalog.find((doctor) => doctor.name === walkInForm.dentist);
-    const time24 = toTwentyFourHourTime(walkInForm.time);
-    if (!time24) {
-      return;
-    }
 
     const createResult = await createWalkInAppointment({
       userId: walkInForm.patientId,
@@ -633,8 +687,6 @@ export default function AdminAppointments() {
       dentistId: selectedDentist?.id || null,
       branch: walkInForm.branch,
       service: walkInForm.treatment,
-      date: today,
-      time24,
     });
 
     if (!createResult?.success) {
@@ -649,8 +701,8 @@ export default function AdminAppointments() {
       dentist: walkInForm.dentist,
       branch: walkInForm.branch,
       treatment: walkInForm.treatment,
-      date: today,
-      time: toAppointmentRange(walkInForm.time),
+      date: createResult?.data?.appointmentDate || today,
+      time: createResult?.data?.appointmentTimeLabel || walkInForm.time,
       type: "Walk-in",
       status: "Waiting",
       notes: walkInForm.notes || "Walk-in appointment added by admin.",
@@ -765,6 +817,7 @@ export default function AdminAppointments() {
                 <option value="All">All Status</option>
                 <option value="Waiting">Waiting</option>
                 <option value="In Queue">In Queue</option>
+                <option value="In Treatment">In Treatment</option>
                 <option value="Completed">Completed</option>
                 <option value="Cancelled">Cancelled</option>
               </select>
@@ -789,6 +842,13 @@ export default function AdminAppointments() {
               </div>
 
               <div className="appointments-bulk-actions">
+                <button
+                  className="bulk-action-btn soft-btn"
+                  onClick={() => handleBulkStatusChange("In Treatment")}
+                >
+                  Mark as In Treatment
+                </button>
+
                 <button
                   className="bulk-action-btn soft-btn"
                   onClick={() => handleBulkStatusChange("In Queue")}
@@ -1277,7 +1337,7 @@ export default function AdminAppointments() {
                   <div className="walkin-footer-actions">
                     <button
                       className="table-action-btn view-btn"
-                      onClick={() => setWalkInStep(2)}
+                      onClick={() => setWalkInStep(1)}
                     >
                       Edit Details
                     </button>

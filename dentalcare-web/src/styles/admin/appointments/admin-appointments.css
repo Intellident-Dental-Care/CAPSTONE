@@ -373,6 +373,11 @@
   color: #d4a814;
 }
 
+.status-badge.in-treatment {
+  background: #f3edff;
+  color: #7a3bc2;
+}
+
 .status-badge.pending {
   background: #fff9e8;
   color: #d4a814;

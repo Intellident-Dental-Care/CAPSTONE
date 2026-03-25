@@ -35,14 +35,26 @@ export default function AdminProfileModal({ open, onClose, profile, onProfileUpd
     setSaving(false);
 
     if (result?.success && result?.data && onProfileUpdated) {
-      onProfileUpdated(result.data);
+      const normalizedProfile = {
+        ...result.data,
+        fullName: result.data.fullName || result.data.full_name || form.fullName,
+        full_name: result.data.full_name || result.data.fullName || form.fullName,
+        email: result.data.email || form.email,
+        phone: result.data.phone || result.data.phone_number || form.phone,
+        phone_number: result.data.phone_number || result.data.phone || form.phone,
+      };
+
+      onProfileUpdated(normalizedProfile);
+
       localStorage.setItem("user_data", JSON.stringify({
         ...(JSON.parse(localStorage.getItem("user_data") || "{}")),
-        fullName: result.data.fullName,
-        full_name: result.data.fullName,
-        email: result.data.email,
-        phone_number: result.data.phone,
+        fullName: normalizedProfile.fullName,
+        full_name: normalizedProfile.full_name,
+        email: normalizedProfile.email,
+        phone_number: normalizedProfile.phone_number,
       }));
+
+      window.dispatchEvent(new CustomEvent("auth:user-updated", { detail: normalizedProfile }));
       onClose();
     }
   };

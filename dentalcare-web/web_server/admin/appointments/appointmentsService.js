@@ -1,20 +1,81 @@
 import { supabaseAdmin } from "../../shared/supabaseClient.js";
 
 const STATUS_MAP = {
-  pending: "Pending",
-  waiting: "Waiting",
+  pending: "In Queue",
+  waiting: "In Queue",
   in_queue: "In Queue",
+  in_treatment: "In Treatment",
   inqueue: "In Queue",
   inqueue_: "In Queue",
   inqueue__: "In Queue",
+  intreatment: "In Treatment",
+  in_treatment_: "In Treatment",
   completed: "Completed",
   cancelled: "Cancelled",
 };
+
+const STATUS_TO_DB = {
+  waiting: "pending",
+  pending: "pending",
+  "in queue": "confirmed",
+  in_queue: "confirmed",
+  confirmed: "confirmed",
+  "in treatment": "in_treatment",
+  in_treatment: "in_treatment",
+  completed: "completed",
+  cancelled: "cancelled",
+};
+
+const normalizeText = (value) => String(value || "").trim().toLowerCase();
 
 const normalizeStatus = (status) => {
   if (!status) return "Waiting";
   const key = String(status).trim().toLowerCase().replace(/\s+/g, "_");
   return STATUS_MAP[key] || String(status);
+};
+
+const toManilaNowParts = () => {
+  const now = new Date();
+  const dateText = now.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+  const timeText = now.toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Manila",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  return {
+    date: dateText,
+    time24: timeText,
+  };
+};
+
+const normalizeBookingType = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "walk-in" || normalized === "walkin") return "Walk-in";
+  return "Online";
+};
+
+const isMissingBookingTypeColumnError = (error) => {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("booking_type") && message.includes("column");
+};
+
+const toDayOfWeekInManila = () => {
+  const now = new Date();
+  const weekday = now.toLocaleString("en-US", { timeZone: "Asia/Manila", weekday: "short" });
+  const map = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+
+  return map[weekday] ?? now.getDay();
 };
 
 const formatTime = (timeValue) => {
@@ -30,11 +91,22 @@ const formatTime = (timeValue) => {
 };
 
 export const listAppointments = async () => {
-  const { data: bookings, error } = await supabaseAdmin
+  let { data: bookings, error } = await supabaseAdmin
     .from("bookings")
-    .select("id, user_id, patient_name, dentist_id, branch, service, appointment_date, appointment_time, status, created_at")
+    .select("id, user_id, patient_name, dentist_id, branch, service, appointment_date, appointment_time, booking_type, status, created_at")
     .order("appointment_date", { ascending: false })
     .order("appointment_time", { ascending: false });
+
+  if (error && isMissingBookingTypeColumnError(error)) {
+    const fallback = await supabaseAdmin
+      .from("bookings")
+      .select("id, user_id, patient_name, dentist_id, branch, service, appointment_date, appointment_time, status, created_at")
+      .order("appointment_date", { ascending: false })
+      .order("appointment_time", { ascending: false });
+
+    bookings = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     return { success: false, statusCode: 500, message: "Failed to load appointments" };
@@ -78,7 +150,7 @@ export const listAppointments = async () => {
       treatment: row.service || "Dental Appointment",
       date: row.appointment_date,
       time: formatTime(row.appointment_time),
-      type: "Online",
+      type: normalizeBookingType(row.booking_type),
       status,
       notes: note,
       contact: user.mobile || "",
@@ -92,31 +164,98 @@ export const listAppointments = async () => {
 };
 
 export const updateAppointmentStatus = async (bookingId, status) => {
-  const normalizedInput = String(status || "").trim().toLowerCase();
-  const dbStatus = normalizedInput === "in queue" ? "in_queue" : normalizedInput || "waiting";
+  const normalizedInput = normalizeText(status).replace(/\s+/g, " ");
+  const dbStatus = STATUS_TO_DB[normalizedInput];
 
-  const { error } = await supabaseAdmin
+  if (!dbStatus) {
+    return { success: false, statusCode: 400, message: "Invalid status" };
+  }
+
+  if (dbStatus === "in_treatment") {
+    const now = toManilaNowParts();
+    const { data: booking, error: bookingLookupError } = await supabaseAdmin
+      .from("bookings")
+      .select("id, appointment_date")
+      .eq("id", bookingId)
+      .maybeSingle();
+
+    if (bookingLookupError || !booking) {
+      return { success: false, statusCode: 404, message: "Booking not found" };
+    }
+
+    if (String(booking.appointment_date || "") !== String(now.date || "")) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Only today appointments can be marked as In Treatment",
+      };
+    }
+  }
+
+  const { data, error } = await supabaseAdmin
     .from("bookings")
     .update({ status: dbStatus })
     .eq("id", bookingId);
 
   if (error) {
-    return { success: false, statusCode: 500, message: "Failed to update appointment status" };
+    const errorMessage = error?.message || "Unknown database error";
+    return { success: false, statusCode: 500, message: `Failed to update appointment status: ${errorMessage}` };
   }
 
   return { success: true, statusCode: 200, message: "Appointment status updated" };
 };
 
 export const createWalkInAppointment = async (payload) => {
+  const now = toManilaNowParts();
+
+  if (!payload?.dentistId) {
+    return {
+      success: false,
+      statusCode: 400,
+      message: "Dentist is required",
+    };
+  }
+
+  const dayOfWeek = toDayOfWeekInManila();
+  const normalizedBranch = normalizeText(payload.branch);
+
+  const { data: dentistSchedule, error: dentistScheduleError } = await supabaseAdmin
+    .from("dentist_schedule")
+    .select("id, branch, day_of_week, is_active")
+    .eq("dentist_id", payload.dentistId)
+    .eq("is_active", true)
+    .eq("day_of_week", dayOfWeek);
+
+  if (dentistScheduleError) {
+    return {
+      success: false,
+      statusCode: 500,
+      message: "Failed to validate dentist schedule",
+    };
+  }
+
+  const hasBranchScheduleToday = (dentistSchedule || []).some(
+    (item) => normalizeText(item.branch) === normalizedBranch
+  );
+
+  if (!hasBranchScheduleToday) {
+    return {
+      success: false,
+      statusCode: 400,
+      message: "Selected dentist has no active schedule today for this branch",
+    };
+  }
+
   const row = {
     user_id: payload.userId || null,
     patient_name: payload.patientName,
     dentist_id: payload.dentistId || null,
     branch: payload.branch,
     service: payload.service || null,
-    appointment_date: payload.date,
-    appointment_time: payload.time24,
-    status: "waiting",
+    appointment_date: now.date,
+    appointment_time: now.time24,
+    booking_type: "Walk-in",
+    status: "pending",
   };
 
   const { data, error } = await supabaseAdmin
@@ -126,8 +265,27 @@ export const createWalkInAppointment = async (payload) => {
     .single();
 
   if (error) {
+    if (isMissingBookingTypeColumnError(error)) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Missing bookings.booking_type column. Apply the SQL migration first.",
+      };
+    }
+
     return { success: false, statusCode: 500, message: "Failed to create walk-in appointment" };
   }
 
-  return { success: true, statusCode: 201, message: "Walk-in appointment created", data };
+  return {
+    success: true,
+    statusCode: 201,
+    message: "Walk-in appointment created",
+    data: {
+      id: data?.id,
+      bookingType: "Walk-in",
+      appointmentDate: now.date,
+      appointmentTime24: now.time24,
+      appointmentTimeLabel: formatTime(now.time24),
+    },
+  };
 };

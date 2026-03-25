@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import logo from "../../../assets/logo.png";
 import adminProfile from "../../../assets/profile_sample.jpg";
 import AuthService from "../../../services/authService";
@@ -7,7 +7,31 @@ import AuthService from "../../../services/authService";
 export default function AdminSidebar() {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const currentUser = AuthService.getCurrentUser() || {};
+  const [currentUser, setCurrentUser] = useState(() => AuthService.getCurrentUser() || {});
+
+  useEffect(() => {
+    const syncFromStorage = () => {
+      setCurrentUser(AuthService.getCurrentUser() || {});
+    };
+
+    const handleUserUpdated = (event) => {
+      if (event?.detail && typeof event.detail === "object") {
+        setCurrentUser((prev) => ({ ...prev, ...event.detail }));
+        return;
+      }
+
+      syncFromStorage();
+    };
+
+    window.addEventListener("storage", syncFromStorage);
+    window.addEventListener("auth:user-updated", handleUserUpdated);
+
+    return () => {
+      window.removeEventListener("storage", syncFromStorage);
+      window.removeEventListener("auth:user-updated", handleUserUpdated);
+    };
+  }, []);
+
   const isSuperAdmin = (currentUser?.admin_type || currentUser?.adminType) === "super_admin";
   const displayName =
     currentUser?.fullName || currentUser?.full_name || currentUser?.name || "Admin";

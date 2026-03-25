@@ -4,6 +4,8 @@ import { getTodayBranchBookings } from "../dashboard/dashboardService.js";
 const STATUS_MAP = {
   waiting: "pending",
   "in queue": "confirmed",
+  "in treatment": "in_treatment",
+  in_treatment: "in_treatment",
   completed: "completed",
   cancelled: "cancelled",
 };
@@ -31,7 +33,7 @@ const currentMinutesOfDay = () => {
 };
 
 const computeWaitMetrics = (bookings, totalDelayMinutes) => {
-  const waiting = (bookings || []).filter((item) => item.status === "Waiting");
+  const waiting = (bookings || []).filter((item) => item.rawStatus === "pending" || item.status === "Waiting");
   if (!waiting.length) {
     return {
       estimatedWaitMinutes: 0,
@@ -262,7 +264,11 @@ export const updateBookingQueueStatus = async (adminProfileId, bookingId, status
     .eq("id", bookingId);
 
   if (error) {
-    return { success: false, statusCode: 500, message: "Failed to update queue status" };
+    return {
+      success: false,
+      statusCode: 500,
+      message: `Failed to update queue status: ${error.message || "Unknown database error"}`,
+    };
   }
 
   return { success: true, statusCode: 200, message: "Queue status updated" };
@@ -288,7 +294,10 @@ export const applyQueueDelay = async (adminProfileId, payload = {}) => {
   const branch = queueResult.data.admin.branch;
   const effectiveDate = queueResult.data.date;
   const affectedBookings = (queueResult.data.bookings || []).filter(
-    (booking) => booking.status === "Waiting" || booking.status === "In Queue"
+    (booking) =>
+      booking.status === "Waiting" ||
+      booking.status === "In Queue" ||
+      booking.status === "In Treatment"
   );
 
   try {

@@ -32,7 +32,28 @@ export default function AdminTopbar({
   }, []);
 
   useEffect(() => {
+    const handleUserUpdated = (event) => {
+      if (!event?.detail || typeof event.detail !== "object") return;
+
+      setProfile((prev) => ({
+        ...(prev || {}),
+        ...event.detail,
+      }));
+    };
+
+    window.addEventListener("auth:user-updated", handleUserUpdated);
+    return () => {
+      window.removeEventListener("auth:user-updated", handleUserUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
     function handleClickOutside(event) {
+      const target = event.target;
+      if (target instanceof Element && target.closest(".admin-profile-modal")) {
+        return;
+      }
+
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setIsProfileOpen(false);
       }

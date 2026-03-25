@@ -280,12 +280,18 @@ router.post("/complete-profile", requireVerificationToken, async (req, res) => {
         fullNameOverride: fullName,
         targetEmail: contactDetail,
       });
-      return res.status(200).json({ success: true, otpSent: true, message: "Profile saved and OTP sent" });
+      return res.status(200).json({
+        success: true,
+        otpSent: true,
+        credentialsUpdated: result.credentialsUpdated !== false,
+        message: result.warning || "Profile saved and OTP sent",
+      });
     } catch (error) {
       return res.status(200).json({
         success: true,
         otpSent: false,
-        message: "Profile saved but OTP could not be sent. Please try resend OTP.",
+        credentialsUpdated: result.credentialsUpdated !== false,
+        message: result.warning || "Profile saved but OTP could not be sent. Please try resend OTP.",
       });
     }
   }

@@ -2,13 +2,36 @@ import { supabaseAdmin } from "../../shared/supabaseClient.js";
 
 const normalize = (value) => (value || "").toString().trim().toLowerCase();
 const PIE_COLORS = ["#e8427d", "#ebb8cb", "#f4dbe6", "#f0a9c2"];
+const TRACKED_BRANCH_KEYS = ["dasmarinas_cavite", "general_trias_cavite", "bacoor_cavite"];
+
+const branchKeyFromText = (value) => {
+  const text = normalize(value);
+  if (!text) return "";
+  if (["dasmarinas, cavite", "dasmari\u00f1as, cavite", "gc dental care | dasmari\u00f1as", "gc dental care | dasmarinas"].includes(text)) return "dasmarinas_cavite";
+  if (["general trias, cavite", "gc dental care | gentri", "gentri", "general trias"].includes(text)) return "general_trias_cavite";
+  if (["bacoor, cavite", "gc dental care | bacoor", "bacoor"].includes(text)) return "bacoor_cavite";
+  return text;
+};
+
+const normalizeBookingType = (value) => {
+  const normalized = normalize(value);
+  if (normalized === "walk-in" || normalized === "walkin") return "Walk-in";
+  return "Online";
+};
+
+const isMissingBookingTypeColumnError = (error) => {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("booking_type") && message.includes("column");
+};
 
 const mapStatus = (status) => {
   const normalized = normalize(status);
+  if (normalized === "in_treatment") return "In Treatment";
   if (normalized === "confirmed") return "In Queue";
+  if (normalized === "pending" || normalized === "waiting") return "In Queue";
   if (normalized === "completed") return "Completed";
   if (normalized === "cancelled") return "Cancelled";
-  return "Waiting";
+  return "In Queue";
 };
 
 const parseTime = (timeValue) => {
@@ -31,7 +54,7 @@ const timeToMinutes = (timeValue) => {
 };
 
 const currentMinutesOfDay = () => {
-  const now = new Date();
+  const now = getManilaNow();
   return (now.getHours() * 60) + now.getMinutes();
 };
 
@@ -69,6 +92,19 @@ const toISODate = (date) => {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+};
+
+const getManilaISODate = () => {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+};
+
+const getManilaNow = () => {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
 };
 
 const startOfDay = (date) => {
@@ -260,9 +296,9 @@ export const getTodayBranchBookings = async (adminProfileId) => {
     return { success: false, message: "Admin profile not found", statusCode: 404 };
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getManilaISODate();
 
-  const { data: bookings, error } = await supabaseAdmin
+  let { data: bookings, error } = await supabaseAdmin
     .from("bookings")
     .select(`
       id,
@@ -272,6 +308,7 @@ export const getTodayBranchBookings = async (adminProfileId) => {
       service,
       appointment_date,
       appointment_time,
+      booking_type,
       status,
       created_at,
       preassessment_id,
@@ -280,13 +317,42 @@ export const getTodayBranchBookings = async (adminProfileId) => {
     .eq("appointment_date", today)
     .order("appointment_time", { ascending: true });
 
+  if (error && isMissingBookingTypeColumnError(error)) {
+    const fallback = await supabaseAdmin
+      .from("bookings")
+      .select(`
+        id,
+        user_id,
+        patient_name,
+        branch,
+        service,
+        appointment_date,
+        appointment_time,
+        status,
+        created_at,
+        preassessment_id,
+        dentists:dentist_id (id, name)
+      `)
+      .eq("appointment_date", today)
+      .order("appointment_time", { ascending: true });
+
+    bookings = fallback.data;
+    error = fallback.error;
+  }
+
   if (error) {
     return { success: false, message: "Failed to fetch bookings", statusCode: 500 };
   }
 
   const adminBranch = normalize(admin.branch);
+  const isSuperAdmin = normalize(admin.admin_type) === "super_admin";
   const filtered = (bookings || []).filter((row) => {
-    return !adminBranch || normalize(row.branch) === adminBranch;
+    const rowBranchKey = branchKeyFromText(row.branch);
+    if (isSuperAdmin || !adminBranch) {
+      return TRACKED_BRANCH_KEYS.includes(rowBranchKey);
+    }
+
+    return rowBranchKey === branchKeyFromText(adminBranch);
   });
 
   return {
@@ -306,6 +372,7 @@ export const getTodayBranchBookings = async (adminProfileId) => {
         time: parseTime(row.appointment_time),
         status: mapStatus(row.status),
         rawStatus: row.status,
+        bookingType: normalizeBookingType(row.booking_type),
         procedure: toServiceName(row),
         dentist: row.dentists?.name || "Unassigned",
         createdAt: row.created_at,
@@ -320,7 +387,7 @@ const getBranchBookingsForYear = async (branch) => {
   const yearStart = `${currentYear}-01-01`;
   const yearEnd = `${currentYear}-12-31`;
 
-  const { data, error } = await supabaseAdmin
+  let { data, error } = await supabaseAdmin
     .from("bookings")
     .select(`
       id,
@@ -329,6 +396,7 @@ const getBranchBookingsForYear = async (branch) => {
       service,
       appointment_date,
       appointment_time,
+      booking_type,
       status,
       created_at,
       preassessment_id,
@@ -338,12 +406,42 @@ const getBranchBookingsForYear = async (branch) => {
     .lte("appointment_date", yearEnd)
     .order("appointment_date", { ascending: true });
 
+  if (error && isMissingBookingTypeColumnError(error)) {
+    const fallback = await supabaseAdmin
+      .from("bookings")
+      .select(`
+        id,
+        patient_name,
+        branch,
+        service,
+        appointment_date,
+        appointment_time,
+        status,
+        created_at,
+        preassessment_id,
+        dentists:dentist_id (id, name)
+      `)
+      .gte("appointment_date", yearStart)
+      .lte("appointment_date", yearEnd)
+      .order("appointment_date", { ascending: true });
+
+    data = fallback.data;
+    error = fallback.error;
+  }
+
   if (error) {
     return { success: false, statusCode: 500, message: "Failed to fetch annual bookings" };
   }
 
   const normalizedBranch = normalize(branch);
-  const filtered = (data || []).filter((row) => !normalizedBranch || normalize(row.branch) === normalizedBranch);
+  const filtered = (data || []).filter((row) => {
+    const rowBranchKey = branchKeyFromText(row.branch);
+    if (!normalizedBranch) {
+      return TRACKED_BRANCH_KEYS.includes(rowBranchKey);
+    }
+
+    return rowBranchKey === branchKeyFromText(normalizedBranch);
+  });
 
   return { success: true, data: filtered };
 };
@@ -371,11 +469,11 @@ export const getDashboardSnapshot = async (adminProfileId) => {
   const yearlyBookings = annualResult.data || [];
 
   const current = todayBookings.find((b) => b.status === "In Queue") || todayBookings[0] || null;
-  const waiting = todayBookings.filter((b) => b.status === "Waiting");
+  const waiting = todayBookings.filter((b) => normalize(b.rawStatus) === "pending");
   const nextWaiting = waiting[0] || null;
   const completed = todayBookings.filter((b) => b.status === "Completed");
   const confirmed = todayBookings.filter((b) => normalize(b.rawStatus) === "confirmed").length;
-  const walkins = todayBookings.filter((b) => !b.preassessmentId).length;
+  const walkins = todayBookings.filter((b) => b.bookingType === "Walk-in").length;
 
   const dentistCount = new Set(todayBookings.map((b) => b.dentist).filter((name) => name && name !== "Unassigned")).size;
 
@@ -450,9 +548,12 @@ export const getDashboardSnapshot = async (adminProfileId) => {
     const key = monthKey(booking.appointment_date);
     if (!key || !monthlyMap.has(key)) continue;
     const bucket = monthlyMap.get(key);
-    bucket.scheduled += 1;
-    if (!booking.preassessment_id) {
+    const bookingType = normalizeBookingType(booking.booking_type);
+
+    if (bookingType === "Walk-in") {
       bucket.walkin += 1;
+    } else {
+      bucket.scheduled += 1;
     }
   }
 

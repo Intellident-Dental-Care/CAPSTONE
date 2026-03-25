@@ -399,6 +399,11 @@
   border-color: #ebafc5;
 }
 
+.queue-list-item.active-treatment {
+  background: #f4eeff;
+  border-color: #c9b0f4;
+}
+
 .queue-list-item.completed {
   opacity: 0.65;
 }
