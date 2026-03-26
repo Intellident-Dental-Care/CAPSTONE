@@ -15,7 +15,7 @@ import {
 import { supabaseAdmin } from "../shared/supabaseClient.js";
 import { requireAuth, requireRole, requireVerificationToken } from "../shared/authMiddleware.js";
 import { generateOtp, sendOtpEmail } from "../nodemailer/emailOtpService.js";
-import { signToken } from "./authUtils.js";
+import { signToken, verifyToken } from "./authUtils.js";
 
 const router = express.Router();
 
@@ -379,6 +379,303 @@ const handleSendVerificationPublic = async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to send verification code" });
   }
 };
+
+const FORGOT_OTP_PURPOSE = "forgot_password";
+
+const buildForgotOtpStoreKey = (role, profileId) => `${role}:${profileId}:${FORGOT_OTP_PURPOSE}`;
+
+const writeForgotOtp = async ({ role, profileId, otp }) => {
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  inMemoryOtpStore.set(buildForgotOtpStoreKey(role, profileId), {
+    otp,
+    expiresAt,
+  });
+  return { expiresAt };
+};
+
+const verifyForgotOtp = async ({ role, profileId, otp }) => {
+  const record = inMemoryOtpStore.get(buildForgotOtpStoreKey(role, profileId));
+  if (!record?.otp) {
+    return { success: false, statusCode: 400, message: "No OTP found. Please request a new code." };
+  }
+
+  if (record.otp !== otp) {
+    return { success: false, statusCode: 400, message: "Invalid OTP" };
+  }
+
+  if (!record.expiresAt || new Date(record.expiresAt) < new Date()) {
+    return { success: false, statusCode: 400, message: "OTP has expired" };
+  }
+
+  return { success: true, statusCode: 200 };
+};
+
+router.post("/forgot-password/send-otp", async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ success: false, message: "Valid email is required" });
+    }
+
+    const resolved = await resolveRoleAndProfile({ email });
+    if (!resolved?.profile?.id || !resolved?.role) {
+      return res.status(404).json({ success: false, message: "Account not found" });
+    }
+
+    const otp = generateOtp();
+    await writeForgotOtp({
+      role: resolved.role,
+      profileId: resolved.profile.id,
+      otp,
+    });
+
+    await sendOtpEmail({
+      email: String(email).trim().toLowerCase(),
+      fullName: resolved.profile.full_name || resolved.profile.name || "User",
+      otp,
+      role: resolved.role,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP sent to your email",
+      data: {
+        role: resolved.role,
+        profileId: resolved.profile.id,
+        email: String(email).trim().toLowerCase(),
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to send OTP" });
+  }
+});
+
+router.post("/forgot-password/verify-otp", async (req, res) => {
+  const { email, otp } = req.body || {};
+
+  if (!isValidEmail(email) || !otp) {
+    return res.status(400).json({ success: false, message: "Email and OTP are required" });
+  }
+
+  const resolved = await resolveRoleAndProfile({ email });
+  if (!resolved?.profile?.id || !resolved?.role) {
+    return res.status(404).json({ success: false, message: "Account not found" });
+  }
+
+  const verifyResult = await verifyForgotOtp({
+    role: resolved.role,
+    profileId: resolved.profile.id,
+    otp: String(otp).trim(),
+  });
+
+  if (!verifyResult.success) {
+    return res.status(verifyResult.statusCode).json({ success: false, message: verifyResult.message });
+  }
+
+  // Get the Supabase auth user ID by querying the auth table by email
+  let authUserId = null;
+  try {
+    const { data: users, error } = await supabaseAdmin.auth.admin.listUsers();
+    if (!error && users) {
+      const authUser = users.find(u => String(u.email).toLowerCase() === String(email).trim().toLowerCase());
+      if (authUser) {
+        authUserId = authUser.id;
+      }
+    }
+  } catch (err) {
+    // If we can't get the auth user ID, we'll proceed without it
+    console.warn("[FORGOT_PASSWORD_AUTH_USER_ID_ERROR]", err?.message);
+  }
+
+  const resetToken = signToken({
+    role: resolved.role,
+    profileId: resolved.profile.id,
+    authUserId: authUserId || null,
+    email: String(email).trim().toLowerCase(),
+    purpose: "forgot_password_reset",
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: "OTP verified",
+    data: { resetToken },
+  });
+});
+
+router.post("/forgot-password/reset", async (req, res) => {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  const { password, confirmPassword } = req.body || {};
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: "Reset token is required" });
+  }
+
+  let decoded = null;
+  
+  // Use generic token verification that works for both admin and dentist
+  try {
+    decoded = verifyToken(token);
+    if (!decoded || decoded?.purpose !== "forgot_password_reset") {
+      decoded = null;
+    }
+  } catch (err) {
+    console.warn("[FORGOT_PASSWORD_RESET_TOKEN_ERROR]", err?.message);
+    decoded = null;
+  }
+
+  if (!decoded || decoded?.purpose !== "forgot_password_reset") {
+    return res.status(401).json({ success: false, message: "Invalid or expired reset token" });
+  }
+
+  if (!password || !confirmPassword) {
+    return res.status(400).json({ success: false, message: "Password and confirm password are required" });
+  }
+
+  if (password !== confirmPassword) {
+    return res.status(400).json({ success: false, message: "Passwords do not match" });
+  }
+
+  if (String(password).length < 8) {
+    return res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
+  }
+
+  try {
+    let authUserId = decoded.authUserId;
+    let userCreationFailed = false;
+    let userCreationError = null;
+
+    // If auth user doesn't exist, create one
+    if (!authUserId && decoded.email) {
+      try {
+        console.log("[FORGOT_PASSWORD_CREATE_USER_START]", {
+          email: decoded.email,
+          role: decoded.role,
+          profileId: decoded.profileId,
+          timestamp: new Date().toISOString(),
+        });
+
+        // First, try with createUser
+        const { data: newAuthUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+          email: decoded.email,
+          password: password,
+          email_confirm: true,
+        });
+
+        if (createError) {
+          console.error("[FORGOT_PASSWORD_CREATE_USER_FAILED]", {
+            email: decoded.email,
+            code: createError?.code,
+            message: createError?.message,
+            status: createError?.status,
+            details: JSON.stringify(createError),
+          });
+
+          // If user already exists, find and update them
+          if (createError?.code === "user_already_exists") {
+            try {
+              const { data: users } = await supabaseAdmin.auth.admin.listUsers();
+              if (users) {
+                const existingUser = users.find(
+                  (u) => String(u.email).toLowerCase() === String(decoded.email).trim().toLowerCase()
+                );
+                if (existingUser) {
+                  authUserId = existingUser.id;
+                  const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+                    password: password,
+                  });
+                  if (!updateErr) {
+                    console.log("[FORGOT_PASSWORD_UPDATED_EXISTING_USER]", { userId: authUserId });
+                  } else {
+                    console.error("[FORGOT_PASSWORD_UPDATE_ERROR]", updateErr?.message);
+                    userCreationFailed = true;
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("[FORGOT_PASSWORD_LIST_USERS_ERROR]", err?.message);
+              userCreationFailed = true;
+            }
+          } else {
+            // For other errors, defer auth sync
+            userCreationError = createError;
+            userCreationFailed = true;
+            console.warn("[FORGOT_PASSWORD_DEFER_AUTH_SYNC]", {
+              email: decoded.email,
+              profileId: decoded.profileId,
+              reason: `Supabase error: ${createError?.message}`,
+              code: createError?.code,
+            });
+          }
+        } else if (newAuthUser?.id) {
+          authUserId = newAuthUser.id;
+          console.log("[FORGOT_PASSWORD_CREATE_USER_SUCCESS]", {
+            userId: authUserId,
+            email: decoded.email,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      } catch (err) {
+        userCreationFailed = true;
+        userCreationError = err;
+        console.error("[FORGOT_PASSWORD_CREATE_AUTH_EXCEPTION]", {
+          message: err?.message,
+          name: err?.name,
+        });
+      }
+    }
+
+    const result =
+      decoded.role === "admin"
+        ? await upsertAdminProfileDetails(decoded.profileId, {
+            fullName: null,
+            phone: null,
+            newPassword: password,
+            confirmPassword,
+          }, authUserId || null)
+        : await upsertDentistProfileDetails(decoded.profileId, {
+            fullName: null,
+            phone: null,
+            newPassword: password,
+            confirmPassword,
+          }, authUserId || null);
+
+    if (!result?.success) {
+      return res.status(400).json({ success: false, message: result?.message || "Failed to reset password" });
+    }
+
+    inMemoryOtpStore.delete(buildForgotOtpStoreKey(decoded.role, decoded.profileId));
+
+    if (userCreationFailed && !authUserId) {
+      console.warn("[FORGOT_PASSWORD_RESET_PARTIAL_SUCCESS]", {
+        profileId: decoded.profileId,
+        role: decoded.role,
+        email: decoded.email,
+        authSyncDeferred: true,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Password updated. Please try logging in - authentication will be synced on login.",
+      });
+    }
+
+    if (authUserId) {
+      console.log("[FORGOT_PASSWORD_RESET_COMPLETE]", {
+        userId: authUserId,
+        profileId: decoded.profileId,
+        role: decoded.role,
+      });
+    }
+
+    return res.status(200).json({ success: true, message: "Password updated successfully" });
+  } catch (error) {
+    console.error("[FORGOT_PASSWORD_RESET_ERROR]", {
+      message: error?.message,
+    });
+    return res.status(500).json({ success: false, message: "Failed to reset password" });
+  }
+});
 
 router.post("/send-verification-public", handleSendVerificationPublic);
 

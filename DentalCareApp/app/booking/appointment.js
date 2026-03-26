@@ -64,6 +64,46 @@ function minutesTo12Hour(totalMinutes) {
   return `${hour12}:${pad2(minutes)} ${suffix}`;
 }
 
+function intervalsOverlap(startA, endA, startB, endB) {
+  return startA < endB && startB < endA;
+}
+
+function buildBlockedSlotsByDelay({
+  candidateSlots,
+  bookedTimes12h,
+  slotDurationMinutes,
+  queueDelayMinutes,
+}) {
+  if (!Array.isArray(candidateSlots) || !candidateSlots.length) return new Set();
+  if (!Array.isArray(bookedTimes12h) || !bookedTimes12h.length) return new Set();
+  if ((queueDelayMinutes || 0) <= 30) return new Set();
+
+  const blocked = new Set();
+
+  const bookedIntervals = bookedTimes12h
+    .map((label) => {
+      const bookedStart = parseTimeToMinutes(convertTo24Hour(label));
+      if (bookedStart === null) return null;
+      const bookedEnd = bookedStart + slotDurationMinutes + queueDelayMinutes;
+      return { start: bookedStart, end: bookedEnd };
+    })
+    .filter(Boolean);
+
+  candidateSlots.forEach((candidateLabel) => {
+    const candidateStart = parseTimeToMinutes(convertTo24Hour(candidateLabel));
+    if (candidateStart === null) return;
+
+    const candidateEnd = candidateStart + slotDurationMinutes;
+    const hasOverlap = bookedIntervals.some((interval) =>
+      intervalsOverlap(candidateStart, candidateEnd, interval.start, interval.end)
+    );
+
+    if (hasOverlap) blocked.add(candidateLabel);
+  });
+
+  return blocked;
+}
+
 function buildSlotsForDate(scheduleRows, isoDate) {
   const weekday = getWeekdayFromISO(isoDate);
   if (weekday === null) return [];
@@ -179,6 +219,7 @@ export default function BookingAppointment() {
   const [booking, setBooking] = useState(false);
   const [bookedTimeSlots, setBookedTimeSlots] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [queueDelayMinutes, setQueueDelayMinutes] = useState(0);
 
   const [datePills, setDatePills] = useState([]);
 
@@ -198,6 +239,31 @@ export default function BookingAppointment() {
     () => buildSlotsForDate(dentistSchedules, selectedISO),
     [dentistSchedules, selectedISO]
   );
+
+  const slotDurationMinutes = useMemo(() => {
+    const values = (dentistSchedules || [])
+      .map((row) => Number(row.slot_minutes) || 0)
+      .filter((v) => v > 0);
+    if (!values.length) return 60;
+    return Math.min(...values);
+  }, [dentistSchedules]);
+
+  const delayBlockedSlots = useMemo(
+    () =>
+      buildBlockedSlotsByDelay({
+        candidateSlots: availableSlots,
+        bookedTimes12h: bookedTimeSlots,
+        slotDurationMinutes,
+        queueDelayMinutes,
+      }),
+    [availableSlots, bookedTimeSlots, slotDurationMinutes, queueDelayMinutes]
+  );
+
+  const unbookableSlots = useMemo(() => {
+    const combined = new Set(bookedTimeSlots);
+    delayBlockedSlots.forEach((slot) => combined.add(slot));
+    return combined;
+  }, [bookedTimeSlots, delayBlockedSlots]);
 
   const timesMorning = useMemo(
     () =>
@@ -231,6 +297,15 @@ export default function BookingAppointment() {
 
     setBookedTimeSlots([]);
   }, [dentistData, selectedISO, branch]);
+
+  useEffect(() => {
+    if (!selectedISO || !branch) {
+      setQueueDelayMinutes(0);
+      return;
+    }
+
+    fetchQueueDelayState();
+  }, [selectedISO, branch]);
 
   useEffect(() => {
     const nextDates = buildAvailableDates(dentistSchedules, 45, 10);
@@ -324,7 +399,7 @@ export default function BookingAppointment() {
         .eq('dentist_id', dentistData.id)
         .eq('appointment_date', selectedISO)
         .eq('branch', branch)
-        .in('status', ['pending', 'confirmed']); // Check both pending and confirmed bookings
+        .in('status', ['pending', 'confirmed', 'in_treatment']);
 
       if (error) throw error;
 
@@ -341,6 +416,25 @@ export default function BookingAppointment() {
     } catch (err) {
       console.error('Error fetching booked time slots:', err);
       setBookedTimeSlots([]);
+    }
+  };
+
+  const fetchQueueDelayState = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('queue_delay_state')
+        .select('total_delay_minutes')
+        .eq('branch', branch)
+        .eq('effective_date', selectedISO)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      const delay = Number(data?.total_delay_minutes) || 0;
+      setQueueDelayMinutes(Math.max(0, delay));
+    } catch (err) {
+      console.error('Error fetching queue delay state:', err);
+      setQueueDelayMinutes(0);
     }
   };
 
@@ -398,6 +492,14 @@ export default function BookingAppointment() {
     }
 
     if (!availableSlots.includes(selectedTime)) {
+
+          if (unbookableSlots.has(selectedTime)) {
+            Alert.alert(
+              "Unavailable",
+              "Selected time is unavailable due to current queue delay or existing booking."
+            );
+            return;
+          }
       Alert.alert(
         "Unavailable Time",
         "The selected time is not available for this dentist at this branch."
@@ -682,8 +784,8 @@ export default function BookingAppointment() {
         <View style={styles.timeGrid}>
           {times.map((t) => {
             const active = t === selectedTime;
-            const isBooked = bookedTimeSlots.includes(t);
-            
+            const isBooked = unbookableSlots.has(t);
+
             return (
               <Pressable
                 key={t}

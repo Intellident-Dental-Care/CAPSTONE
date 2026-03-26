@@ -700,6 +700,111 @@ class AuthService {
   static isAdmin() {
     return this.getRole() === 'admin';
   }
+
+  /**
+   * Send OTP to user's email for password reset
+   * @param {string} email - User's email address
+   * @returns {Promise<object>} - { success, message, data: { role, profileId, email } }
+   */
+  static async forgotPasswordSendOtp(email) {
+    const endpoints = buildAuthEndpointCandidates("/forgot-password/send-otp");
+
+    try {
+      const response = await callFirstNon404(endpoints, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 404) {
+        return {
+          success: false,
+          message: "Forgot password endpoint not found. Please try again.",
+        };
+      }
+
+      return data;
+    } catch (error) {
+      return {
+        success: false,
+        message: "Failed to send OTP. Please check your email and try again.",
+      };
+    }
+  }
+
+  /**
+   * Verify OTP and get reset token for password reset
+   * @param {string} email - User's email address
+   * @param {string} otp - OTP code sent to email
+   * @returns {Promise<object>} - { success, message, data: { resetToken } }
+   */
+  static async forgotPasswordVerifyOtp(email, otp) {
+    const endpoints = buildAuthEndpointCandidates("/forgot-password/verify-otp");
+
+    try {
+      const response = await callFirstNon404(endpoints, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp }),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 404) {
+        return {
+          success: false,
+          message: "OTP verification endpoint not found. Please try again.",
+        };
+      }
+
+      return data;
+    } catch (error) {
+      return {
+        success: false,
+        message: "Failed to verify OTP. Please try again.",
+      };
+    }
+  }
+
+  /**
+   * Reset password using reset token
+   * @param {string} resetToken - Token obtained from OTP verification
+   * @param {string} password - New password
+   * @param {string} confirmPassword - Password confirmation
+   * @returns {Promise<object>} - { success, message }
+   */
+  static async forgotPasswordReset(resetToken, password, confirmPassword) {
+    const endpoints = buildAuthEndpointCandidates("/forgot-password/reset");
+
+    try {
+      const response = await callFirstNon404(endpoints, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${resetToken}`,
+        },
+        body: JSON.stringify({ password, confirmPassword }),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 404) {
+        return {
+          success: false,
+          message: "Password reset endpoint not found. Please try again.",
+        };
+      }
+
+      return data;
+    } catch (error) {
+      return {
+        success: false,
+        message: "Failed to reset password. Please try again.",
+      };
+    }
+  }
 }
 
 export default AuthService;

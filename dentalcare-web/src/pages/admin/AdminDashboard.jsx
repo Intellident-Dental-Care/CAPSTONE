@@ -40,6 +40,9 @@ export default function AdminDashboard() {
   const monthlyAppointments = snapshot?.monthlyAppointments || [];
   const nextPatientWaitMinutes = Number(snapshot?.nextPatientWaitMinutes || 0);
 
+  // Check if there's an active patient (not completed/done)
+  const isActivePatient = currentQueue && currentQueue.status && !["Completed", "Done", "Cancelled"].includes(currentQueue.status);
+
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -135,47 +138,58 @@ export default function AdminDashboard() {
               </div>
 
               <div className="admin-live-queue-content">
-                <div className="admin-live-queue-number">
-                  {currentQueue ? `#${currentQueue.queueNumber}` : "--"}
-                </div>
-                <p className="admin-live-queue-status">{currentQueue?.status || "No Queue"}</p>
+                {isActivePatient ? (
+                  <>
+                    <div className="admin-live-queue-number">
+                      {`#${currentQueue.queueNumber}`}
+                    </div>
+                    <p className="admin-live-queue-status">{currentQueue.status}</p>
 
-                <div className="admin-live-queue-extra">
-                  <div className="admin-live-queue-extra-item">
-                    <span className="admin-live-queue-extra-label">
-                      Next Patient
-                    </span>
-                    <span className="admin-live-queue-extra-value">
-                      {nextPatientFromApi?.patientName || "None"}
-                    </span>
+                    <div className="admin-live-queue-extra">
+                      <div className="admin-live-queue-extra-item">
+                        <span className="admin-live-queue-extra-label">
+                          Next Patient
+                        </span>
+                        <span className="admin-live-queue-extra-value">
+                          {nextPatientFromApi?.patientName || "None"}
+                        </span>
+                      </div>
+
+                      <div className="admin-live-queue-extra-item">
+                        <span className="admin-live-queue-extra-label">
+                          Treatment / Procedure
+                        </span>
+                        <span className="admin-live-queue-extra-value">
+                          {currentQueue.procedure || "--"}
+                        </span>
+                      </div>
+
+                      <div className="admin-live-queue-extra-item">
+                        <span className="admin-live-queue-extra-label">
+                          Assigned Dentist
+                        </span>
+                        <span className="admin-live-queue-extra-value">
+                          {currentQueue.dentist || "Unassigned"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="admin-live-queue-progress">
+                      <div className="admin-live-queue-progress-fill"></div>
+                    </div>
+
+                    <p className="admin-live-queue-wait">
+                      Estimated wait for the next patient: <strong>{nextPatientFromApi ? `${nextPatientWaitMinutes} minutes` : "N/A"}</strong>
+                    </p>
+                  </>
+                ) : (
+                  <div className="admin-live-queue-empty">
+                    <p className="admin-live-queue-empty-title">No Current Patient</p>
+                    <p className="admin-live-queue-empty-description">
+                      The queue is currently empty or all patients have been completed
+                    </p>
                   </div>
-
-                  <div className="admin-live-queue-extra-item">
-                    <span className="admin-live-queue-extra-label">
-                      Treatment / Procedure
-                    </span>
-                    <span className="admin-live-queue-extra-value">
-                      {currentQueue?.procedure || "--"}
-                    </span>
-                  </div>
-
-                  <div className="admin-live-queue-extra-item">
-                    <span className="admin-live-queue-extra-label">
-                      Assigned Dentist
-                    </span>
-                    <span className="admin-live-queue-extra-value">
-                      {currentQueue?.dentist || "Unassigned"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="admin-live-queue-progress">
-                  <div className="admin-live-queue-progress-fill"></div>
-                </div>
-
-                <p className="admin-live-queue-wait">
-                  Estimated wait for the next patient: <strong>{nextPatientFromApi ? `${nextPatientWaitMinutes} minutes` : "N/A"}</strong>
-                </p>
+                )}
               </div>
             </div>
 

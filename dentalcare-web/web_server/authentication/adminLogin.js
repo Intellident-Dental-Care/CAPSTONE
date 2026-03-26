@@ -1,4 +1,5 @@
 import { supabaseAdmin, supabaseAuth, signToken, signTokenWithExpiry, verifyToken } from "./authUtils.js";
+import crypto from "crypto";
 
 const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
 
@@ -6,6 +7,17 @@ const parseBooleanEnv = (value, defaultValue = false) => {
   if (value === undefined || value === null || value === "") return defaultValue;
   const normalized = String(value).trim().toLowerCase();
   return ["1", "true", "yes", "y", "on"].includes(normalized);
+};
+
+// Simple password hashing for fallback auth when Supabase auth fails
+const hashPasswordForFallback = (password) => {
+  const salt = "admin_fallback_salt_2024";
+  return crypto.createHash("sha256").update(password + salt).digest("hex");
+};
+
+const verifyPasswordForFallback = (password, hash) => {
+  const computedHash = hashPasswordForFallback(password);
+  return computedHash === hash;
 };
 
 const canUseBootstrapFallback = (identifier, password, adminEmail, adminFullName) => {
@@ -161,11 +173,74 @@ export const authenticateAdmin = async (email, password) => {
       }
 
       if (!isSchemaIssue && !usedSchemaFallback) {
-        return {
-          success: false,
-          message: "Invalid email or password",
-          statusCode: 401,
-        };
+        // Check if this is a case where admin exists in admin_list but not in Supabase auth
+        // Use fallback authentication when Supabase auth user doesn't exist
+        if (isInvalidCredentials && admin?.id && admin?.email) {
+          console.log("[ADMIN_LOGIN_MISSING_AUTH_USER_ATTEMPTING_FALLBACK]", {
+            adminId: admin.id,
+            adminEmail: admin.email,
+          });
+
+          // First try the bootstrap fallback
+          const canFallback = canUseBootstrapFallback(identifier, password, admin.email, admin.full_name);
+          if (canFallback) {
+            usedSchemaFallback = true;
+            authUser = { id: admin.id };
+            console.log("[ADMIN_LOGIN_USING_BOOTSTRAP_FALLBACK]", {
+              adminId: admin.id,
+              adminEmail: admin.email,
+            });
+          } else {
+            // Try fallback password hash from forgot-password flow
+            try {
+              const notes = admin.notes ? JSON.parse(String(admin.notes)) : {};
+              if (notes.fallback_password_hash && verifyPasswordForFallback(password, notes.fallback_password_hash)) {
+                usedSchemaFallback = true;
+                authUser = { id: admin.id };
+                console.log("[ADMIN_LOGIN_USING_PASSWORD_HASH_FALLBACK]", {
+                  adminId: admin.id,
+                  adminEmail: admin.email,
+                });
+              } else {
+                console.log("[ADMIN_LOGIN_FALLBACK_PASSWORD_MISMATCH_OR_NOT_SET]", {
+                  adminId: admin.id,
+                  adminEmail: admin.email,
+                  hasFallbackHash: !!notes.fallback_password_hash,
+                });
+
+                return {
+                  success: false,
+                  message: "Your account needs to be set up. Please use 'Forgot Password' to complete the authentication setup.",
+                  statusCode: 401,
+                  data: {
+                    accountNeedsSetup: true,
+                    email: admin.email,
+                  },
+                };
+              }
+            } catch (err) {
+              console.warn("[ADMIN_LOGIN_FALLBACK_PARSE_ERROR]", err?.message);
+
+              return {
+                success: false,
+                message: "Your account needs to be set up. Please use 'Forgot Password' to complete the authentication setup.",
+                statusCode: 401,
+                data: {
+                  accountNeedsSetup: true,
+                  email: admin.email,
+                },
+              };
+            }
+          }
+        }
+
+        if (!usedSchemaFallback) {
+          return {
+            success: false,
+            message: "Invalid email or password",
+            statusCode: 401,
+          };
+        }
       }
     }
 
@@ -410,10 +485,16 @@ export const upsertAdminProfileDetails = async (adminId, details, authUserId) =>
   }
 
   const payload = {
-    full_name: details.fullName,
-    phone_number: details.phone,
     updated_at: new Date().toISOString(),
   };
+
+  // Only update name and phone if they're provided (not null)
+  if (details.fullName !== null && details.fullName !== undefined) {
+    payload.full_name = details.fullName;
+  }
+  if (details.phone !== null && details.phone !== undefined) {
+    payload.phone_number = details.phone;
+  }
 
   try {
     const noteObj = {
@@ -421,6 +502,15 @@ export const upsertAdminProfileDetails = async (adminId, details, authUserId) =>
       gender: details.gender || null,
       contactDetail: details.contactDetail || null,
     };
+
+    // Store password hash for fallback auth if authUserId doesn't exist and password is being set
+    if (!authUserId && details.newPassword) {
+      noteObj.fallback_password_hash = hashPasswordForFallback(details.newPassword);
+      console.log("[ADMIN_PROFILE_STORING_FALLBACK_PASSWORD]", {
+        adminId,
+        email: cleanEmail,
+      });
+    }
 
     if (Object.values(noteObj).some((v) => v)) {
       payload.notes = JSON.stringify(noteObj);

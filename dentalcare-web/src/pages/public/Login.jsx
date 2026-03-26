@@ -170,6 +170,14 @@ export default function Login() {
           : await AuthService.dentistLogin(email, password);
 
       if (!result?.success) {
+        // Check if this is an account setup needed scenario
+        if (result?.data?.accountNeedsSetup) {
+          setError(
+            'Your account needs authentication setup. Click "Forgot Password" below to complete the setup.'
+          );
+          return;
+        }
+
         setError(result?.message || "Login failed.");
         return;
       }
@@ -486,7 +494,7 @@ export default function Login() {
 
                 <button
                   type="button"
-                  onClick={() => navigate("/")}
+                  onClick={() => navigate("/forgot-password")}
                   className="text-sm font-semibold text-pink-600 hover:text-pink-700"
                 >
                   Forgot Password?

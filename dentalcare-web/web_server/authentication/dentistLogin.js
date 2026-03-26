@@ -307,10 +307,16 @@ export const upsertDentistProfileDetails = async (dentistId, details, authUserId
   }
 
   const payload = {
-    name: details.fullName,
-    phone_number: details.phone,
     updated_at: new Date().toISOString(),
   };
+
+  // Only update name and phone if they're provided (not null)
+  if (details.fullName !== null && details.fullName !== undefined) {
+    payload.name = details.fullName;
+  }
+  if (details.phone !== null && details.phone !== undefined) {
+    payload.phone_number = details.phone;
+  }
 
   try {
     if (cleanEmail) {

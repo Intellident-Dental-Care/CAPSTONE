@@ -31,7 +31,7 @@
   background: linear-gradient(180deg, #fff4f8 0%, #ffffff 100%);
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   min-height: 0;
 }
 
@@ -583,6 +583,32 @@
   font-size: 11px;
   color: #6f6f78;
   text-align: center;
+}
+
+.admin-live-queue-empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  margin-top: 7%;
+  flex: 1;
+}
+
+.admin-live-queue-empty-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #53535b;
+  margin: 0;
+}
+
+.admin-live-queue-empty-description {
+  font-size: 14px;
+  color: #a1a1aa;
+  margin: 0;
+  text-align: center;
+  line-height: 1.4;
 }
 
 @media (max-width: 1280px) {

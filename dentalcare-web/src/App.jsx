@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AuthService from "./services/authService";
 import Landing from "./pages/public/Landing";
 import Login from "./pages/public/Login";
+import ForgotPassword from "./pages/public/ForgotPassword";
 import DentistDashboard from "./pages/dentist/DentistDashboard";
 import DentistProfile from "./pages/dentist/DentistProfile";
 import DentistSchedule from "./pages/dentist/DentistSchedule";
@@ -33,6 +34,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
         <Route
           path="/dentist-dashboard"
