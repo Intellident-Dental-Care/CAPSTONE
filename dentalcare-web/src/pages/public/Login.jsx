@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import logo from "../../assets/logo.png";
+import clinicImage from "../../assets/picture4.png";
 
 export default function Login() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -23,114 +25,112 @@ export default function Login() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    console.log({
-      role: activeRole,
-      email,
-      password,
-      saveUser,
-    });
-
-     if (activeRole === "dentist") {
+    if (activeRole === "dentist") {
       navigate("/dentist/dashboard");
-    } else if (activeRole === "admin") {
+    } else {
       navigate("/admin/dashboard");
-  }
-};
+    }
+  };
 
   return (
-    <div className="min-h-screen w-full bg-[radial-gradient(circle_at_top_left,_#ffd8e8,_#fff4f8_35%,_#ffffff_70%)] p-3 sm:p-4 lg:p-6">
-      <div className="grid min-h-[calc(100vh-24px)] overflow-hidden rounded-[34px] border border-pink-200/70 bg-white shadow-[0_22px_70px_rgba(236,72,153,0.12)] lg:grid-cols-[1.15fr_0.85fr]">
-        <div className="relative hidden overflow-hidden bg-gradient-to-br from-pink-500 via-rose-400 to-pink-300 p-10 text-white lg:flex lg:flex-col lg:justify-between">
-          <div className="absolute left-8 top-8 grid grid-cols-5 gap-2 opacity-25">
-            {Array.from({ length: 25 }).map((_, i) => (
-              <span
-                key={i}
-                className="h-2.5 w-2.5 rounded-full bg-white"
-              />
-            ))}
-          </div>
+    <div className="h-screen w-full overflow-hidden bg-[radial-gradient(circle_at_top_left,_#ffe3ee,_#fff7fa_34%,_#ffffff_72%)] p-3 sm:p-4 lg:p-6">
+      <div className="grid h-full overflow-hidden rounded-[34px] border border-pink-200/70 bg-white shadow-[0_22px_70px_rgba(236,72,153,0.12)] lg:grid-cols-[1.03fr_0.97fr]">
+        {/* LEFT PANEL */}
+        <div className="relative hidden h-full overflow-hidden lg:flex">
+          <style>
+            {`
+              @keyframes slowZoom {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.04); }
+              }
 
-          <div className="absolute bottom-10 right-10 grid grid-cols-5 gap-2 opacity-15">
-            {Array.from({ length: 25 }).map((_, i) => (
-              <span
-                key={i}
-                className="h-2.5 w-2.5 rounded-full bg-white"
-              />
-            ))}
-          </div>
+              @keyframes floatGlow {
+                0%, 100% { transform: translate(0,0); }
+                50% { transform: translate(20px,-15px); }
+              }
+            `}
+          </style>
 
-          <div className="relative z-10">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-3"
-            >
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/20 font-bold text-white backdrop-blur-sm">
-                GC
+          {/* IMAGE */}
+          <img
+            src={clinicImage}
+            alt="Clinic"
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{
+              animation: "slowZoom 5s ease-in-out infinite",
+              objectPosition: "10% center",
+            }}
+          />
+
+          {/* OVERLAY */}
+          <div className="absolute inset-0 bg-gradient-to-br from-pink-200/72 via-pink-100/42 to-white/10" />
+          <div className="absolute inset-0 bg-slate-900/12" />
+
+          {/* GLOW */}
+          <div
+            className="absolute left-[-80px] top-[-80px] h-[260px] w-[260px] rounded-full bg-pink-300/40 blur-3xl"
+            style={{ animation: "floatGlow 8s ease-in-out infinite" }}
+          />
+          <div
+            className="absolute bottom-[-100px] right-[-60px] h-[260px] w-[260px] rounded-full bg-rose-200/40 blur-3xl"
+            style={{ animation: "floatGlow 10s ease-in-out infinite" }}
+          />
+
+          {/* CONTENT */}
+          <div className="relative z-20 flex h-full w-full flex-col justify-between p-10">
+            {/* TOP */}
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/80 backdrop-blur-md">
+                <img
+                  src={logo}
+                  alt="GC Dental Care Logo"
+                  className="h-full w-full object-contain"
+                />
               </div>
 
               <div>
-                <h1 className="text-base font-bold">GC Dental Care</h1>
-                <p className="text-sm text-pink-50/90">Powered by IntelliDent</p>
+                <h1 className="font-bold text-white">GC Dental Care</h1>
+                <p className="text-sm text-white/80">Powered by IntelliDent</p>
               </div>
-            </Link>
-          </div>
+            </div>
 
-          <div className="relative z-10 max-w-xl">
-            <h2 className="text-5xl font-bold leading-tight">
-              IntelliDent
-              <br />
-              Login Portal
-            </h2>
+            {/* BOTTOM CONTENT */}
+            <div>
+              <div className="mb-5 inline-flex rounded-full border border-white/35 bg-white/18 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white backdrop-blur-md">
+                Secure Access
+              </div>
 
-            <ul className="mt-10 space-y-5 text-lg">
-              <li className="flex items-center gap-4">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm">
-                  1
+              <p className="mb-6 max-w-[430px] text-[17px] leading-7 text-white/92">
+                Access your dashboard and manage appointments with a smoother,
+                more organized experience.
+              </p>
+
+              <div className="flex flex-wrap gap-3">
+                <span className="rounded-full bg-white/20 px-4 py-2 text-sm text-white backdrop-blur-md">
+                  Dentists
                 </span>
-                Appointment Monitoring
-              </li>
-
-              <li className="flex items-center gap-4">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm">
-                  2
+                <span className="rounded-full bg-white/20 px-4 py-2 text-sm text-white backdrop-blur-md">
+                  Admins
                 </span>
-                Patient Record Access
-              </li>
-
-              <li className="flex items-center gap-4">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm">
-                  3
+                <span className="rounded-full bg-white/20 px-4 py-2 text-sm text-white backdrop-blur-md">
+                  Secure Login
                 </span>
-                Clinic Schedule Management
-              </li>
-
-              <li className="flex items-center gap-4">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm">
-                  4
-                </span>
-                Role-Based Dashboard
-              </li>
-
-              <li className="flex items-center gap-4">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm">
-                  5
-                </span>
-                Organized Dental Workflow
-              </li>
-            </ul>
-          </div>
-
-          <div className="relative z-10 text-sm text-pink-50/90">
-            Secure access for dentists and administrators
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-center bg-[#fffafb] px-5 py-8 sm:px-8 lg:px-10">
+        {/* RIGHT PANEL */}
+        <div className="flex h-full items-center justify-center overflow-hidden bg-[#fffafb] px-5 py-8 sm:px-8 lg:px-10">
           <div className="w-full max-w-md">
             <div className="mb-8 flex items-center justify-between">
               <Link to="/" className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-500 to-rose-400 font-bold text-white shadow-md">
-                  GC
+                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-pink-50 ring-1 ring-pink-100 shadow-sm">
+                  <img
+                    src={logo}
+                    alt="GC Dental Care Logo"
+                    className="h-full w-full object-contain"
+                  />
                 </div>
 
                 <div>
@@ -143,9 +143,11 @@ export default function Login() {
             </div>
 
             <div>
-              <h3 className="text-4xl font-bold text-slate-900">Login</h3>
+              <h3 className="text-4xl font-bold tracking-[-0.04em] text-slate-900">
+                Login
+              </h3>
               <p className="mt-2 text-sm text-slate-500">
-                Access the IntelliDent dashboard
+                Sign in to continue to your dashboard
               </p>
             </div>
 
