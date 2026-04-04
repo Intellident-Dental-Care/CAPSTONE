@@ -3,20 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dental 3D Viewer</title>
+    <title>Dental 3D Viewer - IntelliDent</title>
     <style>
       html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #f4f4f4; font-family: Arial, sans-serif; }
       #app { position: fixed; inset: 0; }
       #ui {
         position: fixed; top: 12px; left: 12px; z-index: 10;
-        background: rgba(255,255,255,.94); border-radius: 12px; padding: 10px;
-        box-shadow: 0 8px 20px rgba(0,0,0,.15); display: grid; gap: 8px; min-width: 260px;
+        background: rgba(255,255,255,.94); border-radius: 12px; padding: 15px;
+        box-shadow: 0 8px 20px rgba(0,0,0,.15); display: flex; flex-direction: column; gap: 12px; min-width: 280px;
       }
-      #ui .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-      #ui button, #ui select {
-        border: 1px solid #ddd; background: #fff; border-radius: 8px; padding: 6px 10px; cursor: pointer;
+      .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+      button {
+        border: 1px solid #ddd; background: #fff; border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: 0.2s; font-size: 13px;
       }
-      #status { font-size: 12px; color: #333; line-height: 1.4; }
+      button:hover { background: #e0e7ff; border-color: #a5b4fc; }
+      #status { font-size: 13px; font-weight: bold; color: #1d4ed8; margin-top: 5px; }
       .hint { font-size: 11px; color: #666; }
     </style>
   </head>
@@ -25,22 +26,16 @@
 
     <div id="ui">
       <div class="row">
-        <label for="mode"><strong>Select:</strong></label>
-        <select id="mode">
-          <option value="single">Single</option>
-          <option value="group">Group (nearest left/right)</option>
-        </select>
-        <button id="clearSel">Clear selection</button>
-      </div>
-
-      <div class="row">
-        <button id="btnSlight">Open Slightly</button>
-        <button id="btnWide">Open Wide</button>
+        <button id="btnOpen">Open</button>
+        <button id="btnFlat">Open Wide (Flat)</button>
         <button id="btnClose">Close</button>
+      </div>
+      <div class="row">
+        <button id="clearSel" style="width: 100%;">Clear Selection</button>
       </div>
 
       <div id="status">Loading model...</div>
-      <div class="hint">Drag = rotate, wheel/pinch = zoom, right-drag = pan</div>
+      <div class="hint">Click a tooth to select. Drag to rotate.</div>
     </div>
 
     <script type="importmap">
@@ -56,244 +51,192 @@
       import * as THREE from "three";
       import { OrbitControls } from "three/addons/controls/OrbitControls.js";
       import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-      import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 
+      // --- Scene Setup ---
       const app = document.getElementById("app");
       const statusEl = document.getElementById("status");
-      const modeEl = document.getElementById("mode");
 
-      // --- Scene ---
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xf4f4f4);
 
       const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 100);
-      camera.position.set(0, 1.2, 2.6);
+      camera.position.set(0, 0, 3.5);
 
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      
+      // CRITICAL FOR PURE-CODE SPLITTING
+      renderer.localClippingEnabled = true; 
+      
       app.appendChild(renderer.domElement);
 
-      // Lights
       scene.add(new THREE.HemisphereLight(0xffffff, 0xbcbcbc, 1.2));
-      const key = new THREE.DirectionalLight(0xffffff, 1.0);
-      key.position.set(3, 4, 2);
-      scene.add(key);
+      const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+      keyLight.position.set(0, 2, 4);
+      scene.add(keyLight);
 
-      // Controls (rotatable + zoomable)
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.08;
-      controls.minDistance = 0.5;
-      controls.maxDistance = 6;
-      controls.target.set(0, 0.8, 0);
+      controls.minDistance = 1.5; 
+      controls.maxDistance = 5.5; 
+      controls.minAzimuthAngle = -Math.PI / 2.5; 
+      controls.maxAzimuthAngle = Math.PI / 2.5;  
+      controls.maxPolarAngle = Math.PI / 1.6;    
 
-      // --- Model load ---
+      // --- Logic Variables ---
+      const toothMeshes = [];
+      const activeOverlays = []; 
+
+      // Jaw Animation Groups
+      const lowerJawGroup = new THREE.Group();
+      const upperJawGroup = new THREE.Group();
+      scene.add(lowerJawGroup);
+      scene.add(upperJawGroup);
+      
+      // Animation State Tracker
+      let animState = 'closed';
+
+      // --- Load Model ---
       const loader = new GLTFLoader();
-      const draco = new DRACOLoader();
-      draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
-      loader.setDRACOLoader(draco);
-
       const MODEL_URL = "./model/3DTeethModel.glb";
 
-      let root = null;
-      let mixer = null;
-      let clips = [];
+      loader.load(MODEL_URL, (gltf) => {
+        const root = gltf.scene;
+        scene.add(root);
 
+        const box = new THREE.Box3().setFromObject(root);
+        const center = box.getCenter(new THREE.Vector3());
+        root.position.sub(center);
+        
+        root.rotation.y = Math.PI; 
+
+        // Temporary arrays to hold parts safely
+        const partsToLower = [];
+        const partsToUpper = [];
+
+        root.traverse((obj) => {
+          if (obj.isMesh) {
+            const name = obj.name.toUpperCase().trim();
+            
+            const isUpperTooth = name.endsWith('_U') || name.includes('_U_');
+            const isLowerTooth = name.endsWith('_L') || name.includes('_L_');
+            const isUpperJaw = name.includes('UPPER');
+            const isLowerJaw = name.includes('LOWER');
+
+            if (isUpperTooth || isLowerTooth) {
+              toothMeshes.push(obj);
+            }
+
+            if (isLowerJaw || isLowerTooth) {
+              partsToLower.push(obj);
+            } else if (isUpperJaw || isUpperTooth) {
+              partsToUpper.push(obj);
+            }
+          }
+        });
+
+        // SAFE ATTACHMENT
+        partsToLower.forEach(obj => lowerJawGroup.attach(obj));
+        partsToUpper.forEach(obj => upperJawGroup.attach(obj));
+
+        statusEl.textContent = `Ready. ${toothMeshes.length} teeth loaded.`;
+      });
+
+      // --- PURE CODE SELECTION LOGIC ---
       const raycaster = new THREE.Raycaster();
       const pointer = new THREE.Vector2();
 
-      const toothMeshes = [];
-      const selected = new Set();
-      const originalMaterial = new Map();
-
-      // fallback jaw animation if no GLB clips
-      let lowerJaw = null;
-      let lowerJawBase = null;
-      const JAW_AXIS = "y";      // change to "z" if your model opens in z-axis
-      const JAW_SIGN = -1;       // flip to +1 if opening goes wrong direction
-      const JAW_MAX_OFFSET = 0.55;
-      let targetOpen = 0;        // 0..1
-
-      loader.load(
-        MODEL_URL,
-        (gltf) => {
-          root = gltf.scene;
-          scene.add(root);
-
-          // fit model
-          const box = new THREE.Box3().setFromObject(root);
-          const size = box.getSize(new THREE.Vector3());
-          const center = box.getCenter(new THREE.Vector3());
-          root.position.sub(center);
-          const maxDim = Math.max(size.x, size.y, size.z) || 1;
-          const scale = 1.8 / maxDim;
-          root.scale.setScalar(scale);
-
-          // collect teeth meshes (requires proper mesh names)
-          root.traverse((obj) => {
-            if (!obj.isMesh) return;
-            obj.castShadow = true;
-            obj.receiveShadow = true;
-
-            const n = obj.name.toLowerCase();
-            const isTooth =
-              /(tooth|incisor|molar|premolar|canine|cuspid|ul|ur|ll|lr)/i.test(n);
-
-            if (isTooth) {
-              toothMeshes.push(obj);
-              originalMaterial.set(obj.uuid, obj.material);
-            }
-
-            // fallback lower jaw root finder
-            if (!lowerJaw && /(lower|mandible|jaw_lower)/i.test(n)) {
-              lowerJaw = obj.parent || obj;
-            }
-          });
-
-          // If no explicit lower jaw found, try a group/object name
-          if (!lowerJaw) {
-            root.traverse((obj) => {
-              const n = obj.name.toLowerCase();
-              if (!lowerJaw && /(lower|mandible|jaw_lower)/i.test(n)) lowerJaw = obj;
-            });
-          }
-          if (lowerJaw) lowerJawBase = lowerJaw.position[JAW_AXIS];
-
-          clips = gltf.animations || [];
-          if (clips.length) mixer = new THREE.AnimationMixer(root);
-
-          statusEl.textContent = `Loaded. Teeth found: ${toothMeshes.length}`;
-        },
-        undefined,
-        (err) => {
-          console.error(err);
-          statusEl.textContent = "Failed to load model. Check /model/mouth.glb path.";
-        }
-      );
-
-      // --- Selection ---
-      function setHighlight(mesh, on) {
-        if (!mesh) return;
-        if (on) {
-          if (!mesh.userData._hlMat) {
-            const m = mesh.material.clone();
-            if ("color" in m) m.color.set("#3b82f6");
-            if ("emissive" in m) m.emissive.set("#1d4ed8");
-            if ("emissiveIntensity" in m) m.emissiveIntensity = 0.35;
-            mesh.userData._hlMat = m;
-          }
-          mesh.material = mesh.userData._hlMat;
-        } else {
-          mesh.material = originalMaterial.get(mesh.uuid) || mesh.material;
-        }
-      }
-
       function clearSelection() {
-        for (const m of selected) setHighlight(m, false);
-        selected.clear();
+        activeOverlays.forEach((overlay) => {
+          if (overlay.parent) overlay.parent.remove(overlay);
+          if (overlay.material) overlay.material.dispose();
+        });
+        activeOverlays.length = 0;
         statusEl.textContent = "Selection cleared.";
       }
 
-      function selectSingle(mesh) {
-        clearSelection();
-        selected.add(mesh);
-        setHighlight(mesh, true);
-        statusEl.textContent = `Selected: ${mesh.name}`;
-      }
-
-      function selectGroup(mesh) {
-        clearSelection();
-
-        const p = new THREE.Vector3();
-        mesh.getWorldPosition(p);
-
-        const nearest = toothMeshes
-          .filter((t) => t !== mesh)
-          .map((t) => {
-            const tp = new THREE.Vector3();
-            t.getWorldPosition(tp);
-            return { t, d: tp.distanceTo(p) };
-          })
-          .sort((a, b) => a.d - b.d)
-          .slice(0, 2) // nearest left/right approximation
-          .map((x) => x.t);
-
-        const group = [mesh, ...nearest];
-        group.forEach((m) => {
-          selected.add(m);
-          setHighlight(m, true);
+      function highlightMesh(mesh, hitPoint) {
+        const isRightSide = hitPoint.x > 0;
+        
+        const clipNormal = isRightSide ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(-1, 0, 0);
+        
+        const mat = new THREE.MeshStandardMaterial({
+          color: 0x87CEFA, // Light Blue
+          roughness: 0.4,
+          metalness: 0.1,
+          side: THREE.DoubleSide,
+          clippingPlanes: [ new THREE.Plane(clipNormal, 0) ], 
+          polygonOffset: true, 
+          polygonOffsetFactor: -1,
+          polygonOffsetUnits: -1
         });
 
-        statusEl.textContent = `Selected group: ${group.map((m) => m.name).join(", ")}`;
+        const overlay = new THREE.Mesh(mesh.geometry, mat);
+        overlay.raycast = function() {}; 
+        mesh.add(overlay); 
+        activeOverlays.push(overlay);
       }
 
-      renderer.domElement.addEventListener("pointerdown", (e) => {
-        if (!root) return;
+      function selectSingle(mesh, hitPoint) {
+        clearSelection();
+        highlightMesh(mesh, hitPoint);
+        
+        const side = hitPoint.x > 0 ? "(L)" : "(R)";
+        statusEl.textContent = `Selected: ${mesh.name} ${side}`;
+      }
 
+      // Click Event
+      renderer.domElement.addEventListener("pointerdown", (e) => {
         const rect = renderer.domElement.getBoundingClientRect();
         pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(pointer, camera);
-        const hits = raycaster.intersectObjects(toothMeshes, true);
-        if (!hits.length) return;
-
-        const mesh = hits[0].object;
-        if (modeEl.value === "single") selectSingle(mesh);
-        else selectGroup(mesh);
+        
+        const hits = raycaster.intersectObjects(toothMeshes, false);
+        
+        if (hits.length > 0) {
+          const clickedMesh = hits[0].object;
+          const hitPoint = hits[0].point; 
+          
+          selectSingle(clickedMesh, hitPoint);
+        }
       });
 
       document.getElementById("clearSel").onclick = clearSelection;
 
-      // --- Animation controls ---
-      function playClipByKeyword(keyword) {
-        if (!mixer || !clips.length) return false;
-        const clip = clips.find((c) => c.name.toLowerCase().includes(keyword));
-        if (!clip) return false;
-        mixer.stopAllAction();
-        const action = mixer.clipAction(clip);
-        action.reset().setLoop(THREE.LoopOnce, 1);
-        action.clampWhenFinished = true;
-        action.play();
-        return true;
-      }
+      // --- Animation Logic ---
+      document.getElementById("btnOpen").onclick = () => animState = 'open'; 
+      document.getElementById("btnFlat").onclick = () => animState = 'flat'; 
+      document.getElementById("btnClose").onclick = () => animState = 'closed';
 
-      function setJawOpen(amount01) {
-        targetOpen = Math.max(0, Math.min(1, amount01));
-      }
-
-      document.getElementById("btnSlight").onclick = () => {
-        // if your GLB has clip names like "open_slight", it will use them
-        if (!playClipByKeyword("open_slight")) setJawOpen(0.35);
-      };
-
-      document.getElementById("btnWide").onclick = () => {
-        if (!playClipByKeyword("open_wide")) setJawOpen(0.95);
-      };
-
-      document.getElementById("btnClose").onclick = () => {
-        if (!playClipByKeyword("close")) setJawOpen(0);
-      };
-
-      // --- Render loop ---
-      const clock = new THREE.Clock();
-
+      // --- Render Loop ---
       function animate() {
         requestAnimationFrame(animate);
-        const dt = clock.getDelta();
 
-        if (mixer) mixer.update(dt);
+        let targetUpperRotX = 0, targetUpperPosY = 0, targetUpperPosZ = 0;
+        let targetLowerRotX = 0, targetLowerPosY = 0, targetLowerPosZ = 0;
 
-        // fallback jaw transform
-        if (lowerJaw && lowerJawBase !== null) {
-          const desired = lowerJawBase + JAW_SIGN * (targetOpen * JAW_MAX_OFFSET);
-          lowerJaw.position[JAW_AXIS] = THREE.MathUtils.lerp(
-            lowerJaw.position[JAW_AXIS],
-            desired,
-            0.08
-          );
+        if (animState === 'open') {
+          // Standard slight open
+          targetUpperRotX = -0.18; targetUpperPosY = 0.25; targetUpperPosZ = 0;
+          targetLowerRotX = 0.18; targetLowerPosY = -0.25; targetLowerPosZ = 0;
+        } else if (animState === 'flat') {
+          // Flattened Occlusal View (Reduced Y separation to bring them closer)
+          targetUpperRotX = -Math.PI / 2; targetUpperPosY = 0.5; targetUpperPosZ = -0.5;
+          targetLowerRotX = Math.PI / 2; targetLowerPosY = -0.5; targetLowerPosZ = -0.5;
         }
+
+        // Lerp everything for smooth transitions
+        upperJawGroup.rotation.x = THREE.MathUtils.lerp(upperJawGroup.rotation.x, targetUpperRotX, 0.08);
+        upperJawGroup.position.y = THREE.MathUtils.lerp(upperJawGroup.position.y, targetUpperPosY, 0.08);
+        upperJawGroup.position.z = THREE.MathUtils.lerp(upperJawGroup.position.z, targetUpperPosZ, 0.08);
+
+        lowerJawGroup.rotation.x = THREE.MathUtils.lerp(lowerJawGroup.rotation.x, targetLowerRotX, 0.08);
+        lowerJawGroup.position.y = THREE.MathUtils.lerp(lowerJawGroup.position.y, targetLowerPosY, 0.08);
+        lowerJawGroup.position.z = THREE.MathUtils.lerp(lowerJawGroup.position.z, targetLowerPosZ, 0.08);
 
         controls.update();
         renderer.render(scene, camera);
