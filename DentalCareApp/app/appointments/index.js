@@ -1,23 +1,23 @@
-// FILE PATH: app/appointments/index.js
-
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  TextInput,
-  FlatList,
+  SafeAreaView,
+  ScrollView,
   Pressable,
   Modal,
-  ActivityIndicator,
 } from "react-native";
-import { Ionicons, Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "./../theme/colors";
 import { supabase } from "../../server/supabaseService";
 import { getCurrentActiveProfileForSession } from "../_storage/authStorage";
-import { appointmentsListCache, APPOINTMENT_CACHE_TTL_MS } from "../_storage/profileCache";
+import {
+  appointmentsListCache,
+  APPOINTMENT_CACHE_TTL_MS,
+} from "../_storage/profileCache";
 
 function isUuid(value) {
   if (!value) return false;
@@ -27,69 +27,51 @@ function isUuid(value) {
 }
 
 function fmt12h(t) {
-  if (!t) return '';
-  const [h, m] = t.split(':');
+  if (!t) return "";
+  const [h, m] = String(t).split(":");
   const hr = parseInt(h, 10);
-  const ampm = hr >= 12 ? 'PM' : 'AM';
+  if (Number.isNaN(hr)) return String(t);
+  const ampm = hr >= 12 ? "PM" : "AM";
   const hr12 = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
   return `${hr12}:${m} ${ampm}`;
 }
 
-function formatDatePill(dateStr) {
-  const d = new Date(dateStr + "T00:00:00");
-  const mon = d.toLocaleString("en-US", { month: "short" }).toUpperCase();
-  const day = String(d.getDate()).padStart(2, "0");
-  return { mon, day };
+function formatDisplayDate(dateStr) {
+  if (!dateStr) return "No date";
+  const d = new Date(`${dateStr}T00:00:00`);
+  return d.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
-function getStatusUI(status) {
-  switch (status) {
-    case "upcoming":
-      return {
-        label: "Upcoming",
-        icon: "time-outline",
-        color: "#F4B400",
-        bg: "#FFF4CC",
-      };
-    case "completed":
-      return {
-        label: "Completed",
-        icon: "checkmark-circle-outline",
-        color: "#2E7D32",
-        bg: "#E6F4EA",
-      };
-    case "cancelled":
-      return {
-        label: "Cancelled",
-        icon: "close-circle-outline",
-        color: "#eb0d0d",
-        bg: "#fcccc7",
-      };
-    default:
-      return {
-        label: status,
-        icon: "information-circle-outline",
-        color: "#555",
-        bg: "#EEE",
-      };
+function formatMonthLabel(dateStr) {
+  if (!dateStr) return "Unknown Month";
+  const d = new Date(`${dateStr}T00:00:00`);
+  return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+function normalizeQaList(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   }
-}
-
-function isUpcoming(dateStr) {
-  const today = new Date();
-  const d = new Date(dateStr + "T00:00:00");
-  today.setHours(0, 0, 0, 0);
-  return d >= today;
+  return [];
 }
 
 export default function AppointmentsScreen() {
   const router = useRouter();
 
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [flowModalVisible, setFlowModalVisible] = useState(false);
+  const [filter, setFilter] = useState("All");
   const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [detailsVisible, setDetailsVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -101,40 +83,33 @@ export default function AppointmentsScreen() {
     try {
       const activeProfile = await getCurrentActiveProfileForSession();
       const profileId = isUuid(activeProfile?.id) ? activeProfile.id : null;
-      const cacheKey = profileId || '__no_profile__';
+      const cacheKey = profileId || "__no_profile__";
       const cached = appointmentsListCache[cacheKey];
       const now = Date.now();
-      const isStale = !cached || (now - cached.fetchedAt) > APPOINTMENT_CACHE_TTL_MS;
+      const isStale =
+        !cached || now - cached.fetchedAt > APPOINTMENT_CACHE_TTL_MS;
 
-      // Seed from cache immediately — no loading flash on revisit
-      if (cached) {
-        setAppointments(cached.data);
-        setLoading(false);
-      }
-
-      // Only hit the network when there's no cache or it's stale
+      if (cached) setAppointments(cached.data);
       if (!isStale) return;
 
-      if (!cached) setLoading(true);
-
       let dbQuery = supabase
-        .from('bookings')
-        .select('*, dentist_list(name, specialization)')
-        .order('appointment_date', { ascending: false });
+        .from("bookings")
+        .select("*, dentist_list(name, specialization)")
+        .order("appointment_date", { ascending: false });
 
       if (profileId) {
-        dbQuery = dbQuery.eq('profile_id', profileId);
+        dbQuery = dbQuery.eq("profile_id", profileId);
       } else {
         const { data: authData } = await supabase.auth.getUser();
         const user = authData?.user;
-        if (!user) { setLoading(false); return; }
+        if (!user) return;
 
         if (activeProfile?.name) {
           dbQuery = dbQuery
-            .eq('user_id', user.id)
-            .eq('patient_name', activeProfile.name);
+            .eq("user_id", user.id)
+            .eq("patient_name", activeProfile.name);
         } else {
-          dbQuery = dbQuery.eq('user_id', user.id);
+          dbQuery = dbQuery.eq("user_id", user.id);
         }
       }
 
@@ -142,540 +117,1038 @@ export default function AppointmentsScreen() {
       if (error) throw error;
 
       const statusMap = {
-        pending: 'upcoming',
-        confirmed: 'upcoming',
-        completed: 'completed',
-        cancelled: 'cancelled',
+        pending: "Upcoming",
+        confirmed: "Upcoming",
+        completed: "Completed",
+        cancelled: "Cancelled",
       };
-      const mapped = (data || []).map((b) => ({
-        id: b.id,
-        procedure: b.service || 'Dental Appointment',
-        treatment: b.dentist_list?.specialization || 'General Dentistry',
-        dentist: b.dentist_list?.name || 'Unknown',
-        date: b.appointment_date,
-        time: fmt12h(b.appointment_time),
-        status: statusMap[b.status] || 'upcoming',
-      }));
+
+      const mapped = (data || []).map((b) => {
+        const rawDate = b.appointment_date;
+        return {
+          id: String(b.id),
+          doctor: b.dentist_list?.name || "Unknown Dentist",
+          title: b.service || "Dental Appointment",
+          type: "Treatment",
+          status: statusMap[String(b.status || "").toLowerCase()] || "Upcoming",
+          date: formatDisplayDate(rawDate),
+          time: fmt12h(b.appointment_time),
+          tooth: b.tooth_area || b.tooth || "Tooth Record",
+          description: b.description || "No description provided.",
+          qaList: normalizeQaList(b.qa_list || b.questionnaire),
+          suggestedTreatment: b.suggested_treatment || b.service || "N/A",
+          suggestedPrice: b.suggested_price || "Starting Price: N/A",
+          procedure: b.service || "Dental Appointment",
+          month: formatMonthLabel(rawDate),
+        };
+      });
 
       appointmentsListCache[cacheKey] = { data: mapped, fetchedAt: Date.now() };
       setAppointments(mapped);
     } catch (err) {
-      console.error('Error fetching appointments:', err);
-    } finally {
-      setLoading(false);
+      console.error("Error fetching appointments:", err);
     }
   };
 
-  const openFlowModal = () => {
-    setFlowModalVisible(true);
+  const handleOpenDetails = (item) => {
+    setSelectedAppointment(item);
+    setDetailsVisible(true);
   };
 
-  const closeFlowModal = () => {
-    setFlowModalVisible(false);
+  const handleCloseDetails = () => {
+    setDetailsVisible(false);
+    setSelectedAppointment(null);
   };
 
-  const handleChoosePreAssessment = () => {
-    closeFlowModal();
-    router.push("/pre-assessment");
+  const getStatusColor = (status) => {
+    if (status === "Upcoming") return "#D89B00";
+    if (status === "Completed") return "#2FA55A";
+    if (status === "Cancelled") return "#E24C4B";
+    return "#8D8D8D";
   };
 
-  const handleChooseBooking = () => {
-    closeFlowModal();
-    router.push("/booking");
+  const getStatusBg = (status) => {
+    if (status === "Upcoming") return "#FFF3D6";
+    if (status === "Completed") return "#DDF7E5";
+    if (status === "Cancelled") return "#FDE2E2";
+    return "#EFEFEF";
   };
 
-  const data = useMemo(() => {
-    const q = query.trim().toLowerCase();
+  const getStatusIcon = (status) => {
+    if (status === "Upcoming") return "time";
+    if (status === "Completed") return "checkmark-circle";
+    if (status === "Cancelled") return "close-circle";
+    return "ellipse";
+  };
 
-    return appointments
-      .filter((a) => {
-        if (filter === "all") return true;
-        if (filter === "upcoming") {
-          return a.status === "upcoming" && isUpcoming(a.date);
-        }
-        return a.status === filter;
-      })
-      .filter((a) => {
-        if (!q) return true;
-        return (
-          a.procedure.toLowerCase().includes(q) ||
-          a.treatment.toLowerCase().includes(q) ||
-          a.dentist.toLowerCase().includes(q) ||
-          a.id.toLowerCase().includes(q)
-        );
-      })
-      .sort((a, b) => (a.date > b.date ? 1 : -1));
-  }, [query, filter, appointments]);
-
-  const Chip = ({ value, label }) => {
-    const active = filter === value;
-    return (
-      <Pressable
-        onPress={() => setFilter(value)}
-        style={[styles.chip, active && styles.chipActive]}
-      >
-        <Text style={[styles.chipText, active && styles.chipTextActive]}>
-          {label}
-        </Text>
-      </Pressable>
+  const getSortedAppointments = () => {
+    const filtered = appointments.filter(
+      (item) => filter === "All" || item.status === filter
     );
+
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.month);
+      const dateB = new Date(b.month);
+      return dateB - dateA;
+    });
+
+    return filtered;
   };
 
-  const renderItem = ({ item }) => {
-    const pill = formatDatePill(item.date);
-    const statusUI = getStatusUI(item.status);
+  const groupedAppointments = () => {
+    const sorted = getSortedAppointments();
+    const groups = {};
 
-    return (
-      <Pressable
-        style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
-        onPress={() => router.push(`/appointments/${item.id}`)}
-      >
-        <View style={styles.datePill}>
-          <Text style={styles.pillMonth}>{pill.mon}</Text>
-          <Text style={styles.pillDay}>{pill.day}</Text>
-        </View>
+    sorted.forEach((item) => {
+      if (!groups[item.month]) groups[item.month] = [];
+      groups[item.month].push(item);
+    });
 
-        <View style={styles.cardBody}>
-          <View style={styles.rowTop}>
-            <Text style={styles.procedureTitle} numberOfLines={1}>
-              {item.procedure}
-            </Text>
-
-            <View style={[styles.badge, { backgroundColor: statusUI.bg }]}>
-              <Ionicons
-                name={statusUI.icon}
-                size={14}
-                color={statusUI.color}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.badgeText, { color: statusUI.color }]}>
-                {statusUI.label}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={styles.subLine} numberOfLines={1}>
-            Treatment: {item.treatment}
-          </Text>
-
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <Ionicons
-                name="time-outline"
-                size={16}
-                color={colors.muted || "#777"}
-              />
-              <Text style={styles.metaText}>{item.time}</Text>
-            </View>
-
-            <View style={styles.metaDot} />
-
-            <View style={styles.metaItem}>
-              <Ionicons
-                name="person-outline"
-                size={16}
-                color={colors.muted || "#777"}
-              />
-              <Text style={styles.metaText}>{item.dentist}</Text>
-            </View>
-          </View>
-
-          <View style={styles.footerRow}>
-            <Text style={styles.appId}>#{item.id}</Text>
-            <Feather
-              name="chevron-right"
-              size={18}
-              color={colors.muted || "#777"}
-            />
-          </View>
-        </View>
-      </Pressable>
-    );
+    return Object.entries(groups);
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={colors.primary} />
-        </Pressable>
-
-        <Text style={styles.headerTitle}>Appointments</Text>
-
-        <Pressable style={styles.addBtn} onPress={openFlowModal}>
-          <Ionicons name="add" size={22} color={colors.primary} />
-        </Pressable>
-      </View>
-
-      <View style={styles.searchWrap}>
-        <Ionicons
-          name="search-outline"
-          size={18}
-          color={colors.muted || "#777"}
-        />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search procedure, treatment, dentist, ID..."
-          placeholderTextColor={colors.muted || "#777"}
-          style={styles.searchInput}
-        />
-        {!!query && (
-          <Pressable onPress={() => setQuery("")}>
-            <Ionicons
-              name="close-circle"
-              size={18}
-              color={colors.muted || "#777"}
-            />
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.screen}>
+        <View style={styles.topBar}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={22} color={colors.primary} />
           </Pressable>
-        )}
-      </View>
 
-      <View style={styles.chipsRow}>
-        <Chip value="all" label="All" />
-        <Chip value="upcoming" label="Upcoming" />
-        <Chip value="completed" label="Completed" />
-        <Chip value="cancelled" label="Cancelled" />
-      </View>
-
-      <FlatList
-        data={data}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 24 }}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          loading ? (
-            <View style={styles.empty}>
-              <ActivityIndicator size="large" color={colors.primary} />
-            </View>
-          ) : (
-            <View style={styles.empty}>
+          <View style={styles.topRight}>
+            <Pressable
+              style={styles.notifPill}
+              onPress={() => router.push("/notification")}
+            >
               <Ionicons
-                name="calendar-outline"
-                size={34}
-                color={colors.muted || "#777"}
+                name="notifications-outline"
+                size={16}
+                color={colors.primary}
               />
-              <Text style={styles.emptyTitle}>No appointments found</Text>
-              <Text style={styles.emptySub}>
-                Try a different search or filter.
+            </Pressable>
+
+            <Pressable
+              style={styles.avatarSmall}
+              onPress={() => router.push("/profile")}
+            >
+              <Ionicons name="person" size={16} color={colors.primary} />
+            </Pressable>
+          </View>
+        </View>
+
+        <Text style={styles.title}>Appointments</Text>
+        <Text style={styles.profileName}>
+          View your upcoming and past appointments
+        </Text>
+
+        <View style={styles.tabs}>
+          <Pressable
+            style={[styles.tabBtn, filter === "All" && styles.activeTab]}
+            onPress={() => setFilter("All")}
+          >
+            <Text
+              style={[styles.tabText, filter === "All" && styles.activeTabText]}
+            >
+              All
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.tabBtn, filter === "Upcoming" && styles.activeTab]}
+            onPress={() => setFilter("Upcoming")}
+          >
+            <View style={styles.tabWithDot}>
+              <View style={[styles.dot, { backgroundColor: "#D89B00" }]} />
+              <Text
+                style={[
+                  styles.tabText,
+                  filter === "Upcoming" && styles.activeTabText,
+                ]}
+              >
+                Upcoming
               </Text>
             </View>
-          )
-        }
-      />
-
-      <Modal
-        visible={flowModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeFlowModal}
-      >
-        <Pressable style={styles.modalOverlay} onPress={closeFlowModal}>
-          <Pressable style={styles.modalCard} onPress={() => {}}>
-            <Text style={styles.modalTitle}>What would you like to do?</Text>
-            <Text style={styles.modalSubtitle}>
-              Choose if you want to do pre-assessment first or proceed to
-              booking.
-            </Text>
-
-            <Pressable
-              style={styles.optionButton}
-              onPress={handleChoosePreAssessment}
-            >
-              <Text style={styles.optionText}>Do Pre-Assessment First</Text>
-            </Pressable>
-
-            <Pressable
-              style={styles.optionButton}
-              onPress={handleChooseBooking}
-            >
-              <Text style={styles.optionText}>Proceed to Booking</Text>
-            </Pressable>
-
-            <Pressable style={styles.cancelBtn} onPress={closeFlowModal}>
-              <Text style={styles.cancelText}>Cancel</Text>
-            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
-    </View>
+
+          <Pressable
+            style={[styles.tabBtn, filter === "Completed" && styles.activeTab]}
+            onPress={() => setFilter("Completed")}
+          >
+            <View style={styles.tabWithDot}>
+              <View style={[styles.dot, { backgroundColor: "#2FA55A" }]} />
+              <Text
+                style={[
+                  styles.tabText,
+                  filter === "Completed" && styles.activeTabText,
+                ]}
+              >
+                Completed
+              </Text>
+            </View>
+          </Pressable>
+
+          <Pressable
+            style={[styles.tabBtn, filter === "Cancelled" && styles.activeTab]}
+            onPress={() => setFilter("Cancelled")}
+          >
+            <View style={styles.tabWithDot}>
+              <View style={[styles.dot, { backgroundColor: "#E24C4B" }]} />
+              <Text
+                style={[
+                  styles.tabText,
+                  filter === "Cancelled" && styles.activeTabText,
+                ]}
+              >
+                Cancelled
+              </Text>
+            </View>
+          </Pressable>
+        </View>
+
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {groupedAppointments().map(([month, items]) => (
+            <View key={month} style={styles.section}>
+              <Text style={styles.monthText}>{month}</Text>
+
+              {items.map((item, index) => {
+                const statusColor = getStatusColor(item.status);
+                const statusBg = getStatusBg(item.status);
+
+                return (
+                  <Pressable
+                    key={`${item.id}-${index}`}
+                    style={styles.card}
+                    onPress={() => handleOpenDetails(item)}
+                  >
+                    <View style={styles.cardGlow} />
+
+                    <View style={styles.cardTop}>
+                      <View style={styles.dateRow}>
+                        <Ionicons
+                          name="calendar-outline"
+                          size={13}
+                          color="#8D8D8D"
+                        />
+                        <Text style={styles.dateText}>{item.date}</Text>
+                        <View style={styles.dateDot} />
+                        <Ionicons
+                          name="time-outline"
+                          size={13}
+                          color="#8D8D8D"
+                        />
+                        <Text style={styles.dateText}>{item.time}</Text>
+                      </View>
+
+                      <View
+                        style={[
+                          styles.typeBadge,
+                          { backgroundColor: statusBg },
+                        ]}
+                      >
+                        <Ionicons
+                          name={getStatusIcon(item.status)}
+                          size={12}
+                          color={statusColor}
+                        />
+                        <Text
+                          style={[styles.typeBadgeText, { color: statusColor }]}
+                        >
+                          {item.status}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.cardBody}>
+                      <View style={styles.leftIconWrap}>
+                        <Ionicons
+                          name="calendar-clear-outline"
+                          size={22}
+                          color={colors.primary}
+                        />
+                      </View>
+
+                      <View style={styles.cardMainContent}>
+                        <Text style={styles.serviceTitle}>{item.title}</Text>
+                        <Text style={styles.cardSubtitle}>{item.procedure}</Text>
+                      </View>
+
+                      <View style={styles.arrowWrap}>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={18}
+                          color={colors.primary}
+                        />
+                      </View>
+                    </View>
+
+                    <View style={styles.cardFooter}>
+                      <View style={styles.metaPill}>
+                        <Ionicons
+                          name="medical-outline"
+                          size={12}
+                          color="#8D8D8D"
+                        />
+                        <Text style={styles.metaPillText}>
+                          {item.tooth || "Tooth Record"}
+                        </Text>
+                      </View>
+
+                      <View style={styles.metaPill}>
+                        <Ionicons
+                          name="person-outline"
+                          size={12}
+                          color="#8D8D8D"
+                        />
+                        <Text style={styles.metaPillText} numberOfLines={1}>
+                          {item.doctor}
+                        </Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ))}
+        </ScrollView>
+
+        <Modal
+          visible={detailsVisible}
+          animationType="slide"
+          transparent
+          onRequestClose={handleCloseDetails}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.modal}>
+              <View style={styles.modalHandle} />
+
+              <View style={styles.modalHeaderRow}>
+                <View>
+                  <Text style={styles.modalTitle}>Appointment Details</Text>
+                  <Text style={styles.modalSubTitle}>
+                    Appointment information and AI assessment
+                  </Text>
+                </View>
+
+                <Pressable
+                  style={styles.closeCircle}
+                  onPress={handleCloseDetails}
+                >
+                  <Ionicons name="close" size={20} color={colors.primary} />
+                </Pressable>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={styles.detailCard}>
+                  <View style={styles.detailTopRow}>
+                    <Text style={styles.detailProcedure}>
+                      {selectedAppointment?.title}
+                    </Text>
+
+                    {!!selectedAppointment?.status && (
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          {
+                            backgroundColor: getStatusBg(
+                              selectedAppointment.status
+                            ),
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name={getStatusIcon(selectedAppointment.status)}
+                          size={13}
+                          color={getStatusColor(selectedAppointment.status)}
+                          style={{ marginRight: 4 }}
+                        />
+                        <Text
+                          style={[
+                            styles.statusBadgeText,
+                            {
+                              color: getStatusColor(selectedAppointment.status),
+                            },
+                          ]}
+                        >
+                          {selectedAppointment.status}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <Text style={styles.detailTreatment}>
+                    {selectedAppointment?.procedure}
+                  </Text>
+
+                  <View style={styles.detailInfoGrid}>
+                    <View style={styles.detailInfoItem}>
+                      <Text style={styles.label}>Dentist</Text>
+                      <Text style={styles.value}>
+                        {selectedAppointment?.doctor}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailInfoItem}>
+                      <Text style={styles.label}>Date</Text>
+                      <Text style={styles.value}>
+                        {selectedAppointment?.date}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailInfoItem}>
+                      <Text style={styles.label}>Time</Text>
+                      <Text style={styles.value}>
+                        {selectedAppointment?.time}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailInfoItem}>
+                      <Text style={styles.label}>Tooth / Area</Text>
+                      <Text style={styles.value}>
+                        {selectedAppointment?.tooth}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.aiCard}>
+                  <View style={styles.aiTitleRow}>
+                    <View style={styles.aiIconWrap}>
+                      <Ionicons
+                        name="sparkles-outline"
+                        size={18}
+                        color="#fff"
+                      />
+                    </View>
+
+                    <View>
+                      <Text style={styles.aiTitle}>AI Assessment</Text>
+                      <Text style={styles.aiSubtitle}>
+                        Summary of your pre-assessment
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.toothPlaceholderCard}>
+                    <View style={styles.toothCircle}>
+                      <Ionicons
+                        name="medical-outline"
+                        size={28}
+                        color={colors.primary}
+                      />
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.toothPlaceholderLabel}>
+                        Affected Tooth
+                      </Text>
+                      <Text style={styles.toothPlaceholderValue}>
+                        {selectedAppointment?.tooth || "Not specified"}
+                      </Text>
+                      <Text style={styles.toothPlaceholderHint}>
+                        Pre-assessment tooth information
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.assessmentBox}>
+                    <Text style={styles.assessmentLabel}>
+                      Patient Description
+                    </Text>
+                    <Text style={styles.assessmentText}>
+                      {selectedAppointment?.description ||
+                        "No description provided."}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.sectionTitle}>Questionnaire</Text>
+                  <View style={styles.qaBox}>
+                    {selectedAppointment?.qaList?.length ? (
+                      selectedAppointment.qaList.map((q, i) => (
+                        <View key={i} style={styles.qaItem}>
+                          <Text style={styles.qText}>Q: {q.question}</Text>
+                          <Text style={styles.aText}>A: {q.answer}</Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.aText}>No questionnaire data.</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.suggestedCard}>
+                    <Text style={styles.suggestedLabel}>
+                      Suggested Treatment
+                    </Text>
+                    <Text style={styles.suggestedValue}>
+                      {selectedAppointment?.suggestedTreatment}
+                    </Text>
+                    <Text style={styles.suggestedPrice}>
+                      {selectedAppointment?.suggestedPrice}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={{ height: 18 }} />
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
-    backgroundColor: colors.background || "#fff",
-    padding: 16,
+    backgroundColor: "#F8F8F8",
   },
 
-  header: {
+  screen: {
+    flex: 1,
+    backgroundColor: "#F8F8F8",
+    paddingTop: 46,
+    paddingHorizontal: 18,
+  },
+
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
-    marginTop: 18,
   },
 
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  addBtn: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.card || "#F5F7FB",
   },
 
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: colors.text || "#111",
-  },
-
-  rightSpacer: {
-    width: 40,
-  },
-
-  searchWrap: {
+  topRight: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+  },
+
+  notifPill: {
+    width: 44,
+    height: 28,
     borderRadius: 14,
-    backgroundColor: colors.card || "#F5F7FB",
-    marginBottom: 10,
-  },
-
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text || "#111",
-  },
-
-  chipsRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 12,
-    flexWrap: "wrap",
-  },
-
-  chip: {
-    width: 80,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: colors.card || "#F5F7FB",
+    backgroundColor: "#EEE",
     alignItems: "center",
     justifyContent: "center",
   },
 
-  chipActive: {
-    backgroundColor: (colors.primary || "#2E7CF6") + "20",
+  avatarSmall: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#FFE9F1",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  chipText: {
+  title: {
+    marginTop: 10,
+    fontSize: 26,
+    fontWeight: "900",
+    color: colors.primary,
+  },
+
+  profileName: {
+    marginTop: 4,
     fontSize: 12,
-    color: colors.muted || "#777",
+    color: "#8D8D8D",
+    fontWeight: "600",
+  },
+
+  tabs: {
+    marginTop: 18,
+    flexDirection: "row",
+    backgroundColor: "#D9D9D9",
+    borderRadius: 10,
+    padding: 4,
+    elevation: 2,
+    gap: 4,
+  },
+
+  tabBtn: {
+    flex: 1,
+    minHeight: 34,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+
+  activeTab: {
+    backgroundColor: colors.primary,
+  },
+
+  tabText: {
+    fontSize: 10,
+    color: "#8A8A8A",
+    fontWeight: "500",
+  },
+
+  activeTabText: {
+    color: "#fff",
     fontWeight: "700",
   },
 
-  chipTextActive: {
-    color: colors.primary || "#2E7CF6",
+  tabWithDot: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+
+  scrollContent: {
+    paddingTop: 14,
+    paddingBottom: 30,
+  },
+
+  section: {
+    marginBottom: 18,
+  },
+
+  monthText: {
+    marginLeft: 6,
+    marginBottom: 10,
+    fontSize: 12,
+    color: "#B0B0B0",
+    fontWeight: "700",
   },
 
   card: {
-    flexDirection: "row",
-    borderRadius: 18,
-    padding: 12,
-    backgroundColor: colors.card || "#F5F7FB",
+    position: "relative",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 14,
     marginBottom: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#F1E9EE",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
   },
 
-  datePill: {
-    width: 58,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-    backgroundColor: (colors.primary || "#2E7CF6") + "18",
+  cardGlow: {
+    position: "absolute",
+    top: -12,
+    right: -12,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "#FFE7F0",
+    opacity: 0.55,
   },
 
-  pillMonth: {
-    fontSize: 12,
-    fontWeight: "900",
-    color: colors.primary || "#2E7CF6",
-  },
-
-  pillDay: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: colors.text || "#111",
-  },
-
-  cardBody: {
-    flex: 1,
-    marginLeft: 12,
+  cardTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     justifyContent: "space-between",
+    gap: 10,
   },
 
-  rowTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-
-  procedureTitle: {
+  dateRow: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: "900",
-    color: colors.text || "#111",
-    marginRight: 8,
-  },
-
-  badge: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-
-  badgeText: {
-    fontSize: 11,
-    fontWeight: "800",
-  },
-
-  subLine: {
-    marginTop: 4,
-    fontSize: 12,
-    color: colors.muted || "#777",
-    fontWeight: "600",
-  },
-
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
     flexWrap: "wrap",
+    gap: 4,
   },
 
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  metaText: {
-    marginLeft: 6,
-    fontSize: 12,
-    color: colors.muted || "#777",
+  dateText: {
+    fontSize: 11,
+    color: "#8D8D8D",
     fontWeight: "600",
   },
 
-  metaDot: {
+  dateDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.muted || "#777",
-    marginHorizontal: 10,
+    backgroundColor: "#C6C6C6",
+    marginHorizontal: 2,
   },
 
-  footerRow: {
-    marginTop: 10,
+  typeBadge: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+
+  typeBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+  },
+
+  cardBody: {
+    marginTop: 14,
+    flexDirection: "row",
     alignItems: "center",
   },
 
-  appId: {
+  leftIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "#FFF1F6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
+  cardMainContent: {
+    flex: 1,
+    paddingRight: 8,
+  },
+
+  serviceTitle: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: colors.primary,
+  },
+
+  cardSubtitle: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 17,
+    color: "#787878",
+    fontWeight: "600",
+  },
+
+  arrowWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#F7EEF2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  cardFooter: {
+    marginTop: 14,
+    flexDirection: "row",
+    gap: 8,
+  },
+
+  metaPill: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#F8F8F8",
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+
+  metaPillText: {
+    flex: 1,
     fontSize: 11,
-    color: colors.muted || "#777",
+    color: "#6F6F6F",
     fontWeight: "700",
   },
 
-  empty: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 42,
-  },
-
-  emptyTitle: {
-    marginTop: 10,
-    fontSize: 16,
-    fontWeight: "800",
-    color: colors.text || "#111",
-  },
-
-  emptySub: {
-    marginTop: 4,
-    fontSize: 12,
-    color: colors.muted || "#777",
-  },
-
-  modalOverlay: {
+  overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
+    backgroundColor: "rgba(0,0,0,0.34)",
+    justifyContent: "flex-end",
   },
 
-  modalCard: {
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
+  modal: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    maxHeight: "92%",
+  },
+
+  modalHandle: {
+    alignSelf: "center",
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "#D9D9D9",
+    marginBottom: 10,
+  },
+
+  modalHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 14,
   },
 
   modalTitle: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#2F2F2F",
+  },
+
+  modalSubTitle: {
+    marginTop: 3,
+    color: "#7A7A7A",
+    fontSize: 12.5,
+  },
+
+  closeCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#F6F6F6",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E6E6E6",
+  },
+
+  detailCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: "#ECECEC",
+    marginBottom: 14,
+  },
+
+  detailTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+
+  detailProcedure: {
+    flex: 1,
     fontSize: 18,
-    fontWeight: "800",
-    color: colors.primary,
-    textAlign: "center",
-    marginBottom: 8,
+    fontWeight: "900",
+    color: "#232323",
+    paddingRight: 8,
   },
 
-  modalSubtitle: {
-    fontSize: 12,
-    color: colors.textGray,
-    textAlign: "center",
-    marginBottom: 16,
-  },
-
-  optionButton: {
-    backgroundColor: "#FFE9F1",
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-    alignItems: "center",
-  },
-
-  optionText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.primary,
-    textAlign: "center",
-  },
-
-  cancelBtn: {
+  detailTreatment: {
     marginTop: 4,
-    paddingVertical: 10,
+    color: "#6D6D6D",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    flexDirection: "row",
     alignItems: "center",
   },
 
-  cancelText: {
+  statusBadgeText: {
+    fontSize: 11.5,
+    fontWeight: "800",
+  },
+
+  detailInfoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginTop: 14,
+  },
+
+  detailInfoItem: {
+    width: "48%",
+    backgroundColor: "#F7F7F7",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
+  },
+
+  label: {
+    fontSize: 11.5,
+    color: "#888888",
+    marginBottom: 4,
+    fontWeight: "700",
+  },
+
+  value: {
+    fontSize: 13.5,
+    color: "#333333",
+    fontWeight: "800",
+  },
+
+  aiCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: "#ECECEC",
+  },
+
+  aiTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+
+  aiIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+
+  aiTitle: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: "#2F2F2F",
+  },
+
+  aiSubtitle: {
+    fontSize: 12,
+    color: "#7A7A7A",
+    marginTop: 2,
+  },
+
+  toothPlaceholderCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F7F7F7",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#EBEBEB",
+    marginBottom: 14,
+  },
+
+  toothCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: "#E8E8E8",
+  },
+
+  toothPlaceholderLabel: {
+    fontSize: 11.5,
+    color: "#7F7F7F",
+    fontWeight: "700",
+  },
+
+  toothPlaceholderValue: {
+    marginTop: 3,
+    fontSize: 16,
+    color: "#333333",
+    fontWeight: "900",
+  },
+
+  toothPlaceholderHint: {
+    marginTop: 4,
+    fontSize: 11.5,
+    color: "#9A9A9A",
+  },
+
+  assessmentBox: {
+    backgroundColor: "#F7F7F7",
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 14,
+  },
+
+  assessmentLabel: {
+    color: "#444444",
+    fontWeight: "800",
+    fontSize: 12.5,
+    marginBottom: 6,
+  },
+
+  assessmentText: {
+    color: "#5C5C5C",
     fontSize: 13,
-    color: colors.textGray,
-    fontWeight: "600",
+    lineHeight: 19,
+  },
+
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#333333",
+    marginBottom: 10,
+  },
+
+  qaBox: {
+    backgroundColor: "#F7F7F7",
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 14,
+  },
+
+  qaItem: {
+    paddingBottom: 10,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E7E7E7",
+  },
+
+  qText: {
+    fontSize: 12.5,
+    fontWeight: "800",
+    color: "#3F3F3F",
+    marginBottom: 4,
+  },
+
+  aText: {
+    fontSize: 12.5,
+    color: "#696969",
+    lineHeight: 18,
+  },
+
+  suggestedCard: {
+    backgroundColor: "#F6F6F6",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#EAEAEA",
+  },
+
+  suggestedLabel: {
+    fontSize: 12,
+    color: "#7C7C7C",
+    fontWeight: "700",
+  },
+
+  suggestedValue: {
+    marginTop: 4,
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#2F2F2F",
+  },
+
+  suggestedPrice: {
+    marginTop: 4,
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#2F7D4D",
   },
 });
