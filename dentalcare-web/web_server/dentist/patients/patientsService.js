@@ -39,7 +39,6 @@ const formatProcedureDate = (dateValue, timeValue) => {
     : date.toLocaleDateString("en-PH", { month: "short", day: "2-digit", year: "numeric" });
 
   if (!timeValue) {
-    // If a full timestamp is provided (e.g., updated_at), display date + time.
     if (typeof dateValue === "string" && dateValue.includes("T") && !Number.isNaN(date.getTime())) {
       const hour = date.getHours();
       const minute = date.getMinutes();
@@ -165,6 +164,21 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
     }
   }
 
+  // --- NEW: Create a specific map of Booking ID -> PreAssessment Payload ---
+  const preAssessmentsByBookingId = new Map();
+  for (const booking of bookingsResult.data || []) {
+    if (booking.preassessment_id && preassessmentById.has(booking.preassessment_id)) {
+      preAssessmentsByBookingId.set(
+        booking.id,
+        toPreAssessmentPayload(
+          preassessmentById.get(booking.preassessment_id),
+          booking.service,
+          questionnaireLookup
+        )
+      );
+    }
+  }
+
   const grouped = new Map();
 
   for (const booking of bookingsResult.data || []) {
@@ -181,7 +195,6 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
       branch: booking.branch || "-",
       dateOfVisit: booking.appointment_date,
       currentDentalRecordLabel: "Current Dental Record",
-      preAssessment: null,
       procedures: [],
     };
 
@@ -209,15 +222,9 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
       afterPhoto: null,
       source: "booking",
       bookingId: booking.id,
+      // Pass the specific pre-assessment for this booking directly to the procedure
+      preAssessment: preAssessmentsByBookingId.get(booking.id) || null,
     });
-
-    if (!current.preAssessment && booking.preassessment_id) {
-      current.preAssessment = toPreAssessmentPayload(
-        preassessmentById.get(booking.preassessment_id),
-        booking.service,
-        questionnaireLookup
-      );
-    }
 
     grouped.set(groupKey, current);
   }
@@ -242,6 +249,8 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
         afterPhoto: procedure.after_image_url || null,
         source: "procedure",
         bookingId: procedure.booking_id || null,
+        // Match the procedure to its original booking's pre-assessment, if it exists
+        preAssessment: procedure.booking_id ? (preAssessmentsByBookingId.get(procedure.booking_id) || null) : null,
       });
       grouped.set(patientKey, current);
     }

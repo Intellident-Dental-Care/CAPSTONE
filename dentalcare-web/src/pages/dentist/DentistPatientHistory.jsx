@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import Sidebar from "../../components/dentist/layout/Sidebar";
 import Topbar from "../../components/dentist/layout/Topbar";
 import ProcedureModal from "../../components/dentist/patients/ProcedureModal";
-import PreAssessmentModal from "../../components/dentist/patients/PreAssessmentModal";
-import toothModel from "../../assets/tooth_model.png";
 import profileImage from "../../assets/profile_sample.jpg";
 import { createDentistProcedure, getDentistPatientHistory } from "../../services/dentistService";
 
@@ -21,18 +19,34 @@ export default function DentistPatientHistory() {
 
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-  const [preAssessmentOpen, setPreAssessmentOpen] = useState(false);
   const [procedureModalOpen, setProcedureModalOpen] = useState(false);
   const [isProcedureSaving, setIsProcedureSaving] = useState(false);
 
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedProcedure, setSelectedProcedure] = useState(null);
+  
+  // State to track which tooth was clicked on the Vercel 3D Model
+  const [selectedTooth, setSelectedTooth] = useState(null);
 
   const [notifications, setNotifications] = useState([]);
   const [patients, setPatients] = useState([]);
   const [branchOptions, setBranchOptions] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [showSaveToast, setShowSaveToast] = useState(false);
+
+  // Listen for messages coming from the Vercel 3D Model iframe
+  useEffect(() => {
+    const handleIframeMessage = (event) => {
+      if (event.data?.type === 'TOOTH_SELECTED') {
+        setSelectedTooth(event.data.tooth);
+      } else if (event.data?.type === 'SELECTION_CLEARED') {
+        setSelectedTooth(null);
+      }
+    };
+
+    window.addEventListener('message', handleIframeMessage);
+    return () => window.removeEventListener('message', handleIframeMessage);
+  }, []);
 
   const applyHistoryPayload = (payload = {}) => {
     setPatients(payload.patients || []);
@@ -42,28 +56,18 @@ export default function DentistPatientHistory() {
 
   useEffect(() => {
     let mounted = true;
-
     const loadHistory = async () => {
       const cached = await getDentistPatientHistory();
       if (!mounted) return;
-
       if (cached?.success) {
-        const cachedPayload = cached.data || {};
-        applyHistoryPayload(cachedPayload);
+        applyHistoryPayload(cached.data || {});
       }
-
       const fresh = await getDentistPatientHistory({ forceRefresh: true });
       if (!mounted || !fresh?.success) return;
-
-      const payload = fresh.data || {};
-      applyHistoryPayload(payload);
+      applyHistoryPayload(fresh.data || {});
     };
-
     loadHistory();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const filteredPatients = useMemo(() => {
@@ -71,20 +75,13 @@ export default function DentistPatientHistory() {
       const matchesSearch =
         patient.name.toLowerCase().includes(search.toLowerCase()) ||
         String(patient.phone || "").includes(search);
-
       const matchesBranch = selectedBranch === "All Branch" || patient.branch === selectedBranch;
       return matchesSearch && matchesBranch;
     });
   }, [patients, search, selectedBranch]);
 
-  const handleToggleNotifications = () => {
-    setIsNotificationOpen((prev) => !prev);
-  };
-
-  const handleCloseNotifications = () => {
-    setIsNotificationOpen(false);
-  };
-
+  const handleToggleNotifications = () => setIsNotificationOpen((prev) => !prev);
+  const handleCloseNotifications = () => setIsNotificationOpen(false);
   const handleMarkAllRead = () => {
     setNotifications([]);
     setIsNotificationOpen(false);
@@ -93,17 +90,14 @@ export default function DentistPatientHistory() {
   const handleViewPatient = (patient) => {
     setSelectedPatient(patient);
     setSelectedProcedure(null);
+    setSelectedTooth(null); 
     setHistoryModalOpen(true);
   };
 
+  // NEW FIX: No more aggressive hijack. Always opens the details modal.
   const handleViewDetails = (procedure) => {
     setSelectedProcedure(procedure);
-
-    if (selectedPatient?.preAssessment) {
-      setPreAssessmentOpen(true);
-    } else {
-      setDetailsModalOpen(true);
-    }
+    setDetailsModalOpen(true);
   };
 
   const handleOpenProcedureModal = () => {
@@ -142,8 +136,6 @@ export default function DentistPatientHistory() {
       applyHistoryPayload(refreshed.data || {});
     }
 
-    // Close layered modals after successful save.
-    setPreAssessmentOpen(false);
     setDetailsModalOpen(false);
     setHistoryModalOpen(false);
     setProcedureModalOpen(false);
@@ -151,6 +143,15 @@ export default function DentistPatientHistory() {
     setTimeout(() => setShowSaveToast(false), 1800);
     setIsProcedureSaving(false);
   };
+
+  const filteredTimeline = useMemo(() => {
+    if (!selectedPatient?.procedures) return [];
+    if (!selectedTooth) return selectedPatient.procedures; 
+    
+    return selectedPatient.procedures.filter(
+      (proc) => proc.tooth && proc.tooth.includes(selectedTooth)
+    );
+  }, [selectedPatient, selectedTooth]);
 
   return (
     <div className="dentist-dashboard">
@@ -259,18 +260,24 @@ export default function DentistPatientHistory() {
 
             <div className="history-modal-body">
               <div className="history-modal-left">
-                <div className="history-modal-image-wrap">
-                  <img src={toothModel} alt="Dental Record" className="history-modal-image" />
+                <div className="history-modal-image-wrap" style={{ position: 'relative', width: '100%', height: '350px', overflow: 'hidden', borderRadius: '8px' }}>
+                  <iframe 
+                    src="https://intellident-3d-viewer.vercel.app/" 
+                    title="IntelliDent 3D Viewer"
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                  />
                 </div>
                 <p className="history-modal-record-label">{selectedPatient.currentDentalRecordLabel}</p>
               </div>
 
               <div className="history-modal-right">
-                <h3 className="history-timeline-title">Procedure Timeline</h3>
+                <h3 className="history-timeline-title">
+                  {selectedTooth ? `Procedure Timeline: ${selectedTooth}` : "Procedure Timeline"}
+                </h3>
 
                 <div className="history-timeline-list">
-                  {selectedPatient.procedures?.length > 0 ? (
-                    selectedPatient.procedures.map((procedure) => (
+                  {filteredTimeline.length > 0 ? (
+                    filteredTimeline.map((procedure) => (
                       <div className="history-timeline-card" key={procedure.id}>
                         <div className="history-timeline-card-top">
                           <span className="history-timeline-date">{procedure.date}</span>
@@ -296,7 +303,11 @@ export default function DentistPatientHistory() {
                       </div>
                     ))
                   ) : (
-                    <div className="history-timeline-empty">No procedure history found.</div>
+                    <div className="history-timeline-empty">
+                      {selectedTooth 
+                        ? `No procedure history found for ${selectedTooth}.` 
+                        : "No procedure history found."}
+                    </div>
                   )}
                 </div>
 
@@ -315,15 +326,6 @@ export default function DentistPatientHistory() {
         </div>
       )}
 
-      {selectedPatient?.preAssessment && (
-        <PreAssessmentModal
-          open={preAssessmentOpen}
-          onClose={() => setPreAssessmentOpen(false)}
-          data={selectedPatient.preAssessment}
-          showAddProcedure={false}
-        />
-      )}
-
       {detailsModalOpen && selectedProcedure && (
         <div className="history-detail-overlay" onClick={() => setDetailsModalOpen(false)}>
           <div className="history-detail-modal" onClick={(e) => e.stopPropagation()}>
@@ -339,30 +341,47 @@ export default function DentistPatientHistory() {
             </div>
 
             <div className="history-detail-content">
+              {/* NEW FIX: Dynamically render pre-assessment inside the details modal */}
               <div className="history-detail-section">
                 <h3 className="history-detail-section-title">Pre-Assessment</h3>
-                <div className="history-detail-empty-box">No pre-assessment done for this patient.</div>
+                
+                {selectedProcedure.preAssessment ? (
+                  <div className="history-detail-info-card" style={{ maxHeight: '180px', overflowY: 'auto', background: '#fdfdfd' }}>
+                    {selectedProcedure.preAssessment.questions?.map((item, idx) => (
+                      <div key={idx} style={{ marginBottom: "12px" }}>
+                        <p style={{ margin: "0 0 4px 0", fontWeight: "600", fontSize: "13px", color: "#333" }}>
+                          Question {idx + 1}: {item.question}
+                        </p>
+                        <p style={{ margin: 0, fontSize: "13px", color: "#666" }}>
+                          Answer: {item.answer}
+                        </p>
+                      </div>
+                    ))}
+                    {selectedProcedure.preAssessment.suggestedTreatment && (
+                      <div style={{ marginTop: "12px", borderTop: "1px solid #eee", paddingTop: "12px" }}>
+                        <p style={{ margin: "0 0 4px 0", fontWeight: "700", fontSize: "11px", textTransform: "uppercase", color: "#e11d48" }}>
+                          Suggested Treatment / Procedure
+                        </p>
+                        <p style={{ margin: 0, fontSize: "14px", color: "#333", fontWeight: "500" }}>
+                          {selectedProcedure.preAssessment.suggestedTreatment}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="history-detail-empty-box">No pre-assessment done for this record.</div>
+                )}
               </div>
 
               <div className="history-detail-section">
                 <h3 className="history-detail-section-title">Procedure Details</h3>
 
                 <div className="history-detail-info-card">
-                  <p>
-                    <span>Date:</span> {selectedProcedure.date}
-                  </p>
-                  <p>
-                    <span>Procedure:</span> {selectedProcedure.procedure}
-                  </p>
-                  <p>
-                    <span>Tooth:</span> {selectedProcedure.tooth}
-                  </p>
-                  <p>
-                    <span>Dentist:</span> {selectedProcedure.dentist}
-                  </p>
-                  <p>
-                    <span>Remarks:</span> {selectedProcedure.remarks}
-                  </p>
+                  <p><span>Date:</span> {selectedProcedure.date}</p>
+                  <p><span>Procedure:</span> {selectedProcedure.procedure}</p>
+                  <p><span>Tooth:</span> {selectedProcedure.tooth}</p>
+                  <p><span>Dentist:</span> {selectedProcedure.dentist}</p>
+                  <p><span>Remarks:</span> {selectedProcedure.remarks}</p>
                 </div>
               </div>
 
@@ -391,7 +410,7 @@ export default function DentistPatientHistory() {
         open={procedureModalOpen}
         onClose={() => setProcedureModalOpen(false)}
         onSave={handleSaveProcedure}
-        tooth={selectedProcedure?.tooth || selectedPatient?.preAssessment?.tooth || "Not specified"}
+        tooth={selectedTooth || selectedProcedure?.tooth || selectedPatient?.preAssessment?.tooth || "Not specified"}
         isSaving={isProcedureSaving}
       />
       {showSaveToast ? <div className="save-toast">Procedure saved successfully</div> : null}

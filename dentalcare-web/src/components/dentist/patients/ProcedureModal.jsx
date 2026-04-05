@@ -1,5 +1,4 @@
-import { useState } from "react";
-import toothModel from "../../../assets/tooth_model.png";
+import { useState, useEffect, useRef } from "react";
 
 const SERVICE_OPTIONS = [
   "Cleaning",
@@ -25,6 +24,36 @@ export default function ProcedureModal({
   const [remarks, setRemarks] = useState("");
   const [beforePhoto, setBeforePhoto] = useState(null);
   const [afterPhoto, setAfterPhoto] = useState(null);
+
+  // --- NEW 3D MODEL SYNC LOGIC ---
+  const iframeRef = useRef(null);
+  const [localTooth, setLocalTooth] = useState("Not specified");
+
+  // Sync local tooth when the modal first opens or the incoming tooth prop changes
+  useEffect(() => {
+    setLocalTooth(tooth || "Not specified");
+  }, [tooth]);
+
+  // Listen for the dentist clicking a NEW tooth inside the Procedure Modal's 3D model
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data?.type === 'TOOTH_SELECTED') {
+        setLocalTooth(event.data.tooth);
+      } else if (event.data?.type === 'SELECTION_CLEARED') {
+        setLocalTooth("Not specified");
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  // When the 3D iframe loads, tell it to select the tooth that was passed down
+  const handleIframeLoad = () => {
+    if (tooth && tooth !== "Not specified" && iframeRef.current) {
+      iframeRef.current.contentWindow.postMessage({ type: 'SELECT_TOOTH', tooth: tooth }, '*');
+    }
+  };
+  // -------------------------------
 
   if (!open) return null;
 
@@ -54,7 +83,8 @@ export default function ProcedureModal({
       remarks,
       beforePhoto,
       afterPhoto,
-      tooth,
+      // Pass the locally selected tooth, in case they changed it!
+      tooth: localTooth, 
     };
 
     await onSave?.(payload);
@@ -77,16 +107,19 @@ export default function ProcedureModal({
 
         <div className="procedure-content">
           <div className="procedure-left">
-            <div className="procedure-image-wrap">
-              <img
-                src={toothModel}
-                alt="Tooth Model"
-                className="procedure-image"
+            {/* Replaced static image with the interactive 3D model iframe */}
+            <div className="procedure-image-wrap" style={{ position: 'relative', width: '100%', height: '300px', overflow: 'hidden', borderRadius: '8px' }}>
+              <iframe
+                ref={iframeRef}
+                onLoad={handleIframeLoad}
+                src="https://intellident-3d-viewer.vercel.app/"
+                title="IntelliDent 3D Viewer"
+                style={{ width: '100%', height: '100%', border: 'none' }}
               />
             </div>
 
             <p className="procedure-tooth">
-              <strong>Tooth:</strong> {tooth || "Not specified"}
+              <strong>Tooth:</strong> {localTooth}
             </p>
           </div>
 

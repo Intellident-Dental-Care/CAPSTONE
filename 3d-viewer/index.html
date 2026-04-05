@@ -5,20 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dental 3D Viewer - IntelliDent</title>
     <style>
-      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #f4f4f4; font-family: Arial, sans-serif; }
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: Arial, sans-serif; }
       #app { position: fixed; inset: 0; }
+      
       #ui {
-        position: fixed; top: 12px; left: 12px; z-index: 10;
-        background: rgba(255,255,255,.94); border-radius: 12px; padding: 15px;
-        box-shadow: 0 8px 20px rgba(0,0,0,.15); display: flex; flex-direction: column; gap: 12px; min-width: 280px;
+        position: fixed; bottom: 8px; left: 8px; right: 8px; z-index: 10;
+        background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(4px);
+        border-radius: 8px; padding: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,.1);
+        display: flex; flex-direction: column; gap: 4px;
       }
-      .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+      
+      .row { display: flex; gap: 4px; justify-content: space-between; }
+      
       button {
-        border: 1px solid #ddd; background: #fff; border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: 0.2s; font-size: 13px;
+        flex: 1; border: 1px solid #ccc; background: rgba(255,255,255,0.9); border-radius: 4px; 
+        padding: 5px 2px; cursor: pointer; transition: 0.2s; 
+        font-size: 11px; font-weight: 600; text-align: center; white-space: nowrap;
       }
       button:hover { background: #e0e7ff; border-color: #a5b4fc; }
-      #status { font-size: 13px; font-weight: bold; color: #1d4ed8; margin-top: 5px; }
-      .hint { font-size: 11px; color: #666; }
+      
+      #status { font-size: 11px; font-weight: bold; color: #1d4ed8; text-align: center; margin-top: 1px; }
+      .hint { display: none; }
     </style>
   </head>
   <body>
@@ -27,15 +35,11 @@
     <div id="ui">
       <div class="row">
         <button id="btnOpen">Open</button>
-        <button id="btnFlat">Open Wide (Flat)</button>
+        <button id="btnFlat">Flat</button>
         <button id="btnClose">Close</button>
+        <button id="clearSel">Reset</button>
       </div>
-      <div class="row">
-        <button id="clearSel" style="width: 100%;">Clear Selection</button>
-      </div>
-
-      <div id="status">Loading model...</div>
-      <div class="hint">Click a tooth to select. Drag to rotate.</div>
+      <div id="status">Ready. Select a tooth.</div>
     </div>
 
     <script type="importmap">
@@ -51,24 +55,25 @@
       import * as THREE from "three";
       import { OrbitControls } from "three/addons/controls/OrbitControls.js";
       import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+      import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 
       // --- Scene Setup ---
       const app = document.getElementById("app");
       const statusEl = document.getElementById("status");
 
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0xf4f4f4);
-
       const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 100);
-      camera.position.set(0, 0, 3.5);
+      
+      const defaultCamPos = new THREE.Vector3(0, -0.15, 5.5);
+      const defaultTarget = new THREE.Vector3(0, -0.15, 0);
 
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      camera.position.copy(defaultCamPos);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      
-      // CRITICAL FOR PURE-CODE SPLITTING
+      renderer.setClearColor(0x000000, 0); 
       renderer.localClippingEnabled = true; 
-      
       app.appendChild(renderer.domElement);
 
       scene.add(new THREE.HemisphereLight(0xffffff, 0xbcbcbc, 1.2));
@@ -78,25 +83,30 @@
 
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
-      controls.dampingFactor = 0.08;
-      controls.minDistance = 1.5; 
-      controls.maxDistance = 5.5; 
+      controls.dampingFactor = 0.05; 
+      controls.zoomSpeed = 0.6; 
+      controls.minDistance = 1.0; 
+      controls.maxDistance = 8.0; 
       controls.minAzimuthAngle = -Math.PI / 2.5; 
       controls.maxAzimuthAngle = Math.PI / 2.5;  
       controls.maxPolarAngle = Math.PI / 1.6;    
+      controls.enablePan = true; 
+      
+      controls.target.copy(defaultTarget);
+      let currentTarget = new THREE.Vector3();
+      currentTarget.copy(defaultTarget);
 
       // --- Logic Variables ---
       const toothMeshes = [];
       const activeOverlays = []; 
 
-      // Jaw Animation Groups
       const lowerJawGroup = new THREE.Group();
       const upperJawGroup = new THREE.Group();
       scene.add(lowerJawGroup);
       scene.add(upperJawGroup);
       
-      // Animation State Tracker
       let animState = 'closed';
+      window.pendingToothSelection = null; 
 
       // --- Load Model ---
       const loader = new GLTFLoader();
@@ -111,59 +121,115 @@
         root.position.sub(center);
         
         root.rotation.y = Math.PI; 
+        root.rotation.z = -0.02; 
 
-        // Temporary arrays to hold parts safely
         const partsToLower = [];
         const partsToUpper = [];
 
         root.traverse((obj) => {
           if (obj.isMesh) {
+            try {
+              obj.geometry = mergeVertices(obj.geometry, 1e-3);
+              obj.geometry.computeVertexNormals();
+            } catch (e) {}
+
             const name = obj.name.toUpperCase().trim();
-            
             const isUpperTooth = name.endsWith('_U') || name.includes('_U_');
             const isLowerTooth = name.endsWith('_L') || name.includes('_L_');
             const isUpperJaw = name.includes('UPPER');
             const isLowerJaw = name.includes('LOWER');
 
-            if (isUpperTooth || isLowerTooth) {
-              toothMeshes.push(obj);
-            }
-
-            if (isLowerJaw || isLowerTooth) {
-              partsToLower.push(obj);
-            } else if (isUpperJaw || isUpperTooth) {
-              partsToUpper.push(obj);
-            }
+            if (isUpperTooth || isLowerTooth) toothMeshes.push(obj);
+            if (isLowerJaw || isLowerTooth) partsToLower.push(obj);
+            else if (isUpperJaw || isUpperTooth) partsToUpper.push(obj);
           }
         });
 
-        // SAFE ATTACHMENT
         partsToLower.forEach(obj => lowerJawGroup.attach(obj));
         partsToUpper.forEach(obj => upperJawGroup.attach(obj));
 
-        statusEl.textContent = `Ready. ${toothMeshes.length} teeth loaded.`;
+        statusEl.textContent = `Ready. Select a tooth.`;
+
+        if (window.pendingToothSelection) {
+            applyRemoteSelection(window.pendingToothSelection);
+            window.pendingToothSelection = null;
+        }
       });
 
-      // --- PURE CODE SELECTION LOGIC ---
+      function formatToothName(rawName, isRightSide) {
+        const upperRaw = rawName.toUpperCase();
+        const jaw = upperRaw.includes('_U') ? 'Upper' : 'Lower';
+        const side = isRightSide ? '(R)' : '(L)';
+
+        let cleanName = upperRaw.replace(/_[UL]$/, '').replace(/_/g, ' ');
+        if (cleanName === 'INCISOR CENTRAL') cleanName = 'CENTRAL INCISOR';
+        if (cleanName === 'INCISOR LATERAL') cleanName = 'LATERAL INCISOR';
+
+        cleanName = cleanName.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        return `${jaw} ${cleanName} ${side}`;
+      }
+
+      // --- SELECTION & ZOOM LOGIC ---
       const raycaster = new THREE.Raycaster();
       const pointer = new THREE.Vector2();
 
-      function clearSelection() {
+      renderer.domElement.addEventListener("wheel", (e) => {
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(pointer, camera);
+        const hits = raycaster.intersectObjects(toothMeshes, false);
+        
+        if (hits.length > 0) currentTarget.copy(hits[0].point);
+      }, { passive: true });
+
+      renderer.domElement.addEventListener("touchmove", (e) => {
+        if (e.touches.length === 2) {
+          const rect = renderer.domElement.getBoundingClientRect();
+          const touch1 = e.touches[0];
+          const touch2 = e.touches[1];
+          const centerX = (touch1.clientX + touch2.clientX) / 2;
+          const centerY = (touch1.clientY + touch2.clientY) / 2;
+
+          pointer.x = ((centerX - rect.left) / rect.width) * 2 - 1;
+          pointer.y = -((centerY - rect.top) / rect.height) * 2 + 1;
+
+          raycaster.setFromCamera(pointer, camera);
+          const hits = raycaster.intersectObjects(toothMeshes, false);
+          
+          if (hits.length > 0) currentTarget.copy(hits[0].point);
+        }
+      }, { passive: true });
+
+      function clearOverlays() {
         activeOverlays.forEach((overlay) => {
           if (overlay.parent) overlay.parent.remove(overlay);
           if (overlay.material) overlay.material.dispose();
         });
         activeOverlays.length = 0;
-        statusEl.textContent = "Selection cleared.";
+      }
+
+      function handleReset() {
+        clearOverlays();
+        statusEl.textContent = "View reset.";
+        
+        camera.position.copy(defaultCamPos);
+        currentTarget.copy(defaultTarget);
+        controls.target.copy(defaultTarget);
+        
+        animState = 'closed';
+        controls.enableRotate = true; 
+
+        window.parent.postMessage({ type: 'SELECTION_CLEARED' }, '*');
       }
 
       function highlightMesh(mesh, hitPoint) {
         const isRightSide = hitPoint.x > 0;
-        
         const clipNormal = isRightSide ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(-1, 0, 0);
         
         const mat = new THREE.MeshStandardMaterial({
-          color: 0x87CEFA, // Light Blue
+          color: 0x87CEFA, 
           roughness: 0.4,
           metalness: 0.1,
           side: THREE.DoubleSide,
@@ -180,56 +246,110 @@
       }
 
       function selectSingle(mesh, hitPoint) {
-        clearSelection();
+        clearOverlays(); 
         highlightMesh(mesh, hitPoint);
         
-        const side = hitPoint.x > 0 ? "(L)" : "(R)";
-        statusEl.textContent = `Selected: ${mesh.name} ${side}`;
+        const isRightSide = hitPoint.x > 0;
+        const prettyName = formatToothName(mesh.name, isRightSide);
+        
+        statusEl.textContent = `Selected: ${prettyName}`;
+        currentTarget.copy(hitPoint);
+        window.parent.postMessage({ type: 'TOOTH_SELECTED', tooth: prettyName }, '*');
       }
 
-      // Click Event
+      // --- REMOTE SELECTION RECEIVER ---
+      window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'SELECT_TOOTH') {
+          const targetName = event.data.tooth;
+          
+          if (!targetName || targetName === "Not specified") {
+            handleReset();
+            return;
+          }
+
+          if (toothMeshes.length === 0) {
+              window.pendingToothSelection = targetName;
+              return;
+          }
+
+          applyRemoteSelection(targetName);
+        }
+      });
+
+      function applyRemoteSelection(targetName) {
+        let foundMesh = null;
+        let isRight = targetName.includes('(R)');
+
+        for (const mesh of toothMeshes) {
+            const pRight = formatToothName(mesh.name, true);
+            const pLeft = formatToothName(mesh.name, false);
+
+            if (pRight === targetName) { foundMesh = mesh; isRight = true; break; }
+            if (pLeft === targetName) { foundMesh = mesh; isRight = false; break; }
+        }
+
+        if (foundMesh) {
+            const fakeHitPoint = new THREE.Vector3(isRight ? 1 : -1, 0, 0);
+            clearOverlays();
+            highlightMesh(foundMesh, fakeHitPoint);
+            statusEl.textContent = `Selected: ${targetName}`;
+
+            foundMesh.geometry.computeBoundingBox();
+            const center = new THREE.Vector3();
+            foundMesh.geometry.boundingBox.getCenter(center);
+            foundMesh.localToWorld(center);
+            currentTarget.copy(center);
+        }
+      }
+
       renderer.domElement.addEventListener("pointerdown", (e) => {
         const rect = renderer.domElement.getBoundingClientRect();
         pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(pointer, camera);
-        
         const hits = raycaster.intersectObjects(toothMeshes, false);
         
-        if (hits.length > 0) {
-          const clickedMesh = hits[0].object;
-          const hitPoint = hits[0].point; 
-          
-          selectSingle(clickedMesh, hitPoint);
-        }
+        if (hits.length > 0) selectSingle(hits[0].object, hits[0].point);
       });
 
-      document.getElementById("clearSel").onclick = clearSelection;
+      document.getElementById("clearSel").onclick = handleReset;
 
-      // --- Animation Logic ---
-      document.getElementById("btnOpen").onclick = () => animState = 'open'; 
-      document.getElementById("btnFlat").onclick = () => animState = 'flat'; 
-      document.getElementById("btnClose").onclick = () => animState = 'closed';
+      document.getElementById("btnOpen").onclick = () => {
+        animState = 'open';
+        controls.enableRotate = true; 
+      }; 
 
-      // --- Render Loop ---
+      document.getElementById("btnFlat").onclick = () => {
+        animState = 'flat';
+        controls.enableRotate = false; 
+        camera.position.set(0, 0, camera.position.z); 
+        currentTarget.set(0, 0, 0);
+        controls.target.set(0, 0, 0);
+        controls.update();
+      }; 
+
+      document.getElementById("btnClose").onclick = () => {
+        animState = 'closed';
+        controls.enableRotate = true; 
+      };
+
       function animate() {
         requestAnimationFrame(animate);
+
+        controls.target.lerp(currentTarget, 0.05);
 
         let targetUpperRotX = 0, targetUpperPosY = 0, targetUpperPosZ = 0;
         let targetLowerRotX = 0, targetLowerPosY = 0, targetLowerPosZ = 0;
 
         if (animState === 'open') {
-          // Standard slight open
-          targetUpperRotX = -0.18; targetUpperPosY = 0.25; targetUpperPosZ = 0;
-          targetLowerRotX = 0.18; targetLowerPosY = -0.25; targetLowerPosZ = 0;
+          targetUpperRotX = -0.15; targetUpperPosY = 0.20; targetUpperPosZ = 0;
+          targetLowerRotX = 0.20; targetLowerPosY = -0.30; targetLowerPosZ = 0;
         } else if (animState === 'flat') {
-          // Flattened Occlusal View (Reduced Y separation to bring them closer)
-          targetUpperRotX = -Math.PI / 2; targetUpperPosY = 0.5; targetUpperPosZ = -0.5;
-          targetLowerRotX = Math.PI / 2; targetLowerPosY = -0.5; targetLowerPosZ = -0.5;
+          targetUpperRotX = -Math.PI / 2; targetUpperPosY = 0.55; targetUpperPosZ = -0.53; 
+          targetLowerRotX = Math.PI / 2; targetLowerPosY = -0.55; targetLowerPosZ = -0.47; 
         }
 
-        // Lerp everything for smooth transitions
         upperJawGroup.rotation.x = THREE.MathUtils.lerp(upperJawGroup.rotation.x, targetUpperRotX, 0.08);
         upperJawGroup.position.y = THREE.MathUtils.lerp(upperJawGroup.position.y, targetUpperPosY, 0.08);
         upperJawGroup.position.z = THREE.MathUtils.lerp(upperJawGroup.position.z, targetUpperPosZ, 0.08);
