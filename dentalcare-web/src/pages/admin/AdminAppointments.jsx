@@ -15,146 +15,6 @@ import "../../styles/admin/layout/admin-topbar.css";
 import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
 
-const initialAppointments = [
-  {
-    id: 1,
-    patientName: "Riko Tanaka Suzuki",
-    gender: "Male",
-    age: 25,
-    dentist: "Dr. Dian Crizzie Mendoza",
-    branch: "GC Dental Care | Dasmariñas",
-    treatment: "Wisdom Tooth Removal",
-    date: "2026-02-19",
-    time: "09:30 AM - 10:30 AM",
-    type: "Online",
-    status: "Completed",
-    notes: "Patient arrived on time.",
-  },
-  {
-    id: 2,
-    patientName: "Alden Cruz",
-    gender: "Male",
-    age: 25,
-    dentist: "Dr. Andrea Lopez",
-    branch: "GC Dental Care | GenTri",
-    treatment: "Dental Consultation",
-    date: "2026-02-19",
-    time: "10:30 AM - 11:30 AM",
-    type: "Walk-in",
-    status: "Completed",
-    notes: "Initial consultation.",
-  },
-  {
-    id: 3,
-    patientName: "Sunshine Velasquez",
-    gender: "Female",
-    age: 29,
-    dentist: "Dr. Dian Crizzie Mendoza",
-    branch: "GC Dental Care | Dasmariñas",
-    treatment: "Cleaning",
-    date: "2026-02-19",
-    time: "11:30 AM - 12:30 PM",
-    type: "Online",
-    status: "In Queue",
-    notes: "Waiting for turn.",
-  },
-  {
-    id: 4,
-    patientName: "Alex Rivera",
-    gender: "Male",
-    age: 24,
-    dentist: "Dr. Angela Santos",
-    branch: "GC Dental Care | Imus",
-    treatment: "Post & Core for RCT",
-    date: "2026-02-19",
-    time: "01:30 PM - 02:30 PM",
-    type: "Online",
-    status: "In Queue",
-    notes: "Follow-up appointment.",
-  },
-  {
-    id: 5,
-    patientName: "Mark Delos Reyes",
-    gender: "Male",
-    age: 30,
-    dentist: "Dr. Andrea Lopez",
-    branch: "GC Dental Care | Dasmariñas",
-    treatment: "TMJ Consultation",
-    date: "2026-02-20",
-    time: "09:30 AM - 10:30 AM",
-    type: "Online",
-    status: "Waiting",
-    notes: "Needs x-ray review.",
-  },
-  {
-    id: 6,
-    patientName: "Paula Gomez",
-    gender: "Female",
-    age: 28,
-    dentist: "Dr. Angela Santos",
-    branch: "GC Dental Care | GenTri",
-    treatment: "Tooth Restoration",
-    date: "2026-02-21",
-    time: "09:30 AM - 10:30 AM",
-    type: "Online",
-    status: "Waiting",
-    notes: "Needs tooth shade matching.",
-  },
-  {
-    id: 7,
-    patientName: "Leah Torres",
-    gender: "Female",
-    age: 41,
-    dentist: "Dr. Dian Crizzie Mendoza",
-    branch: "GC Dental Care | Dasmariñas",
-    treatment: "Tooth Extraction",
-    date: "2026-02-21",
-    time: "10:30 AM - 11:30 AM",
-    type: "Walk-in",
-    status: "Waiting",
-    notes: "Sensitive to anesthesia.",
-  },
-  {
-    id: 8,
-    patientName: "Chris Brown",
-    gender: "Male",
-    age: 25,
-    dentist: "Dr. Andrea Lopez",
-    branch: "GC Dental Care | Imus",
-    treatment: "Teeth Whitening",
-    date: "2026-02-22",
-    time: "09:30 AM - 10:30 AM",
-    type: "Online",
-    status: "Cancelled",
-    notes: "Cancelled by patient.",
-  },
-  {
-    id: 9,
-    patientName: "John Lee",
-    gender: "Male",
-    age: 25,
-    dentist: "Dr. Angela Santos",
-    branch: "GC Dental Care | Dasmariñas",
-    treatment: "Wisdom Tooth Removal",
-    date: "2026-02-23",
-    time: "10:30 AM - 11:30 AM",
-    type: "Online",
-    status: "Cancelled",
-    notes: "Patient unavailable.",
-  },
-];
-
-const patientOptions = [
-  { id: 1, name: "Riko Tanaka Suzuki", gender: "Male", age: 25, phone: "09123456781" },
-  { id: 2, name: "Alden Cruz", gender: "Male", age: 25, phone: "09123456782" },
-  { id: 3, name: "Sunshine Velasquez", gender: "Female", age: 29, phone: "09123456783" },
-  { id: 4, name: "Alex Rivera", gender: "Male", age: 24, phone: "09123456784" },
-  { id: 5, name: "Mark Delos Reyes", gender: "Male", age: 30, phone: "09123456785" },
-  { id: 6, name: "Paula Gomez", gender: "Female", age: 28, phone: "09123456786" },
-  { id: 7, name: "Leah Torres", gender: "Female", age: 41, phone: "09123456787" },
-  { id: 8, name: "John Lee", gender: "Male", age: 25, phone: "09123456788" },
-];
-
 const branchOptions = [
   "Dasmarinas, Cavite",
   "General Trias, Cavite",
@@ -196,33 +56,6 @@ const getTodayDayShort = () => {
   return new Date().toLocaleDateString("en-US", { weekday: "short" });
 };
 
-const doctorOptions = [
-  {
-    id: 1,
-    name: "Dr. Dian Crizzie Mendoza",
-    specialty: "Orthodontics",
-    branch: "GC Dental Care | Dasmariñas",
-  },
-  {
-    id: 2,
-    name: "Dr. Andrea Lopez",
-    specialty: "General Dentistry",
-    branch: "GC Dental Care | GenTri",
-  },
-  {
-    id: 3,
-    name: "Dr. Angela Santos",
-    specialty: "Endodontics",
-    branch: "GC Dental Care | Imus",
-  },
-  {
-    id: 4,
-    name: "Dr. Carlo Reyes",
-    specialty: "Oral Surgery",
-    branch: "GC Dental Care | Dasmariñas",
-  },
-];
-
 const serviceOptions = [
   "Dental Consultation",
   "Cleaning",
@@ -232,21 +65,6 @@ const serviceOptions = [
   "Wisdom Tooth Removal",
   "TMJ Consultation",
   "Post & Core for RCT",
-];
-
-const walkInTimeOptions = [
-  "09:00 AM",
-  "09:30 AM",
-  "10:00 AM",
-  "10:30 AM",
-  "11:00 AM",
-  "11:30 AM",
-  "01:00 PM",
-  "01:30 PM",
-  "02:00 PM",
-  "02:30 PM",
-  "03:00 PM",
-  "03:30 PM",
 ];
 
 function formatDate(dateString) {
@@ -276,30 +94,6 @@ function isWithinRange(date, startDate, endDate) {
   if (start && current < start) return false;
   if (end && current > end) return false;
   return true;
-}
-
-function toAppointmentRange(time) {
-  return `${time} - ${time}`;
-}
-
-function toTwentyFourHourTime(time) {
-  const match = String(time || "").trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) {
-    return null;
-  }
-
-  let hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  const suffix = match[3].toUpperCase();
-
-  if (suffix === "PM" && hours !== 12) {
-    hours += 12;
-  }
-  if (suffix === "AM" && hours === 12) {
-    hours = 0;
-  }
-
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
 }
 
 export default function AdminAppointments() {
@@ -372,6 +166,13 @@ export default function AdminAppointments() {
 
       if (active && appointmentsResult?.success && Array.isArray(appointmentsResult.data)) {
         setAppointments(appointmentsResult.data);
+        
+        // Auto-fill branch from backend if matched
+        if (appointmentsResult.adminBranch && appointmentsResult.adminBranch !== "All") {
+          const adminBranch = toBranchLabel(appointmentsResult.adminBranch);
+          setBranchFilter(adminBranch);
+          setWalkInForm((prev) => ({ ...prev, branch: adminBranch }));
+        }
       }
 
       if (active && patientsResult?.success && Array.isArray(patientsResult.data)) {
@@ -436,6 +237,60 @@ export default function AdminAppointments() {
   const selectedDoctorDetails = useMemo(() => {
     return doctorCatalog.find((doctor) => doctor.name === walkInForm.dentist) || null;
   }, [doctorCatalog, walkInForm.dentist]);
+
+  // SMART TIME SLOTS CALCULATION
+  const dynamicTimeOptions = useMemo(() => {
+    if (!walkInForm.dentist) return [];
+    const now = new Date();
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+    const slots = [];
+
+    // Format "Now"
+    let hours = now.getHours();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12;
+    const minsStr = String(now.getMinutes()).padStart(2, "0");
+    slots.push({
+      label: `Now (${hours}:${minsStr} ${ampm})`,
+      value: "Now",
+    });
+
+    // Dentist's booked times today
+    const bookedRanges = appointments
+      .filter((a) => a.dentist === walkInForm.dentist && a.date === today && a.status !== "Cancelled")
+      .map((a) => {
+        const match = String(a.time).match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+        if (!match) return { start: 0, end: 0 };
+        let h = Number(match[1]);
+        const m = Number(match[2]);
+        if (match[3].toUpperCase() === "PM" && h !== 12) h += 12;
+        if (match[3].toUpperCase() === "AM" && h === 12) h = 0;
+        const startMins = h * 60 + m;
+        // Assuming 1 hr duration blocks
+        return { start: startMins, end: startMins + 60 };
+      });
+
+    // Standard slots: 9:00 AM to 4:00 PM
+    for (let h = 9; h <= 16; h++) {
+      for (let m of [0, 30]) {
+        const slotMins = h * 60 + m;
+        
+        // Exclude past times
+        if (slotMins <= currentMins) continue;
+
+        // Check if it overlaps with any existing appointment block
+        const overlaps = bookedRanges.some((b) => slotMins < b.end && slotMins + 60 > b.start);
+        
+        if (!overlaps) {
+          let hr12 = h % 12 || 12;
+          let ampmStr = h >= 12 ? "PM" : "AM";
+          let label = `${String(hr12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampmStr}`;
+          slots.push({ label, value: label });
+        }
+      }
+    }
+    return slots;
+  }, [appointments, walkInForm.dentist, today]);
 
   const filteredAppointments = useMemo(() => {
     return appointments.filter((appointment) => {
@@ -609,7 +464,7 @@ export default function AdminAppointments() {
       age: "",
       phone: "",
       dentist: "",
-      branch: "",
+      branch: branchFilter !== "All" ? branchFilter : "", // maintain branch
       treatment: "",
       date: today,
       time: "",
@@ -659,9 +514,9 @@ export default function AdminAppointments() {
     setWalkInForm((prev) => ({
       ...prev,
       date: today,
-      time: getCurrentTimeLabel(),
+      time: "Now", // default smart select
     }));
-    setWalkInStep(3);
+    setWalkInStep(2);
   };
 
   const handleProceedToReview = () => {
@@ -687,6 +542,7 @@ export default function AdminAppointments() {
       dentistId: selectedDentist?.id || null,
       branch: walkInForm.branch,
       service: walkInForm.treatment,
+      time: walkInForm.time, // Passes "Now" or standard time slot to backend
     });
 
     if (!createResult?.success) {
@@ -702,7 +558,7 @@ export default function AdminAppointments() {
       branch: walkInForm.branch,
       treatment: walkInForm.treatment,
       date: createResult?.data?.appointmentDate || today,
-      time: createResult?.data?.appointmentTimeLabel || walkInForm.time,
+      time: createResult?.data?.appointmentTimeLabel || (walkInForm.time === "Now" ? getCurrentTimeLabel() : walkInForm.time),
       type: "Walk-in",
       status: "Waiting",
       notes: walkInForm.notes || "Walk-in appointment added by admin.",
@@ -1262,17 +1118,23 @@ export default function AdminAppointments() {
                   <div className="walkin-time-block">
                     <h4>Select Time Slot</h4>
                     <div className="walkin-time-grid">
-                      {walkInTimeOptions.map((time) => (
+                      {dynamicTimeOptions.map((slot) => (
                         <button
-                          key={time}
+                          key={slot.value}
                           className={`walkin-time-slot ${
-                            walkInForm.time === time ? "active" : ""
+                            walkInForm.time === slot.value ? "active" : ""
                           }`}
-                          onClick={() => handleWalkInInputChange("time", time)}
+                          onClick={() => handleWalkInInputChange("time", slot.value)}
                         >
-                          {time}
+                          {slot.label}
                         </button>
                       ))}
+                      
+                      {dynamicTimeOptions.length === 0 && (
+                        <p style={{ fontSize: 12, color: "#888", gridColumn: "1/-1", textAlign: "center" }}>
+                          No available slots left today for this dentist.
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -1337,9 +1199,9 @@ export default function AdminAppointments() {
                   <div className="walkin-footer-actions">
                     <button
                       className="table-action-btn view-btn"
-                      onClick={() => setWalkInStep(1)}
+                      onClick={() => setWalkInStep(2)}
                     >
-                      Edit Details
+                      Edit Time
                     </button>
                     <button
                       className="table-action-btn cancel-btn"

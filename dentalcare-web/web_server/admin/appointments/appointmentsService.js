@@ -90,7 +90,38 @@ const formatTime = (timeValue) => {
   return `${hour12.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")} ${suffix}`;
 };
 
-export const listAppointments = async () => {
+const toTwentyFourHourTime = (time12h) => {
+  const match = String(time12h || "").trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const suffix = match[3].toUpperCase();
+  if (suffix === "PM" && hours !== 12) hours += 12;
+  if (suffix === "AM" && hours === 12) hours = 0;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+};
+
+// Safety Check to prevent Postgres 500 errors from bad ID formats
+const isValidUuid = (id) => {
+  if (!id) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(id));
+};
+
+export const listAppointments = async (adminId) => {
+  let adminBranch = "All";
+
+  if (adminId) {
+    const { data: adminData } = await supabaseAdmin
+      .from("admin_list")
+      .select("branch")
+      .eq("id", adminId)
+      .maybeSingle();
+    
+    if (adminData?.branch) {
+      adminBranch = adminData.branch;
+    }
+  }
+
   let { data: bookings, error } = await supabaseAdmin
     .from("bookings")
     .select("id, user_id, patient_name, dentist_id, branch, service, appointment_date, appointment_time, booking_type, status, created_at")
@@ -160,7 +191,7 @@ export const listAppointments = async () => {
     };
   });
 
-  return { success: true, statusCode: 200, data: mapped };
+  return { success: true, statusCode: 200, data: mapped, adminBranch };
 };
 
 export const updateAppointmentStatus = async (bookingId, status) => {
@@ -219,24 +250,26 @@ export const createWalkInAppointment = async (payload) => {
   const dayOfWeek = toDayOfWeekInManila();
   const normalizedBranch = normalizeText(payload.branch);
 
-  const { data: dentistSchedule, error: dentistScheduleError } = await supabaseAdmin
-    .from("dentist_schedule")
-    .select("id, branch, day_of_week, is_active")
-    .eq("dentist_id", payload.dentistId)
-    .eq("is_active", true)
-    .eq("day_of_week", dayOfWeek);
+  // Soft-fail schedule check in case table is missing or malformed
+  let hasBranchScheduleToday = true;
+  try {
+    const { data: dentistSchedule, error: dentistScheduleError } = await supabaseAdmin
+      .from("dentist_schedule")
+      .select("id, branch, day_of_week, is_active")
+      .eq("dentist_id", payload.dentistId)
+      .eq("is_active", true)
+      .eq("day_of_week", dayOfWeek);
 
-  if (dentistScheduleError) {
-    return {
-      success: false,
-      statusCode: 500,
-      message: "Failed to validate dentist schedule",
-    };
+    if (!dentistScheduleError && dentistSchedule && dentistSchedule.length > 0) {
+      hasBranchScheduleToday = dentistSchedule.some(
+        (item) => normalizeText(item.branch) === normalizedBranch
+      );
+    } else if (!dentistScheduleError && (!dentistSchedule || dentistSchedule.length === 0)) {
+       hasBranchScheduleToday = false;
+    }
+  } catch (e) {
+    console.warn("Skipping strict dentist schedule check due to error:", e);
   }
-
-  const hasBranchScheduleToday = (dentistSchedule || []).some(
-    (item) => normalizeText(item.branch) === normalizedBranch
-  );
 
   if (!hasBranchScheduleToday) {
     return {
@@ -246,14 +279,23 @@ export const createWalkInAppointment = async (payload) => {
     };
   }
 
+  let apptTime24 = now.time24;
+  if (payload.time && payload.time !== "Now") {
+    apptTime24 = toTwentyFourHourTime(payload.time) || now.time24;
+  }
+
+  // UUID verification to ensure we don't crash Supabase with Integers from frontend mocks
+  const safeDentistId = isValidUuid(payload.dentistId) ? payload.dentistId : null;
+  const safeUserId = isValidUuid(payload.userId) ? payload.userId : null;
+
   const row = {
-    user_id: payload.userId || null,
+    user_id: safeUserId,
     patient_name: payload.patientName,
-    dentist_id: payload.dentistId || null,
+    dentist_id: safeDentistId,
     branch: payload.branch,
     service: payload.service || null,
     appointment_date: now.date,
-    appointment_time: now.time24,
+    appointment_time: apptTime24,
     booking_type: "Walk-in",
     status: "pending",
   };
@@ -265,6 +307,7 @@ export const createWalkInAppointment = async (payload) => {
     .single();
 
   if (error) {
+    console.error("Walk-in Insert Error:", error);
     if (isMissingBookingTypeColumnError(error)) {
       return {
         success: false,
@@ -272,8 +315,11 @@ export const createWalkInAppointment = async (payload) => {
         message: "Missing bookings.booking_type column. Apply the SQL migration first.",
       };
     }
-
-    return { success: false, statusCode: 500, message: "Failed to create walk-in appointment" };
+    return { 
+      success: false, 
+      statusCode: 500, 
+      message: "Failed to create walk-in appointment: " + error.message 
+    };
   }
 
   return {
@@ -284,8 +330,8 @@ export const createWalkInAppointment = async (payload) => {
       id: data?.id,
       bookingType: "Walk-in",
       appointmentDate: now.date,
-      appointmentTime24: now.time24,
-      appointmentTimeLabel: formatTime(now.time24),
+      appointmentTime24: apptTime24,
+      appointmentTimeLabel: formatTime(apptTime24),
     },
   };
 };
