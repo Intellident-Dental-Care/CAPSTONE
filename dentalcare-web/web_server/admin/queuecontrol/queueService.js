@@ -33,7 +33,10 @@ const currentMinutesOfDay = () => {
 };
 
 const computeWaitMetrics = (bookings, totalDelayMinutes) => {
-  const waiting = (bookings || []).filter((item) => item.rawStatus === "pending" || item.status === "Waiting");
+  const waiting = (bookings || []).filter(
+    (item) => item.rawStatus === "pending" || item.status === "Waiting"
+  );
+
   if (!waiting.length) {
     return {
       estimatedWaitMinutes: 0,
@@ -41,19 +44,34 @@ const computeWaitMetrics = (bookings, totalDelayMinutes) => {
     };
   }
 
+  const currentMins = currentMinutesOfDay();
   const nextWaiting = waiting[0] || null;
   const nextAppointmentMinutes = timeToMinutes(nextWaiting?.appointmentTimeRaw);
-  const untilNext = nextAppointmentMinutes === null
-    ? 15
-    : Math.max(0, nextAppointmentMinutes - currentMinutesOfDay());
 
-  const nextPatientWaitBase = untilNext;
+  let nextPatientWait = 0;
+
+  if (nextAppointmentMinutes !== null) {
+    // FIX: Apply the delay to the appointment time FIRST to get the new Expected Start Time.
+    const expectedStartMins = nextAppointmentMinutes + totalDelayMinutes;
+    
+    // Then calculate time remaining from NOW. This ensures the delay naturally counts down.
+    nextPatientWait = Math.max(0, expectedStartMins - currentMins);
+  } else {
+    nextPatientWait = 15;
+  }
+
+  // Calculate spread for the rest of the waiting line (assume 15 mins per patient)
   const queueSpreadMinutes = waiting.length > 1 ? (waiting.length - 1) * 15 : 0;
-  const estimatedWaitBase = Math.max(waiting.length * 15, nextPatientWaitBase + queueSpreadMinutes);
+  let estimatedWait = nextPatientWait + queueSpreadMinutes;
+
+  // Set a realistic floor: if there are 3 people waiting, it will take at least 45 mins
+  // even if their scheduled times have already passed.
+  const minWaitByLength = waiting.length * 15;
+  estimatedWait = Math.max(estimatedWait, minWaitByLength);
 
   return {
-    estimatedWaitMinutes: estimatedWaitBase + totalDelayMinutes,
-    nextPatientWaitMinutes: nextPatientWaitBase + totalDelayMinutes,
+    estimatedWaitMinutes: estimatedWait,
+    nextPatientWaitMinutes: nextPatientWait,
   };
 };
 
