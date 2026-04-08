@@ -120,7 +120,6 @@ export default function Login() {
   };
 
   useEffect(() => {
-    // Do not auto-open verification modal from stale local state after refresh.
     AuthService.clearPendingVerification();
   }, []);
 
@@ -166,49 +165,68 @@ export default function Login() {
 
     try {
       setLoading(true);
-      const result =
-        activeRole === "admin"
-          ? await AuthService.adminLogin(email, password)
-          : await AuthService.dentistLogin(email, password);
 
-      if (!result?.success) {
-        // Check if this is an account setup needed scenario
-        if (result?.data?.accountNeedsSetup) {
-          setError(
-            'Your account needs authentication setup. Click "Forgot Password" below to complete the setup.'
-          );
+      if (activeRole === "admin") {
+        const result = await AuthService.adminLogin(email, password);
+
+        if (!result?.success) {
+          if (result?.data?.accountNeedsSetup) {
+            setError(
+              'Your account needs authentication setup. Click "Forgot Password" below to complete the setup.'
+            );
+            return;
+          }
+          setError(result?.message || "Login failed.");
           return;
         }
 
-        setError(result?.message || "Login failed.");
-        return;
-      }
+        if (result?.requiresVerification) {
+          applyPendingVerification(activeRole, result?.data?.profile);
+          return;
+        }
 
-      if (result?.requiresVerification) {
-        applyPendingVerification(activeRole, result?.data?.profile);
-        return;
-      }
-
-      if (activeRole === "admin") {
+        // Successfully logged in! Preload data.
         await preloadAdminData();
+        
+        // Extract the admin data from the result payload
+        const adminData = result?.data?.admin || {};
+        
+        // Check if they are a super_admin based on the DB column
+        if (adminData.admin_type === "super_admin" || adminData.adminType === "super_admin") {
+          navigate("/superadmin/dashboard", { replace: true });
+        } else {
+          navigate("/admin/dashboard", { replace: true });
+        }
+        
         return;
-    }
-
-    if (
-      activeRole === "admin" &&
-      email.trim() === "superadmin" &&
-      password === "superadmin123"
-    ) {
-      navigate("/superadmin/dashboard");
-      return;
-    }
-
-    if (activeRole === "admin") {
-        await preloadDentistData();
       }
 
-      navigate(activeRole === "admin" ? "/admin/dashboard" : "/dentist/dashboard");
-      return;
+      if (activeRole === "dentist") {
+        const result = await AuthService.dentistLogin(email, password);
+
+        if (!result?.success) {
+          if (result?.data?.accountNeedsSetup) {
+            setError(
+              'Your account needs authentication setup. Click "Forgot Password" below to complete the setup.'
+            );
+            return;
+          }
+          setError(result?.message || "Login failed.");
+          return;
+        }
+
+        if (result?.requiresVerification) {
+          applyPendingVerification(activeRole, result?.data?.profile);
+          return;
+        }
+
+        await preloadDentistData();
+        navigate("/dentist/dashboard", { replace: true });
+        return;
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("An unexpected error occurred during login. Is the server running?");
     } finally {
       setLoading(false);
     }
@@ -310,6 +328,7 @@ export default function Login() {
       profileId: pending?.profile?.id,
       email: profileForm.contactDetail?.trim(),
     });
+    
     if (!result?.success) {
       setError(result?.message || "OTP verification failed.");
       return;
@@ -317,10 +336,20 @@ export default function Login() {
 
     if (activeRole === "admin") {
       await preloadAdminData();
+      
+      const userProfile = AuthService.getCurrentUser();
+      setShowVerifyModal(false);
+      
+      if (userProfile?.admin_type === "super_admin" || userProfile?.adminType === "super_admin") {
+          navigate("/superadmin/dashboard", { replace: true });
+      } else {
+          navigate("/admin/dashboard", { replace: true });
+      }
+      return;
     }
 
     setShowVerifyModal(false);
-    navigate(activeRole === "admin" ? "/admin/dashboard" : "/dentist/dashboard");
+    navigate("/dentist/dashboard", { replace: true });
   };
 
   return (
