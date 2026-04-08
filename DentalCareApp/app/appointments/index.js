@@ -19,6 +19,20 @@ import {
   APPOINTMENT_CACHE_TTL_MS,
 } from "../_storage/profileCache";
 
+// Standard pre-assessment questions
+const QUESTIONS = [
+  "Do you feel tooth pain when biting or chewing?",
+  "Do you experience sensitivity to cold drinks?",
+  "Do you experience sensitivity to hot food/drinks?",
+  "Do your gums bleed when brushing or flossing?",
+  "Do you notice swelling in the gums or face?",
+  "Do you have bad breath even after brushing?",
+  "Do you see a visible hole or dark spot on the tooth?",
+  "Do you feel pain that wakes you up at night?",
+  "Do you feel pain when eating sweet food?",
+  "Have you had a filling or dental treatment on this tooth before?",
+];
+
 function isUuid(value) {
   if (!value) return false;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -92,9 +106,10 @@ export default function AppointmentsScreen() {
       if (cached) setAppointments(cached.data);
       if (!isStale) return;
 
+      // 1. Fetch bookings and pre-assessment data
       let dbQuery = supabase
         .from("bookings")
-        .select("*, dentist_list(name, specialization)")
+        .select("*, dentist_list(name, specialization), patient_preassessment(tooth_selected, description, answers)")
         .order("appointment_date", { ascending: false });
 
       if (profileId) {
@@ -116,6 +131,23 @@ export default function AppointmentsScreen() {
       const { data, error } = await dbQuery;
       if (error) throw error;
 
+      // 2. Fetch prices from dental_services table based on the unique services booked
+      const serviceNames = [...new Set((data || []).map(b => b.service).filter(Boolean))];
+      let servicesMap = {};
+      
+      if (serviceNames.length > 0) {
+        const { data: servicesData, error: servicesError } = await supabase
+          .from("dental_services")
+          .select("name, price_min")
+          .in("name", serviceNames);
+          
+        if (!servicesError && servicesData) {
+          servicesData.forEach(s => {
+            servicesMap[s.name] = s.price_min;
+          });
+        }
+      }
+
       const statusMap = {
         pending: "Upcoming",
         confirmed: "Upcoming",
@@ -125,6 +157,37 @@ export default function AppointmentsScreen() {
 
       const mapped = (data || []).map((b) => {
         const rawDate = b.appointment_date;
+        
+        let pa = b.patient_preassessment || {};
+        if (Array.isArray(pa)) pa = pa[0] || {}; // Handle array return from Supabase join
+
+        // Format the Pre-Assessment QA List (Handles JSON object strings)
+        let qaList = [];
+        if (pa.answers) {
+          let parsedAnswers = pa.answers;
+          if (typeof parsedAnswers === "string") {
+            try {
+              parsedAnswers = JSON.parse(parsedAnswers);
+            } catch (e) {}
+          }
+          
+          if (parsedAnswers && typeof parsedAnswers === "object" && Object.keys(parsedAnswers).length > 0) {
+            qaList = QUESTIONS.map((q, idx) => ({
+              question: q,
+              answer: parsedAnswers[idx] || parsedAnswers[String(idx)] || "Not answered",
+            }));
+          }
+        }
+
+        // Apply price from fetched map
+        const priceMin = servicesMap[b.service];
+        const formattedPrice = priceMin != null ? `Starting Price: ₱${priceMin.toLocaleString()}` : "Starting Price: N/A";
+
+        // Fallbacks
+        const fallbackTooth = pa.tooth_selected || b.tooth_area || b.tooth || "Not specified";
+        const fallbackDesc = pa.description || b.description || "No description provided.";
+        const fallbackQaList = qaList.length > 0 ? qaList : normalizeQaList(b.qa_list || b.questionnaire);
+
         return {
           id: String(b.id),
           doctor: b.dentist_list?.name || "Unknown Dentist",
@@ -133,11 +196,11 @@ export default function AppointmentsScreen() {
           status: statusMap[String(b.status || "").toLowerCase()] || "Upcoming",
           date: formatDisplayDate(rawDate),
           time: fmt12h(b.appointment_time),
-          tooth: b.tooth_area || b.tooth || "Tooth Record",
-          description: b.description || "No description provided.",
-          qaList: normalizeQaList(b.qa_list || b.questionnaire),
+          tooth: fallbackTooth,
+          description: fallbackDesc,
+          qaList: fallbackQaList,
           suggestedTreatment: b.suggested_treatment || b.service || "N/A",
-          suggestedPrice: b.suggested_price || "Starting Price: N/A",
+          suggestedPrice: formattedPrice,
           procedure: b.service || "Dental Appointment",
           month: formatMonthLabel(rawDate),
         };
@@ -545,7 +608,7 @@ export default function AppointmentsScreen() {
                         Affected Tooth
                       </Text>
                       <Text style={styles.toothPlaceholderValue}>
-                        {selectedAppointment?.tooth || "Not specified"}
+                        {selectedAppointment?.tooth}
                       </Text>
                       <Text style={styles.toothPlaceholderHint}>
                         Pre-assessment tooth information
@@ -558,8 +621,7 @@ export default function AppointmentsScreen() {
                       Patient Description
                     </Text>
                     <Text style={styles.assessmentText}>
-                      {selectedAppointment?.description ||
-                        "No description provided."}
+                      {selectedAppointment?.description}
                     </Text>
                   </View>
 
@@ -1150,5 +1212,41 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "900",
     color: "#2F7D4D",
+  },
+
+  sectionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#ECECEC",
+  },
+
+  sectionText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#444444",
+    fontWeight: "600",
+  },
+
+  photosRow: {
+    paddingTop: 4,
+    paddingRight: 4,
+  },
+
+  photoItem: {
+    width: 120,
+    height: 120,
+    borderRadius: 16,
+    marginRight: 10,
+    backgroundColor: "#EAEAEA",
+  },
+
+  emptyText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#8F8F8F",
+    fontWeight: "600",
   },
 });

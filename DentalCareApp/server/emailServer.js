@@ -272,6 +272,9 @@ app.get('/server-info', (req, res) => {
   });
 });
 
+const historyRoute = require('./PatientHistory/patientHistory');
+app.use('/api/patient-history', historyRoute);
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Email server running on port ${PORT}`);
   console.log(`Server accessible at: http://${LOCAL_IP}:${PORT}`);

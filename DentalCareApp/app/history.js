@@ -12,8 +12,10 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
+import { WebView } from "react-native-webview";
 import { colors } from "./theme/colors";
 import ProfileSwitcherModal from "./components/ProfileSwitcherModal";
+import { getServerUrl } from "../server/getClientSideUrl";
 import {
   getSession,
   logoutUser,
@@ -23,352 +25,6 @@ import {
   ensureDefaultProfileForEmail,
   addProfileToEmail,
 } from "./_storage/authStorage";
-
-const historyData = [
-  {
-    month: "March 2026",
-    items: [
-      {
-        doctor: "Dr. Dian Crizzie Mendoza",
-        title: "Tooth Cleaning",
-        type: "Routine",
-        status: "Completed",
-        date: "December 14, 2024",
-        time: "9:30 AM",
-        tooth: "3rd Molar",
-        description:
-          "Patient experiences mild gum discomfort and sensitivity when brushing around the affected area.",
-        qaList: [
-          {
-            question: "Do you feel tooth pain when biting or chewing?",
-            answer: "No",
-          },
-          {
-            question: "Do you experience sensitivity to cold drinks?",
-            answer: "Yes",
-          },
-          {
-            question: "Do you experience sensitivity to hot food/drinks?",
-            answer: "No",
-          },
-          {
-            question: "Do your gums bleed when brushing or flossing?",
-            answer: "Yes",
-          },
-          {
-            question: "Do you notice swelling in the gums or face?",
-            answer: "No",
-          },
-          {
-            question: "Do you have bad breath even after brushing?",
-            answer: "Sometimes",
-          },
-          {
-            question: "Do you see a visible hole or dark spot on the tooth?",
-            answer: "No",
-          },
-          {
-            question: "Do you feel pain that wakes you up at night?",
-            answer: "No",
-          },
-          {
-            question: "Do you feel pain when eating sweet food?",
-            answer: "Slightly",
-          },
-          {
-            question:
-              "Have you had a filling or dental treatment on this tooth before?",
-            answer: "No",
-          },
-        ],
-        suggestedTreatment: "Tooth Cleaning",
-        suggestedPrice: "Starting Price: ₱1,000",
-        procedure: "Oral Prophylaxis / Tooth Cleaning",
-        remarks:
-          "Patient was advised to improve brushing technique and return after 6 months for follow-up cleaning.",
-        doctorPhotos: [
-          {
-            id: "1",
-            uri: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=800&q=80",
-          },
-          {
-            id: "2",
-            uri: "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=800&q=80",
-          },
-        ],
-      },
-      {
-        doctor: "Dr. Edward Barber",
-        title: "Cosmetic Whitening",
-        type: "Treatment",
-        status: "Completed",
-        date: "December 03, 2024",
-        time: "2:00 PM",
-        tooth: "Front Incisor",
-        description:
-          "Patient wants whiter front teeth and reports visible yellow staining.",
-        qaList: [
-          {
-            question: "Do you feel tooth pain when biting or chewing?",
-            answer: "No",
-          },
-          {
-            question: "Do you experience sensitivity to cold drinks?",
-            answer: "No",
-          },
-          {
-            question: "Do you experience sensitivity to hot food/drinks?",
-            answer: "No",
-          },
-          {
-            question: "Do your gums bleed when brushing or flossing?",
-            answer: "No",
-          },
-          {
-            question: "Do you notice swelling in the gums or face?",
-            answer: "No",
-          },
-          {
-            question: "Do you have bad breath even after brushing?",
-            answer: "No",
-          },
-          {
-            question: "Do you see a visible hole or dark spot on the tooth?",
-            answer: "No",
-          },
-          {
-            question: "Do you feel pain that wakes you up at night?",
-            answer: "No",
-          },
-          {
-            question: "Do you feel pain when eating sweet food?",
-            answer: "No",
-          },
-          {
-            question:
-              "Have you had a filling or dental treatment on this tooth before?",
-            answer: "No",
-          },
-        ],
-        suggestedTreatment: "Cosmetic Whitening",
-        suggestedPrice: "Starting Price: ₱3,500",
-        procedure: "Teeth Whitening",
-        remarks:
-          "Avoid coffee, tea, and colored drinks for 48 hours after treatment.",
-        doctorPhotos: [
-          {
-            id: "1",
-            uri: "https://images.unsplash.com/photo-1598257006626-5b2d4d6f7f6e?auto=format&fit=crop&w=800&q=80",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    month: "December 2024",
-    items: [
-      {
-        doctor: "Dr. Dian Crizzie Mendoza",
-        title: "Tooth Cleaning",
-        type: "Routine",
-        status: "Completed",
-        date: "December 14, 2024",
-        time: "9:30 AM",
-        tooth: "3rd Molar",
-        description:
-          "Patient experiences mild gum discomfort and sensitivity when brushing around the affected area.",
-        qaList: [
-          {
-            question: "Do you feel tooth pain when biting or chewing?",
-            answer: "No",
-          },
-          {
-            question: "Do you experience sensitivity to cold drinks?",
-            answer: "Yes",
-          },
-          {
-            question: "Do you experience sensitivity to hot food/drinks?",
-            answer: "No",
-          },
-          {
-            question: "Do your gums bleed when brushing or flossing?",
-            answer: "Yes",
-          },
-          {
-            question: "Do you notice swelling in the gums or face?",
-            answer: "No",
-          },
-          {
-            question: "Do you have bad breath even after brushing?",
-            answer: "Sometimes",
-          },
-          {
-            question: "Do you see a visible hole or dark spot on the tooth?",
-            answer: "No",
-          },
-          {
-            question: "Do you feel pain that wakes you up at night?",
-            answer: "No",
-          },
-          {
-            question: "Do you feel pain when eating sweet food?",
-            answer: "Slightly",
-          },
-          {
-            question:
-              "Have you had a filling or dental treatment on this tooth before?",
-            answer: "No",
-          },
-        ],
-        suggestedTreatment: "Tooth Cleaning",
-        suggestedPrice: "Starting Price: ₱1,000",
-        procedure: "Oral Prophylaxis / Tooth Cleaning",
-        remarks:
-          "Patient was advised to improve brushing technique and return after 6 months for follow-up cleaning.",
-        doctorPhotos: [
-          {
-            id: "1",
-            uri: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=800&q=80",
-          },
-          {
-            id: "2",
-            uri: "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=800&q=80",
-          },
-        ],
-      },
-      {
-        doctor: "Dr. Edward Barber",
-        title: "Cosmetic Whitening",
-        type: "Treatment",
-        status: "Completed",
-        date: "December 03, 2024",
-        time: "2:00 PM",
-        tooth: "Front Incisor",
-        description:
-          "Patient wants whiter front teeth and reports visible yellow staining.",
-        qaList: [
-          {
-            question: "Do you feel tooth pain when biting or chewing?",
-            answer: "No",
-          },
-          {
-            question: "Do you experience sensitivity to cold drinks?",
-            answer: "No",
-          },
-          {
-            question: "Do you experience sensitivity to hot food/drinks?",
-            answer: "No",
-          },
-          {
-            question: "Do your gums bleed when brushing or flossing?",
-            answer: "No",
-          },
-          {
-            question: "Do you notice swelling in the gums or face?",
-            answer: "No",
-          },
-          {
-            question: "Do you have bad breath even after brushing?",
-            answer: "No",
-          },
-          {
-            question: "Do you see a visible hole or dark spot on the tooth?",
-            answer: "No",
-          },
-          {
-            question: "Do you feel pain that wakes you up at night?",
-            answer: "No",
-          },
-          {
-            question: "Do you feel pain when eating sweet food?",
-            answer: "No",
-          },
-          {
-            question:
-              "Have you had a filling or dental treatment on this tooth before?",
-            answer: "No",
-          },
-        ],
-        suggestedTreatment: "Cosmetic Whitening",
-        suggestedPrice: "Starting Price: ₱3,500",
-        procedure: "Teeth Whitening",
-        remarks:
-          "Avoid coffee, tea, and colored drinks for 48 hours after treatment.",
-        doctorPhotos: [
-          {
-            id: "1",
-            uri: "https://images.unsplash.com/photo-1598257006626-5b2d4d6f7f6e?auto=format&fit=crop&w=800&q=80",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    month: "January 2024",
-    items: [
-      {
-        doctor: "Dr. Leigh Amparo",
-        title: "Braces",
-        type: "Treatment",
-        status: "Completed",
-        date: "January 18, 2024",
-        time: "11:00 AM",
-        tooth: "Upper and Lower Teeth",
-        description:
-          "Patient is under orthodontic treatment and came for routine braces adjustment.",
-        qaList: [
-          {
-            question: "Do you feel tooth pain when biting or chewing?",
-            answer: "Slightly",
-          },
-          {
-            question: "Do you experience sensitivity to cold drinks?",
-            answer: "No",
-          },
-          {
-            question: "Do you experience sensitivity to hot food/drinks?",
-            answer: "No",
-          },
-          {
-            question: "Do your gums bleed when brushing or flossing?",
-            answer: "Sometimes",
-          },
-          {
-            question: "Do you notice swelling in the gums or face?",
-            answer: "No",
-          },
-          {
-            question: "Do you have bad breath even after brushing?",
-            answer: "No",
-          },
-          {
-            question: "Do you see a visible hole or dark spot on the tooth?",
-            answer: "No",
-          },
-          {
-            question: "Do you feel pain that wakes you up at night?",
-            answer: "No",
-          },
-          {
-            question: "Do you feel pain when eating sweet food?",
-            answer: "No",
-          },
-          {
-            question:
-              "Have you had a filling or dental treatment on this tooth before?",
-            answer: "Yes",
-          },
-        ],
-        suggestedTreatment: "Braces Adjustment",
-        suggestedPrice: "Starting Price: ₱1,500",
-        procedure: "Orthodontic Braces Adjustment",
-        remarks:
-          "Patient responded well. Continue elastic wear and return next month for adjustment.",
-        doctorPhotos: [],
-      },
-    ],
-  },
-];
 
 export default function History() {
   const router = useRouter();
@@ -384,8 +40,36 @@ export default function History() {
     icon: "person",
   });
 
+  const [historyData, setHistoryData] = useState([]);
   const [selectedHistory, setSelectedHistory] = useState(null);
   const [historyDetailsVisible, setHistoryDetailsVisible] = useState(false);
+
+  const fetchHistoryData = async () => {
+    try {
+      const session = await getSession();
+      const userId = session?.user?.id || session?.id; 
+      const token = session?.session?.access_token || session?.access_token || "";
+
+      if (!userId) return;
+
+      const baseUrl = await getServerUrl();
+      const apiUrl = `${baseUrl}/api/patient-history?userId=${userId}`;
+
+      const res = await fetch(apiUrl, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      const result = await res.json();
+      if (result.success) {
+        setHistoryData(result.data);
+      }
+    } catch (error) {
+      console.log("Failed to load history:", error);
+    }
+  };
 
   const loadProfiles = async () => {
     try {
@@ -421,13 +105,10 @@ export default function History() {
     }
   };
 
-  useEffect(() => {
-    loadProfiles();
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
       loadProfiles();
+      fetchHistoryData();
     }, [])
   );
 
@@ -630,109 +311,115 @@ export default function History() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {groupedHistory().map(([month, items]) => (
-            <View key={month} style={styles.section}>
-              <Text style={styles.monthText}>{month}</Text>
+          {groupedHistory().length === 0 ? (
+            <Text style={{ textAlign: "center", color: "#999", marginTop: 40 }}>
+              No completed history records found.
+            </Text>
+          ) : (
+            groupedHistory().map(([month, items]) => (
+              <View key={month} style={styles.section}>
+                <Text style={styles.monthText}>{month}</Text>
 
-              {items.map((item, index) => {
-                const typeColor = getTypeColor(item.type);
-                const typeBadgeBg = getTypeBadgeBackground(item.type);
+                {items.map((item, index) => {
+                  const typeColor = getTypeColor(item.type);
+                  const typeBadgeBg = getTypeBadgeBackground(item.type);
 
-                return (
-                  <Pressable
-                    key={index}
-                    style={styles.card}
-                    onPress={() => handleOpenHistoryDetails(item)}
-                  >
-                    <View style={styles.cardGlow} />
+                  return (
+                    <Pressable
+                      key={index}
+                      style={styles.card}
+                      onPress={() => handleOpenHistoryDetails(item)}
+                    >
+                      <View style={styles.cardGlow} />
 
-                    <View style={styles.cardTop}>
-                      <View style={styles.dateRow}>
-                        <Ionicons
-                          name="calendar-outline"
-                          size={13}
-                          color="#8D8D8D"
-                        />
-                        <Text style={styles.dateText}>{item.date}</Text>
-                        <View style={styles.dateDot} />
-                        <Ionicons
-                          name="time-outline"
-                          size={13}
-                          color="#8D8D8D"
-                        />
-                        <Text style={styles.dateText}>{item.time}</Text>
+                      <View style={styles.cardTop}>
+                        <View style={styles.dateRow}>
+                          <Ionicons
+                            name="calendar-outline"
+                            size={13}
+                            color="#8D8D8D"
+                          />
+                          <Text style={styles.dateText}>{item.date}</Text>
+                          <View style={styles.dateDot} />
+                          <Ionicons
+                            name="time-outline"
+                            size={13}
+                            color="#8D8D8D"
+                          />
+                          <Text style={styles.dateText}>{item.time}</Text>
+                        </View>
+
+                        <View
+                          style={[
+                            styles.typeBadge,
+                            { backgroundColor: typeBadgeBg },
+                          ]}
+                        >
+                          <Ionicons
+                            name={getTypeIcon(item.type)}
+                            size={12}
+                            color={typeColor}
+                          />
+                          <Text style={[styles.typeBadgeText, { color: typeColor }]}>
+                            {item.type}
+                          </Text>
+                        </View>
                       </View>
 
-                      <View
-                        style={[
-                          styles.typeBadge,
-                          { backgroundColor: typeBadgeBg },
-                        ]}
-                      >
-                        <Ionicons
-                          name={getTypeIcon(item.type)}
-                          size={12}
-                          color={typeColor}
-                        />
-                        <Text style={[styles.typeBadgeText, { color: typeColor }]}>
-                          {item.type}
-                        </Text>
-                      </View>
-                    </View>
+                      <View style={styles.cardBody}>
+                        <View style={styles.leftIconWrap}>
+                          <Ionicons
+                            name="document-text-outline"
+                            size={22}
+                            color={colors.primary}
+                          />
+                        </View>
 
-                    <View style={styles.cardBody}>
-                      <View style={styles.leftIconWrap}>
-                        <Ionicons
-                          name="document-text-outline"
-                          size={22}
-                          color={colors.primary}
-                        />
-                      </View>
+                        <View style={styles.cardMainContent}>
+                          <Text style={styles.serviceTitle}>{item.title}</Text>
+                          <Text style={styles.cardSubtitle}>
+                            {item.procedure}
+                          </Text>
+                        </View>
 
-                      <View style={styles.cardMainContent}>
-                        <Text style={styles.serviceTitle}>{item.title}</Text>
-                        <Text style={styles.cardSubtitle}>
-                          {item.procedure}
-                        </Text>
+                        <View style={styles.arrowWrap}>
+                          <Ionicons
+                            name="chevron-forward"
+                            size={18}
+                            color={colors.primary}
+                          />
+                        </View>
                       </View>
 
-                      <View style={styles.arrowWrap}>
-                        <Ionicons
-                          name="chevron-forward"
-                          size={18}
-                          color={colors.primary}
-                        />
-                      </View>
-                    </View>
+                      <View style={styles.cardFooter}>
+                        <View style={styles.metaPill}>
+                          <Ionicons
+                            name="medical-outline"
+                            size={12}
+                            color="#8D8D8D"
+                          />
+                          <Text style={styles.metaPillText}>
+                            {item.tooth || "Tooth Record"}
+                          </Text>
+                        </View>
 
-                    <View style={styles.cardFooter}>
-                      <View style={styles.metaPill}>
-                        <Ionicons
-                          name="medical-outline"
-                          size={12}
-                          color="#8D8D8D"
-                        />
-                        <Text style={styles.metaPillText}>
-                          {item.tooth || "Tooth Record"}
-                        </Text>
+                        <View style={styles.metaPill}>
+                          <Ionicons
+                            name="person-outline"
+                            size={12}
+                            color="#8D8D8D"
+                          />
+                          <Text style={styles.metaPillText} numberOfLines={1}>
+                            {item.doctor}
+                          </Text>
+                        </View>
                       </View>
-
-                      <View style={styles.metaPill}>
-                        <Ionicons
-                          name="person-outline"
-                          size={12}
-                          color="#8D8D8D"
-                        />
-                        <Text style={styles.metaPillText} numberOfLines={1}>
-                          {item.doctor}
-                        </Text>
-                      </View>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ))}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ))
+          )}
         </ScrollView>
 
         <Modal
@@ -824,9 +511,20 @@ export default function History() {
                   </View>
 
                   <View style={styles.teethBox}>
-                    <Image
-                      source={require("../assets/tooth_model.png")}
-                      style={styles.toothImage}
+                    <WebView
+                      source={{ uri: "https://intellident-3d-viewer.vercel.app/?mode=protected" }}
+                      style={[styles.toothImage, { backgroundColor: "transparent" }]}
+                      scrollEnabled={false}
+                      overScrollMode="never"
+                      injectedJavaScript={`
+                        setTimeout(function() {
+                          window.postMessage({ type: 'SELECT_TOOTH', tooth: '${selectedHistory?.tooth || "Not specified"}' }, '*');
+                        }, 1000);
+                        true;
+                      `}
+                      containerStyle={{ backgroundColor: 'transparent' }}
+                      cacheEnabled={true}
+                      domStorageEnabled={true}
                     />
                   </View>
 
@@ -839,41 +537,50 @@ export default function History() {
                   </Text>
 
                   <View style={styles.aiDetailsWrapper}>
-                    <ScrollView
-                      nestedScrollEnabled
-                      showsVerticalScrollIndicator={true}
-                      style={styles.aiInnerScroll}
-                      contentContainerStyle={styles.aiInnerScrollContent}
-                    >
-                      {(selectedHistory?.qaList || []).map((item, index) => (
-                        <View key={index} style={styles.qaBlock}>
-                          <Text style={styles.qLine}>
-                            <Text style={styles.qLabel}>Question: </Text>
-                            {item.question}
-                          </Text>
+                    {(!selectedHistory?.qaList || selectedHistory.qaList.length === 0) ? (
+                      <View style={{ paddingVertical: 24, alignItems: "center", justifyContent: "center" }}>
+                        <Ionicons name="document-text-outline" size={32} color="#D1B9C5" style={{ marginBottom: 8 }} />
+                        <Text style={{ fontSize: 13, color: "#9A7A87", fontWeight: "600" }}>
+                          No Pre-Assessment Record
+                        </Text>
+                      </View>
+                    ) : (
+                      <ScrollView
+                        nestedScrollEnabled
+                        showsVerticalScrollIndicator={true}
+                        style={styles.aiInnerScroll}
+                        contentContainerStyle={styles.aiInnerScrollContent}
+                      >
+                        {selectedHistory.qaList.map((item, index) => (
+                          <View key={index} style={styles.qaBlock}>
+                            <Text style={styles.qLine}>
+                              <Text style={styles.qLabel}>Question: </Text>
+                              {item.question}
+                            </Text>
 
-                          <Text style={styles.aLine}>
-                            <Text style={styles.aLabel}>    Answer: </Text>
-                            {item.answer}
-                          </Text>
-                        </View>
-                      ))}
+                            <Text style={styles.aLine}>
+                              <Text style={styles.aLabel}>    Answer: </Text>
+                              {item.answer}
+                            </Text>
+                          </View>
+                        ))}
 
-                      <View style={{ height: 10 }} />
+                        <View style={{ height: 10 }} />
 
-                      <Text style={styles.qLine}>
-                        <Text style={styles.qLabel}>Question: </Text>
-                        Kindly describe any symptoms or discomfort you are
-                        currently experiencing.
-                      </Text>
+                        <Text style={styles.qLine}>
+                          <Text style={styles.qLabel}>Question: </Text>
+                          Kindly describe any symptoms or discomfort you are
+                          currently experiencing.
+                        </Text>
 
-                      <Text style={styles.aLine}>
-                        <Text style={styles.aLabel}>    Answer: </Text>
-                        {selectedHistory?.description?.trim()
-                          ? selectedHistory.description.trim()
-                          : "-"}
-                      </Text>
-                    </ScrollView>
+                        <Text style={styles.aLine}>
+                          <Text style={styles.aLabel}>    Answer: </Text>
+                          {selectedHistory?.description?.trim()
+                            ? selectedHistory.description.trim()
+                            : "-"}
+                        </Text>
+                      </ScrollView>
+                    )}
                   </View>
 
                   <Text style={[styles.aiSectionTitle, { marginTop: 14 }]}>
@@ -951,20 +658,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8F8F8",
   },
-
   screen: {
     flex: 1,
     backgroundColor: "#F8F8F8",
     paddingTop: 46,
     paddingHorizontal: 18,
   },
-
   topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-
   backBtn: {
     width: 36,
     height: 36,
@@ -972,13 +676,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   topRight: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
-
   notifPill: {
     width: 44,
     height: 28,
@@ -987,7 +689,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   avatarSmall: {
     width: 30,
     height: 30,
@@ -996,21 +697,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   title: {
     marginTop: 10,
     fontSize: 26,
     fontWeight: "900",
     color: colors.primary,
   },
-
   profileName: {
     marginTop: 4,
     fontSize: 12,
     color: "#8D8D8D",
     fontWeight: "600",
   },
-
   tabs: {
     marginTop: 18,
     flexDirection: "row",
@@ -1019,7 +717,6 @@ const styles = StyleSheet.create({
     padding: 4,
     elevation: 2,
   },
-
   tabBtn: {
     flex: 1,
     height: 34,
@@ -1027,43 +724,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   activeTab: {
     backgroundColor: colors.primary,
   },
-
   tabText: {
     fontSize: 11,
     color: "#8A8A8A",
     fontWeight: "500",
   },
-
   activeTabText: {
     color: "#fff",
     fontWeight: "700",
   },
-
   tabWithDot: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
   },
-
   dot: {
     width: 6,
     height: 6,
     borderRadius: 3,
   },
-
   scrollContent: {
     paddingTop: 14,
     paddingBottom: 30,
   },
-
   section: {
     marginBottom: 18,
   },
-
   monthText: {
     marginLeft: 6,
     marginBottom: 10,
@@ -1071,7 +760,6 @@ const styles = StyleSheet.create({
     color: "#B0B0B0",
     fontWeight: "700",
   },
-
   card: {
     position: "relative",
     backgroundColor: "#FFFFFF",
@@ -1087,7 +775,6 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 3,
   },
-
   cardGlow: {
     position: "absolute",
     top: -12,
@@ -1098,14 +785,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFE7F0",
     opacity: 0.7,
   },
-
   cardTop: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 10,
   },
-
   dateRow: {
     flex: 1,
     flexDirection: "row",
@@ -1113,13 +798,11 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 4,
   },
-
   dateText: {
     fontSize: 11,
     color: "#8D8D8D",
     fontWeight: "600",
   },
-
   dateDot: {
     width: 4,
     height: 4,
@@ -1127,7 +810,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#C6C6C6",
     marginHorizontal: 2,
   },
-
   typeBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -1136,18 +818,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-
   typeBadgeText: {
     fontSize: 11,
     fontWeight: "800",
   },
-
   cardBody: {
     marginTop: 14,
     flexDirection: "row",
     alignItems: "center",
   },
-
   leftIconWrap: {
     width: 44,
     height: 44,
@@ -1157,18 +836,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 12,
   },
-
   cardMainContent: {
     flex: 1,
     paddingRight: 8,
   },
-
   serviceTitle: {
     fontSize: 17,
     fontWeight: "900",
     color: colors.primary,
   },
-
   cardSubtitle: {
     marginTop: 4,
     fontSize: 12,
@@ -1176,7 +852,6 @@ const styles = StyleSheet.create({
     color: "#787878",
     fontWeight: "600",
   },
-
   arrowWrap: {
     width: 34,
     height: 34,
@@ -1185,13 +860,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   cardFooter: {
     marginTop: 14,
     flexDirection: "row",
     gap: 8,
   },
-
   metaPill: {
     flex: 1,
     flexDirection: "row",
@@ -1202,20 +875,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 9,
   },
-
   metaPillText: {
     flex: 1,
     fontSize: 11,
     color: "#6F6F6F",
     fontWeight: "700",
   },
-
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.32)",
     justifyContent: "flex-end",
   },
-
   modalCard: {
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 28,
@@ -1225,7 +895,6 @@ const styles = StyleSheet.create({
     paddingBottom: 26,
     maxHeight: "90%",
   },
-
   dragHandle: {
     alignSelf: "center",
     width: 54,
@@ -1234,27 +903,23 @@ const styles = StyleSheet.create({
     backgroundColor: "#E3E3E3",
     marginBottom: 14,
   },
-
   modalHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
     marginBottom: 14,
   },
-
   modalTitle: {
     fontSize: 22,
     fontWeight: "900",
     color: colors.primary,
   },
-
   modalSubtitle: {
     marginTop: 3,
     fontSize: 13,
     color: "#8D8D8D",
     fontWeight: "600",
   },
-
   closeBtn: {
     width: 34,
     height: 34,
@@ -1263,45 +928,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   modalScrollContent: {
     paddingBottom: 20,
   },
-
   infoGrid: {
     marginBottom: 14,
   },
-
   infoRow: {
     flexDirection: "row",
     gap: 10,
     marginTop: 10,
   },
-
   infoCard: {
     backgroundColor: "#F7F7F7",
     borderRadius: 16,
     padding: 14,
   },
-
   halfInfoCard: {
     flex: 1,
   },
-
   infoLabel: {
     fontSize: 12,
     fontWeight: "700",
     color: "#9A9A9A",
     marginBottom: 6,
   },
-
   infoValue: {
     fontSize: 14,
     lineHeight: 20,
     color: "#333333",
     fontWeight: "600",
   },
-
   aiCard: {
     backgroundColor: "#FFF4F8",
     borderRadius: 20,
@@ -1310,14 +967,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#FFD8E6",
   },
-
   aiHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     marginBottom: 12,
   },
-
   aiIconWrap: {
     width: 34,
     height: 34,
@@ -1326,20 +981,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   aiTitle: {
     fontSize: 16,
     fontWeight: "900",
     color: colors.primary,
   },
-
   aiSubtitle: {
     marginTop: 2,
     fontSize: 12,
     color: "#9A7A87",
     fontWeight: "600",
   },
-
   teethBox: {
     marginTop: 4,
     marginBottom: 4,
@@ -1347,113 +999,94 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   toothImage: {
     width: 190,
     height: 140,
     resizeMode: "contain",
   },
-
   toothText: {
     marginBottom: 12,
     fontSize: 12,
     color: "#8D8D8D",
     fontWeight: "700",
   },
-
   aiSectionTitle: {
     fontSize: 13,
     fontWeight: "800",
     color: colors.primary,
     marginBottom: 10,
   },
-
   aiDetailsWrapper: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 12,
   },
-
   aiInnerScroll: {
     maxHeight: 240,
   },
-
   aiInnerScrollContent: {
     paddingRight: 4,
   },
-
   qaBlock: {
     marginBottom: 12,
   },
-
   qLine: {
     fontSize: 11,
     color: "#444",
     lineHeight: 17,
   },
-
   aLine: {
     marginTop: 4,
     fontSize: 11,
     color: "#666",
     lineHeight: 17,
   },
-
   qLabel: {
     fontWeight: "800",
     color: colors.primary,
   },
-
   aLabel: {
     fontWeight: "800",
     color: colors.primary,
   },
-
   treatBox: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 14,
   },
-
   treatTitle: {
     fontSize: 15,
     fontWeight: "900",
     color: colors.primary,
   },
-
   treatSub: {
     marginTop: 4,
     fontSize: 12,
     color: "#666",
     fontWeight: "700",
   },
-
   sectionCard: {
     backgroundColor: "#F7F7F7",
     borderRadius: 16,
     padding: 14,
     marginBottom: 14,
   },
-
   sectionTitle: {
     fontSize: 13,
     fontWeight: "800",
     color: colors.primary,
     marginBottom: 8,
   },
-
   sectionText: {
     fontSize: 14,
     lineHeight: 21,
     color: "#444444",
     fontWeight: "600",
   },
-
   photosRow: {
     paddingTop: 4,
     paddingRight: 4,
   },
-
   photoItem: {
     width: 120,
     height: 120,
@@ -1461,7 +1094,6 @@ const styles = StyleSheet.create({
     marginRight: 10,
     backgroundColor: "#EAEAEA",
   },
-
   emptyText: {
     fontSize: 13,
     lineHeight: 20,
