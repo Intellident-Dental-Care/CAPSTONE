@@ -1,0 +1,10 @@
+@media (max-width: 768px) {
+  .superadmin-dashboard-scroll {
+    height: auto;
+    min-height: calc(100vh - 78px);
+  }
+
+  .superadmin-line-chart-wrapper {
+    height: 260px;
+  }
+}

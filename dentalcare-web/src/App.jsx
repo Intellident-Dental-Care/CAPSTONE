@@ -3,10 +3,12 @@ import AuthService from "./services/authService";
 import Landing from "./pages/public/Landing";
 import Login from "./pages/public/Login";
 import ForgotPassword from "./pages/public/ForgotPassword";
+
 import DentistDashboard from "./pages/dentist/DentistDashboard";
 import DentistProfile from "./pages/dentist/DentistProfile";
 import DentistSchedule from "./pages/dentist/DentistSchedule";
 import DentistPatientHistory from "./pages/dentist/DentistPatientHistory";
+
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Queue from "./pages/admin/Queue";
 import Appointments from "./pages/admin/AdminAppointments";
@@ -28,6 +30,13 @@ function ProtectedRoute({ expectedRole, children }) {
   return children;
 }
 
+import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard";
+import SuperAdminAdmins from "./pages/superadmin/SuperAdminAdmins";
+import SuperAdminDentists from "./pages/superadmin/SuperAdminDentists";
+import SuperAdminPatients from "./pages/superadmin/SuperAdminPatients";
+import SuperAdminServices from "./pages/superadmin/SuperAdminServices";
+import SuperAdminFaqs from "./pages/superadmin/SuperAdminFaqs";
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -44,6 +53,16 @@ export default function App() {
         <Route
           path="/admin-dashboard"
           element={<Navigate to="/admin/dashboard" replace />}
+        />
+
+        <Route
+          path="/superadmin-dashboard"
+          element={<Navigate to="/superadmin/dashboard" replace />}
+        />
+
+        <Route
+          path="/superadmin-dashboard"
+          element={<Navigate to="/superadmin/dashboard" replace />}
         />
 
         <Route
@@ -119,6 +138,13 @@ export default function App() {
             </ProtectedRoute>
           )}
         />
+
+        <Route path="/superadmin/dashboard" element={<SuperAdminDashboard />} />
+        <Route path="/superadmin/admins" element={<SuperAdminAdmins />} />
+        <Route path="/superadmin/dentists" element={<SuperAdminDentists />} />
+        <Route path="/superadmin/patients" element={<SuperAdminPatients />} />
+        <Route path="/superadmin/services" element={<SuperAdminServices />} />
+        <Route path="/superadmin/faqs" element={<SuperAdminFaqs />} />
       </Routes>
     </BrowserRouter>
   );

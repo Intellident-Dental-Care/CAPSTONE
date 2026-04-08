@@ -1,0 +1,638 @@
+.superadmin-dentists-fixed-page {
+  height: calc(100vh - 78px);
+  overflow: hidden;
+  background: #f9fafc;
+}
+
+.superadmin-dentists-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.superadmin-dentists-header {
+  flex-shrink: 0;
+}
+
+.superadmin-dentists-title {
+  margin: 0;
+  font-size: 2.2rem;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #f05a96;
+}
+
+.superadmin-dentists-subtitle {
+  margin: 10px 0 0;
+  color: #7f8596;
+  font-size: 0.98rem;
+}
+
+.superadmin-dentists-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  flex-shrink: 0;
+}
+
+.superadmin-dentist-stat-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 20px 22px;
+  box-shadow: 0 10px 30px rgba(236, 72, 153, 0.05);
+  border: 1px solid #f3cfdb;
+}
+
+.superadmin-dentist-stat-card span {
+  display: block;
+  font-size: 13px;
+  color: #8c8c95;
+  margin-bottom: 8px;
+}
+
+.superadmin-dentist-stat-card h3 {
+  margin: 0;
+  font-size: 28px;
+  color: #f05a96;
+  font-weight: 800;
+}
+
+@media (max-width: 1024px) {
+  .superadmin-dentists-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+.superadmin-dentists-form-card,
+.superadmin-dentists-list-card,
+.superadmin-dentists-calendar-card {
+  background: #ffffff;
+  border: 1px solid #f3cfdb;
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(236, 72, 153, 0.05);
+}
+
+.superadmin-dentists-form-card,
+.superadmin-dentists-list-card,
+.superadmin-dentists-calendar-card {
+  padding: 20px;
+}
+
+.superadmin-dentists-list-flex {
+  min-height: 620px;
+  display: flex;
+  flex-direction: column;
+}
+
+.superadmin-dentists-card-head {
+  margin-bottom: 18px;
+  flex-shrink: 0;
+}
+
+.superadmin-dentists-card-head-wrap {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.superadmin-dentists-card-head h3 {
+  margin: 0;
+  color: #495167;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.superadmin-dentists-card-head p {
+  margin: 6px 0 0;
+  color: #8a90a2;
+  font-size: 0.92rem;
+}
+
+.superadmin-dentists-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.superadmin-dentists-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.superadmin-dentists-field-wide {
+  max-width: 560px;
+}
+
+.superadmin-dentists-field label {
+  color: #8a90a2;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.superadmin-dentists-field input,
+.superadmin-dentists-field select,
+.superadmin-dentists-search {
+  width: 100%;
+  height: 52px;
+  border: 1px solid #f2c9d8;
+  border-radius: 16px;
+  padding: 0 14px;
+  font-size: 0.95rem;
+  color: #3f4658;
+  background: #fff;
+  outline: none;
+}
+
+.superadmin-dentists-field input:focus,
+.superadmin-dentists-field select:focus,
+.superadmin-dentists-search:focus {
+  border-color: #ee8cb3;
+  box-shadow: 0 0 0 4px rgba(240, 90, 150, 0.09);
+}
+
+.superadmin-dentists-schedule-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.superadmin-dentists-schedule-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.superadmin-dentists-form-action {
+  display: flex;
+  align-items: end;
+}
+
+.superadmin-dentists-register-row {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.superadmin-dentists-primary-btn,
+.superadmin-dentists-secondary-btn,
+.superadmin-dentists-action-btn,
+.superadmin-dentists-modal-cancel,
+.superadmin-dentists-modal-confirm {
+  border: none;
+  border-radius: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.superadmin-dentists-primary-btn {
+  height: 52px;
+  padding: 0 20px;
+  background: linear-gradient(90deg, #f37aa8, #ec4f8f);
+  color: #fff;
+  min-width: 180px;
+}
+
+.superadmin-dentists-primary-btn:hover {
+  opacity: 0.95;
+}
+
+.superadmin-dentists-secondary-btn {
+  height: 52px;
+  padding: 0 18px;
+  background: #fde7ef;
+  color: #d55386;
+}
+
+.superadmin-dentists-secondary-btn.enable-selected-btn {
+  background: #e8f7ed;
+  color: #209b58;
+}
+
+.superadmin-dentists-secondary-btn.add-schedule-btn {
+  background: #f8eef6;
+  color: #b14588;
+}
+
+.superadmin-dentists-secondary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.superadmin-dentists-secondary-btn:not(:disabled):hover {
+  background: #fbd9e7;
+}
+
+.superadmin-dentists-secondary-btn.enable-selected-btn:not(:disabled):hover {
+  background: #daf0e1;
+}
+
+.superadmin-dentists-added-schedules,
+.superadmin-dentists-edit-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.superadmin-dentists-schedule-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: #fff3f8;
+  border: 1px solid #f4d0df;
+  color: #5b6376;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.superadmin-dentists-schedule-tag button {
+  border: none;
+  background: transparent;
+  color: #cf5f8e;
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.superadmin-dentists-schedule-empty {
+  margin: 0;
+  color: #a0a6b8;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.superadmin-dentists-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.superadmin-dentists-search {
+  min-width: 300px;
+}
+
+.superadmin-dentists-table-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: 520px;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding-right: 4px;
+}
+
+.superadmin-dentists-table-wrap {
+  width: 100%;
+}
+
+.superadmin-dentists-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 16px;
+  min-width: 1650px;
+}
+
+.superadmin-dentists-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #ffffff;
+  padding: 0 14px 8px;
+  text-align: left;
+  color: #8a90a2;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.superadmin-dentists-table tbody td {
+  background: #fff;
+  border-top: 1px solid #f3cfdb;
+  border-bottom: 1px solid #f3cfdb;
+  padding: 20px 16px;
+  color: #556074;
+  font-size: 0.95rem;
+  vertical-align: top;
+}
+
+.superadmin-dentists-table tbody tr td:first-child {
+  border-left: 1px solid #f3cfdb;
+  border-top-left-radius: 18px;
+  border-bottom-left-radius: 18px;
+}
+
+.superadmin-dentists-table tbody tr td:last-child {
+  border-right: 1px solid #f3cfdb;
+  border-top-right-radius: 18px;
+  border-bottom-right-radius: 18px;
+}
+
+.superadmin-dentists-name-cell {
+  color: #495167;
+  font-weight: 700;
+}
+
+.superadmin-dentists-email-cell {
+  color: #f05a96;
+  font-weight: 700;
+}
+
+.superadmin-dentists-empty-text {
+  color: #a0a6b8;
+  font-style: italic;
+}
+
+.superadmin-dentists-schedule-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 320px;
+}
+
+.superadmin-dentists-schedule-chip {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #f9edf2;
+  color: #5e6679;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.superadmin-dentists-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.superadmin-dentists-status.is-active {
+  background: #e5f7ea;
+  color: #1f9d57;
+}
+
+.superadmin-dentists-status.is-disabled {
+  background: #fbe6ee;
+  color: #d35b85;
+}
+
+.superadmin-dentists-action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.superadmin-dentists-action-btn {
+  min-width: 120px;
+  height: 42px;
+  padding: 0 14px;
+  color: #fff;
+}
+
+.superadmin-dentists-action-btn.edit-btn {
+  background: linear-gradient(90deg, #b786d7, #9e69c3);
+}
+
+.superadmin-dentists-action-btn.disable-btn {
+  background: linear-gradient(90deg, #ff8fb6, #f05a96);
+}
+
+.superadmin-dentists-action-btn.enable-btn {
+  background: linear-gradient(90deg, #79c98a, #4eb86b);
+}
+
+.superadmin-dentists-empty-state {
+  text-align: center;
+  padding: 24px 0;
+  color: #8a90a2;
+  font-weight: 600;
+}
+
+.superadmin-dentists-calendar-grid {
+  display: grid;
+  grid-template-columns: 180px repeat(6, minmax(180px, 1fr));
+  gap: 12px;
+  overflow-x: auto;
+}
+
+.superadmin-dentists-calendar-header-cell,
+.superadmin-dentists-calendar-branch-cell,
+.superadmin-dentists-calendar-day-cell {
+  border: 1px solid #f3cfdb;
+  border-radius: 18px;
+  background: #fff;
+  padding: 14px;
+}
+
+.superadmin-dentists-calendar-header-cell {
+  text-align: center;
+  font-weight: 800;
+  color: #5b6376;
+  background: #fff6fa;
+}
+
+.superadmin-dentists-calendar-row {
+  display: contents;
+}
+
+.superadmin-dentists-calendar-branch-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: #495167;
+  background: #fff8fb;
+}
+
+.superadmin-dentists-calendar-day-cell {
+  min-height: 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #fff;
+}
+
+.superadmin-dentists-calendar-event {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 0.83rem;
+  line-height: 1.35;
+}
+
+.superadmin-dentists-calendar-event strong {
+  font-size: 0.84rem;
+}
+
+.superadmin-dentists-calendar-event.is-active {
+  background: #fff0f6;
+  border: 1px solid #f4c5d7;
+  color: #8f3e69;
+}
+
+.superadmin-dentists-calendar-event.is-disabled {
+  background: #f7f1f4;
+  border: 1px solid #ead7df;
+  color: #8b7280;
+}
+
+.superadmin-dentists-calendar-empty {
+  color: #b1b7c5;
+  font-size: 1rem;
+  align-self: center;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+.superadmin-dentists-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 35, 0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.superadmin-dentists-modal {
+  width: 100%;
+  max-width: 430px;
+  background: #fff;
+  border-radius: 24px;
+  border: 1px solid #f3cfdb;
+  box-shadow: 0 24px 60px rgba(25, 28, 38, 0.18);
+  padding: 24px;
+}
+
+.superadmin-dentists-edit-modal {
+  max-width: 760px;
+}
+
+.superadmin-dentists-modal h3 {
+  margin: 0 0 10px;
+  color: #495167;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.superadmin-dentists-modal p {
+  margin: 0;
+  color: #7f8596;
+  line-height: 1.6;
+}
+
+.superadmin-dentists-edit-email {
+  margin-bottom: 18px !important;
+  color: #f05a96 !important;
+  font-weight: 700;
+}
+
+.superadmin-dentists-edit-builder {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr auto;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+.superadmin-dentists-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.superadmin-dentists-modal-cancel {
+  height: 44px;
+  padding: 0 16px;
+  background: #f6f7fb;
+  color: #5e6679;
+}
+
+.superadmin-dentists-modal-confirm {
+  height: 44px;
+  padding: 0 18px;
+  background: linear-gradient(90deg, #f37aa8, #ec4f8f);
+  color: #fff;
+}
+
+@media (max-width: 1300px) {
+  .superadmin-dentists-schedule-grid,
+  .superadmin-dentists-edit-builder {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .superadmin-dentists-form-action {
+    align-items: stretch;
+  }
+
+  .superadmin-dentists-calendar-grid {
+    grid-template-columns: 150px repeat(6, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .superadmin-dentists-schedule-grid,
+  .superadmin-dentists-edit-builder {
+    grid-template-columns: 1fr;
+  }
+
+  .superadmin-dentists-search {
+    min-width: 100%;
+  }
+
+  .superadmin-dentists-top-actions {
+    width: 100%;
+  }
+
+  .superadmin-dentists-secondary-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .superadmin-dentists-fixed-page {
+    height: auto;
+    overflow: visible;
+  }
+
+  .superadmin-dentists-content {
+    height: auto;
+    padding: 18px;
+  }
+
+  .superadmin-dentists-title {
+    font-size: 1.8rem;
+  }
+
+  .superadmin-dentists-table-scroll {
+    overflow: auto;
+  }
+
+  .superadmin-dentists-calendar-grid {
+    min-width: 1200px;
+  }
+
+  .superadmin-dentists-register-row .superadmin-dentists-primary-btn {
+    width: 100%;
+  }
+}

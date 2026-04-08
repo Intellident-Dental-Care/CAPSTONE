@@ -1,0 +1,610 @@
+.superadmin-patients-fixed-page {
+  height: calc(100vh - 78px);
+  overflow: hidden;
+  background: #f9fafc;
+}
+
+.superadmin-patients-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  gap: 20px;
+}
+
+.superadmin-patients-header {
+  flex-shrink: 0;
+}
+
+.superadmin-patients-title {
+  margin: 0;
+  font-size: 2.2rem;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #f05a96;
+}
+
+.superadmin-patients-subtitle {
+  margin: 10px 0 0;
+  color: #7f8596;
+  font-size: 0.98rem;
+}
+
+.superadmin-patients-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  flex-shrink: 0;
+}
+
+.superadmin-patient-stat-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 20px 22px;
+  box-shadow: 0 10px 30px rgba(236, 72, 153, 0.05);
+  border: 1px solid #f3cfdb;
+}
+
+.superadmin-patient-stat-card span {
+  display: block;
+  font-size: 13px;
+  color: #8c8c95;
+  margin-bottom: 8px;
+}
+
+.superadmin-patient-stat-card h3 {
+  margin: 0;
+  font-size: 28px;
+  color: #f05a96;
+  font-weight: 800;
+}
+
+.superadmin-patients-list-card {
+  background: #ffffff;
+  border: 1px solid #f3cfdb;
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(236, 72, 153, 0.05);
+  padding: 20px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.superadmin-patients-card-head {
+  margin-bottom: 18px;
+  flex-shrink: 0;
+}
+
+.superadmin-patients-card-head-wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.superadmin-patients-card-head h3 {
+  margin: 0;
+  color: #495167;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.superadmin-patients-card-head p {
+  margin: 6px 0 0;
+  color: #8a90a2;
+  font-size: 0.92rem;
+}
+
+.superadmin-patients-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.superadmin-patients-search,
+.superadmin-patients-filter {
+  border: 1px solid #f2c9d8;
+  border-radius: 16px;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  color: #3f4658;
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
+  height: 52px;
+}
+
+.superadmin-patients-search {
+  width: 320px;
+  max-width: 100%;
+}
+
+.superadmin-patients-filter {
+  min-width: 190px;
+}
+
+.superadmin-patients-search:focus,
+.superadmin-patients-filter:focus {
+  border-color: #ee8cb3;
+  box-shadow: 0 0 0 4px rgba(240, 90, 150, 0.09);
+}
+
+.superadmin-patients-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding-right: 4px;
+}
+
+.superadmin-patients-table-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.superadmin-patients-table-scroll::-webkit-scrollbar-track {
+  background: #f4f4f7;
+  border-radius: 999px;
+}
+
+.superadmin-patients-table-scroll::-webkit-scrollbar-thumb {
+  background: #d7dbe7;
+  border-radius: 999px;
+}
+
+.superadmin-patients-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 12px;
+  table-layout: fixed;
+  min-width: 1200px;
+}
+
+.superadmin-patients-table thead th {
+  font-size: 13px;
+  color: #9998a3;
+  font-weight: 700;
+  padding: 0 16px 8px;
+  vertical-align: middle;
+}
+
+.superadmin-patients-table th:nth-child(1),
+.superadmin-patients-table td:nth-child(1) {
+  width: 18%;
+  text-align: left;
+}
+
+.superadmin-patients-table th:nth-child(2),
+.superadmin-patients-table td:nth-child(2) {
+  width: 10%;
+  text-align: center;
+}
+
+.superadmin-patients-table th:nth-child(3),
+.superadmin-patients-table td:nth-child(3) {
+  width: 8%;
+  text-align: center;
+}
+
+.superadmin-patients-table th:nth-child(4),
+.superadmin-patients-table td:nth-child(4) {
+  width: 15%;
+  text-align: center;
+}
+
+.superadmin-patients-table th:nth-child(5),
+.superadmin-patients-table td:nth-child(5) {
+  width: 15%;
+  text-align: center;
+}
+
+.superadmin-patients-table th:nth-child(6),
+.superadmin-patients-table td:nth-child(6) {
+  width: 14%;
+  text-align: center;
+}
+
+.superadmin-patients-table th:nth-child(7),
+.superadmin-patients-table td:nth-child(7) {
+  width: 10%;
+  text-align: center;
+}
+
+.superadmin-patients-table th:nth-child(8),
+.superadmin-patients-table td:nth-child(8) {
+  width: 10%;
+  text-align: right;
+}
+
+.superadmin-patients-table thead th:last-child {
+  text-align: right;
+  padding-right: 20px;
+}
+
+.superadmin-patients-table tbody tr {
+  background: #fffafb;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.04);
+}
+
+.superadmin-patients-table tbody td {
+  padding: 16px;
+  font-size: 14px;
+  color: #444;
+  vertical-align: middle;
+  border-top: 1px solid #f6d7e2;
+  border-bottom: 1px solid #f6d7e2;
+}
+
+.superadmin-patients-table tbody td:first-child {
+  border-left: 1px solid #f6d7e2;
+  border-top-left-radius: 16px;
+  border-bottom-left-radius: 16px;
+  font-weight: 700;
+  color: #f05a96;
+}
+
+.superadmin-patients-table tbody td:last-child {
+  border-right: 1px solid #f6d7e2;
+  border-top-right-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+.superadmin-patient-name-cell {
+  font-weight: 700;
+  color: #f05a96;
+}
+
+.superadmin-patient-action-header {
+  text-align: right !important;
+  padding-right: 20px !important;
+}
+
+.superadmin-patient-action-cell {
+  text-align: right;
+  padding-right: 20px !important;
+  white-space: nowrap;
+}
+
+.superadmin-patient-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 90px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.superadmin-patient-status-badge.is-active {
+  background: #e5f7ea;
+  color: #1f9d57;
+}
+
+.superadmin-patient-status-badge.is-inactive {
+  background: #fbe6ee;
+  color: #d35b85;
+}
+
+.superadmin-patient-view-btn {
+  border: none;
+  background: linear-gradient(135deg, #ff7eaa, #f05a96);
+  color: #ffffff;
+  width: 112px;
+  height: 36px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.superadmin-patient-view-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(240, 90, 150, 0.24);
+}
+
+.superadmin-patient-empty-state {
+  text-align: center;
+  color: #999;
+  padding: 28px 16px !important;
+  border-radius: 16px;
+}
+
+/* MODAL */
+.superadmin-patient-details-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 20, 20, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.superadmin-patient-details-modal {
+  width: min(920px, 95vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 26px;
+  position: relative;
+  box-shadow: 0 24px 60px rgba(16, 24, 40, 0.18);
+  border: 1px solid #f2c9d8;
+}
+
+.superadmin-patient-details-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.superadmin-patient-details-modal::-webkit-scrollbar-track {
+  background: #f4f4f7;
+  border-radius: 999px;
+}
+
+.superadmin-patient-details-modal::-webkit-scrollbar-thumb {
+  background: #d7dbe7;
+  border-radius: 999px;
+}
+
+.superadmin-patient-details-close {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: #fff1f5;
+  color: #f05a96;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.superadmin-patient-details-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-right: 42px;
+  margin-bottom: 22px;
+}
+
+.superadmin-patient-details-avatar {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffd8e6, #ffc2d8);
+  color: #f05a96;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.superadmin-patient-details-header-text h2 {
+  margin: 0;
+  font-size: 26px;
+  color: #2f2f39;
+}
+
+.superadmin-patient-details-header-text p {
+  margin: 6px 0 10px;
+  font-size: 14px;
+  color: #8b8b96;
+}
+
+.superadmin-patient-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.superadmin-patient-info-card {
+  background: #fffafb;
+  border: 1px solid #f6d7e2;
+  border-radius: 20px;
+  padding: 20px;
+}
+
+.superadmin-patient-info-card h4 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  color: #f05a96;
+}
+
+.superadmin-patient-info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f3e3ea;
+}
+
+.superadmin-patient-info-row:last-child {
+  border-bottom: none;
+}
+
+.superadmin-patient-info-row span {
+  color: #8f8f9b;
+  font-size: 14px;
+}
+
+.superadmin-patient-info-row strong {
+  color: #333;
+  font-size: 14px;
+  text-align: right;
+  word-break: break-word;
+}
+
+.superadmin-patient-procedure-card {
+  grid-column: 1 / -1;
+}
+
+.superadmin-patient-procedure-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.superadmin-patient-procedure-item {
+  background: #ffffff;
+  border: 1px solid #f3d8e3;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.superadmin-patient-procedure-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.superadmin-patient-procedure-top strong {
+  color: #2f2f39;
+  font-size: 15px;
+}
+
+.superadmin-patient-procedure-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.superadmin-patient-procedure-row {
+  background: #fffafb;
+  border: 1px solid #f6d7e2;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.superadmin-patient-procedure-row span {
+  display: block;
+  font-size: 12px;
+  color: #8f8f9b;
+  margin-bottom: 6px;
+}
+
+.superadmin-patient-procedure-row strong {
+  font-size: 13px;
+  color: #333;
+  word-break: break-word;
+}
+
+.superadmin-patient-procedure-empty {
+  text-align: center;
+  color: #999;
+  padding: 20px;
+}
+
+.superadmin-patient-procedure-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 95px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.superadmin-patient-procedure-badge.completed {
+  background: #e9fff1;
+  color: #1f9d57;
+}
+
+.superadmin-patient-procedure-badge.scheduled {
+  background: #eef4ff;
+  color: #3b6eea;
+}
+
+.superadmin-patient-procedure-badge.follow-up {
+  background: #fff6e9;
+  color: #d48a19;
+}
+
+.superadmin-patient-procedure-badge.ongoing {
+  background: #f2edff;
+  color: #7a4de8;
+}
+
+@media (max-width: 1024px) {
+  .superadmin-patients-fixed-page {
+    height: auto;
+    overflow: visible;
+  }
+
+  .superadmin-patients-content {
+    height: auto;
+  }
+
+  .superadmin-patients-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .superadmin-patients-card-head-wrap {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .superadmin-patients-top-actions {
+    width: 100%;
+  }
+
+  .superadmin-patients-search {
+    width: 100%;
+  }
+
+  .superadmin-patient-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .superadmin-patient-procedure-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .superadmin-patients-content {
+    padding: 18px;
+  }
+
+  .superadmin-patients-title {
+    font-size: 1.8rem;
+  }
+
+  .superadmin-patients-filter {
+    width: 100%;
+  }
+
+  .superadmin-patient-details-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .superadmin-patient-info-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .superadmin-patient-info-row strong {
+    text-align: left;
+  }
+
+  .superadmin-patient-procedure-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
