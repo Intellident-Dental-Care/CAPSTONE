@@ -1,14 +1,66 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import logo from "../../../assets/logo.png";
 import adminProfile from "../../../assets/profile_sample.jpg";
+import AuthService from "../../../services/authService";
+import { getAdminProfile } from "../../../services/adminService";
 
 export default function SuperAdminSidebar() {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => AuthService.getCurrentUser() || {});
+
+  useEffect(() => {
+    let active = true;
+
+    const loadProfile = async () => {
+      const result = await getAdminProfile();
+      if (!active || !result?.success || !result?.data) return;
+
+      setCurrentUser((prev) => ({ ...(prev || {}), ...result.data }));
+      localStorage.setItem(
+        "user_data",
+        JSON.stringify({
+          ...(AuthService.getCurrentUser() || {}),
+          ...result.data,
+        })
+      );
+      window.dispatchEvent(new CustomEvent("auth:user-updated", { detail: result.data }));
+    };
+
+    const syncFromStorage = () => {
+      setCurrentUser(AuthService.getCurrentUser() || {});
+    };
+
+    const handleUserUpdated = (event) => {
+      if (event?.detail && typeof event.detail === "object") {
+        setCurrentUser((prev) => ({ ...(prev || {}), ...event.detail }));
+        return;
+      }
+      syncFromStorage();
+    };
+
+    loadProfile();
+    window.addEventListener("storage", syncFromStorage);
+    window.addEventListener("auth:user-updated", handleUserUpdated);
+
+    return () => {
+      active = false;
+      window.removeEventListener("storage", syncFromStorage);
+      window.removeEventListener("auth:user-updated", handleUserUpdated);
+    };
+  }, []);
+
+  const displayName =
+    currentUser?.fullName || currentUser?.full_name || currentUser?.name || "Super Admin";
+  const displayRole =
+    currentUser?.admin_type === "super_admin" || currentUser?.adminType === "super_admin"
+      ? "Global System Administrator"
+      : "Administrator";
 
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);
+    AuthService.clearAuth();
     navigate("/login");
   };
 
@@ -30,8 +82,8 @@ export default function SuperAdminSidebar() {
 
           <div className="admin-profile-card">
             <img src={adminProfile} alt="Super Admin" />
-            <h3>Hello, Super Admin</h3>
-            <p>Global System Administrator</p>
+            <h3>Hello, {displayName}</h3>
+            <p>{displayRole}</p>
           </div>
 
           <nav className="admin-sidebar-menu">

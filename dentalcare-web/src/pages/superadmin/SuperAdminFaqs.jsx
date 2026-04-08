@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SuperAdminSidebar from "../../components/superadmin/layout/SuperAdminSidebar";
 import SuperAdminTopbar from "../../components/superadmin/layout/SuperAdminTopbar";
+import { getSuperAdminFaqs, createSuperAdminFaq } from "../../services/superAdminService";
 
 import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
@@ -9,28 +10,6 @@ import "../../styles/admin/shared/admin-responsive.css";
 
 import "../../styles/superadmin/faqs/superadmin-faqs.css";
 import "../../styles/superadmin/shared/superadmin-responsive.css";
-
-const initialFaqs = [
-  {
-    id: 1,
-    question: "How do I book an appointment?",
-    answer:
-      "You can book through the mobile app or by contacting the clinic branch.",
-    category: "Appointments",
-  },
-  {
-    id: 2,
-    question: "Do you accept walk-ins?",
-    answer: "Yes, depending on dentist availability and branch queue.",
-    category: "General",
-  },
-  {
-    id: 3,
-    question: "What payment methods do you accept?",
-    answer: "We accept cash and other available payment methods per branch.",
-    category: "Payments",
-  },
-];
 
 export default function SuperAdminFaqs() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -43,7 +22,7 @@ export default function SuperAdminFaqs() {
     },
   ]);
 
-  const [faqs, setFaqs] = useState(initialFaqs);
+  const [faqs, setFaqs] = useState([]);
 
   const [form, setForm] = useState({
     question: "",
@@ -61,30 +40,46 @@ export default function SuperAdminFaqs() {
     message: "",
   });
 
+  const fetchFaqs = async () => {
+    const res = await getSuperAdminFaqs();
+    if (res?.success) setFaqs(res.data);
+  };
+
+  useEffect(() => {
+    fetchFaqs();
+  }, []);
+
   const handleMarkAllRead = () => {
     setNotifications([]);
     setIsNotificationOpen(false);
   };
 
-  const handleAddFaq = (e) => {
+  const handleAddFaq = async (e) => {
     e.preventDefault();
 
     if (!form.question.trim() || !form.answer.trim()) return;
 
-    const newFaq = {
-      id: Date.now(),
+    // Call the backend API
+    const res = await createSuperAdminFaq({
       question: form.question.trim(),
       answer: form.answer.trim(),
       category: form.category,
-    };
-
-    setFaqs((prev) => [newFaq, ...prev]);
-
-    setForm({
-      question: "",
-      answer: "",
-      category: "General",
     });
+
+    if (res?.success) {
+      // Add the real database record (with the Supabase UUID) to the top of the list
+      setFaqs((prev) => [res.data, ...prev]);
+
+      // Clear the form
+      setForm({
+        question: "",
+        answer: "",
+        category: "General",
+      });
+    } else {
+      console.error("Failed to save FAQ to the database");
+      alert("Failed to add FAQ. Please check your connection.");
+    }
   };
 
   const openDeleteModal = (faq) => {
@@ -116,9 +111,9 @@ export default function SuperAdminFaqs() {
     return faqs.filter((faq) => {
       const matchesSearch =
         !keyword ||
-        faq.question.toLowerCase().includes(keyword) ||
-        faq.answer.toLowerCase().includes(keyword) ||
-        faq.category.toLowerCase().includes(keyword);
+        (faq.question || "").toLowerCase().includes(keyword) ||
+        (faq.answer || "").toLowerCase().includes(keyword) ||
+        (faq.category || "").toLowerCase().includes(keyword);
 
       const matchesCategory =
         selectedCategory === "All" || faq.category === selectedCategory;

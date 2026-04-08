@@ -1,6 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SuperAdminSidebar from "../../components/superadmin/layout/SuperAdminSidebar";
 import SuperAdminTopbar from "../../components/superadmin/layout/SuperAdminTopbar";
+import {
+  getSuperAdminDentists,
+  createSuperAdminDentist,
+  updateSuperAdminDentistStatus,
+  updateSuperAdminDentistSchedules,
+} from "../../services/superAdminService";
 
 import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
@@ -19,7 +25,36 @@ const DAYS = [
   "Saturday",
 ];
 
-const BRANCHES = ["Dasmarinas", "General Trias", "Bacoor"];
+// We map short string versions backend might return to our full array above
+const normalizeDay = (dayStr) => {
+  const lowered = String(dayStr).toLowerCase();
+  if (lowered.includes("mon")) return "Monday";
+  if (lowered.includes("tue")) return "Tuesday";
+  if (lowered.includes("wed")) return "Wednesday";
+  if (lowered.includes("thu")) return "Thursday";
+  if (lowered.includes("fri")) return "Friday";
+  if (lowered.includes("sat")) return "Saturday";
+  if (lowered.includes("sun")) return "Sunday";
+  return dayStr;
+};
+
+// Normalize branch strings to handle differences in database inputs
+const normalizeBranchStr = (branchStr) => {
+  const b = String(branchStr).toLowerCase();
+  if (b.includes("dasma")) return "Dasmarinas, Cavite";
+  if (b.includes("gentri") || b.includes("trias")) return "General Trias, Cavite";
+  if (b.includes("bacoor")) return "Bacoor, Cavite";
+  return branchStr;
+};
+
+const isSameSchedule = (left, right) => {
+  return (
+    normalizeDay(left.day) === normalizeDay(right.day) &&
+    String(left.time || "").trim() === String(right.time || "").trim()
+  );
+};
+
+const BRANCHES = ["Dasmarinas, Cavite", "General Trias, Cavite", "Bacoor, Cavite"];
 
 const TIME_OPTIONS = [
   "8:00 AM - 12:00 PM",
@@ -32,56 +67,9 @@ const TIME_OPTIONS = [
   "9:00 AM - 6:00 PM",
 ];
 
-const initialDentists = [
-  {
-    id: 1,
-    name: "Andrea Lopez",
-    dateOfBirth: "1990-08-12",
-    age: 34,
-    sex: "Female",
-    contactNumber: "09171231234",
-    email: "dr.andrea@gcdental.com",
-    status: "Active",
-    isProfileCompleted: true,
-    schedules: [
-      { branch: "Dasmarinas", day: "Monday", time: "9:00 AM - 1:00 PM" },
-      { branch: "Dasmarinas", day: "Wednesday", time: "1:00 PM - 5:00 PM" },
-    ],
-  },
-  {
-    id: 2,
-    name: "Angela Santos",
-    dateOfBirth: "1989-04-05",
-    age: 35,
-    sex: "Female",
-    contactNumber: "09182345678",
-    email: "dr.angela@gcdental.com",
-    status: "Active",
-    isProfileCompleted: true,
-    schedules: [
-      { branch: "General Trias", day: "Wednesday", time: "1:00 PM - 5:00 PM" },
-      { branch: "Bacoor", day: "Friday", time: "9:00 AM - 1:00 PM" },
-    ],
-  },
-  {
-    id: 3,
-    name: "",
-    dateOfBirth: "",
-    age: "",
-    sex: "",
-    contactNumber: "",
-    email: "dr.shin@gcdental.com",
-    status: "Disabled",
-    isProfileCompleted: false,
-    schedules: [
-      { branch: "Bacoor", day: "Friday", time: "10:00 AM - 2:00 PM" },
-    ],
-  },
-];
-
 function buildEmptyScheduleForm() {
   return {
-    branch: "Dasmarinas",
+    branch: "Dasmarinas, Cavite",
     day: "Monday",
     time: TIME_OPTIONS[0],
   };
@@ -98,9 +86,10 @@ export default function SuperAdminDentists() {
     },
   ]);
 
-  const [dentists, setDentists] = useState(initialDentists);
+  const [dentists, setDentists] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     email: "",
@@ -126,6 +115,15 @@ export default function SuperAdminDentists() {
     scheduleForm: buildEmptyScheduleForm(),
   });
 
+  const fetchDentists = async () => {
+    const res = await getSuperAdminDentists();
+    if (res?.success) setDentists(res.data);
+  };
+
+  useEffect(() => {
+    fetchDentists();
+  }, []);
+
   const filteredDentists = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
 
@@ -138,10 +136,10 @@ export default function SuperAdminDentists() {
         .toLowerCase();
 
       return (
-        dentist.email.toLowerCase().includes(keyword) ||
+        (dentist.email || "").toLowerCase().includes(keyword) ||
         (dentist.name || "").toLowerCase().includes(keyword) ||
         (dentist.contactNumber || "").toLowerCase().includes(keyword) ||
-        (dentist.sex || "").toLowerCase().includes(keyword) ||
+        (dentist.specialty || "").toLowerCase().includes(keyword) ||
         scheduleText.includes(keyword)
       );
     });
@@ -152,7 +150,7 @@ export default function SuperAdminDentists() {
     (dentist) => dentist.status === "Active"
   ).length;
   const inactiveDentists = filteredDentists.filter(
-    (dentist) => dentist.status === "Disabled"
+    (dentist) => dentist.status === "Disabled" || dentist.status === "Inactive"
   ).length;
 
   const allVisibleSelected =
@@ -170,6 +168,15 @@ export default function SuperAdminDentists() {
       day: scheduleForm.day,
       time: scheduleForm.time,
     };
+
+    const hasDuplicate = pendingSchedules.some((schedule) =>
+      isSameSchedule(schedule, newSchedule)
+    );
+
+    if (hasDuplicate) {
+      alert("This schedule already exists for this dentist.");
+      return;
+    }
 
     setPendingSchedules((prev) => [...prev, newSchedule]);
     setScheduleForm(buildEmptyScheduleForm());
@@ -251,44 +258,55 @@ export default function SuperAdminDentists() {
     });
   };
 
-  const handleConfirmAction = () => {
+  const handleConfirmAction = async () => {
     const { type, ids, payload } = confirmModal;
 
     if (type === "register-dentist" && payload) {
-      const newDentist = {
-        id: Date.now(),
-        name: "",
-        dateOfBirth: "",
-        age: "",
-        sex: "",
-        contactNumber: "",
+      setIsSubmitting(true);
+      const res = await createSuperAdminDentist({
         email: payload.email,
-        status: "Active",
-        isProfileCompleted: false,
         schedules: payload.schedules,
-      };
+        name: "New Dentist",
+        contactNumber: "Not Set",
+        specialty: "General Dentistry",
+        licenseNumber: "Not Set",
+        yearsExperience: 0
+      });
+      setIsSubmitting(false);
 
-      setDentists((prev) => [newDentist, ...prev]);
-      setForm({ email: "" });
-      setPendingSchedules([]);
-      setScheduleForm(buildEmptyScheduleForm());
+      if (res?.success) {
+        fetchDentists();
+        setForm({ email: "" });
+        setPendingSchedules([]);
+        setScheduleForm(buildEmptyScheduleForm());
+      } else {
+        alert(res?.message || "Failed to create dentist account.");
+      }
     }
 
     if (type === "disable-single" || type === "disable-multiple") {
-      setDentists((prev) =>
-        prev.map((dentist) =>
-          ids.includes(dentist.id) ? { ...dentist, status: "Disabled" } : dentist
-        )
-      );
+      setIsSubmitting(true);
+      const results = await Promise.all(ids.map((id) => updateSuperAdminDentistStatus(id, false)));
+      setIsSubmitting(false);
+
+      if (results.some((result) => !result?.success)) {
+        alert(results.find((result) => !result?.success)?.message || "Failed to disable one or more dentist accounts.");
+      }
+
+      await fetchDentists();
       setSelectedIds([]);
     }
 
     if (type === "enable-single" || type === "enable-multiple") {
-      setDentists((prev) =>
-        prev.map((dentist) =>
-          ids.includes(dentist.id) ? { ...dentist, status: "Active" } : dentist
-        )
-      );
+      setIsSubmitting(true);
+      const results = await Promise.all(ids.map((id) => updateSuperAdminDentistStatus(id, true)));
+      setIsSubmitting(false);
+
+      if (results.some((result) => !result?.success)) {
+        alert(results.find((result) => !result?.success)?.message || "Failed to enable one or more dentist accounts.");
+      }
+
+      await fetchDentists();
       setSelectedIds([]);
     }
 
@@ -313,11 +331,17 @@ export default function SuperAdminDentists() {
   };
 
   const openEditModal = (dentist) => {
+    const normalizedSchedules = (dentist.schedules || []).map((schedule) => ({
+      branch: normalizeBranchStr(schedule.branch),
+      day: normalizeDay(schedule.day),
+      time: schedule.time,
+    }));
+
     setEditModal({
       open: true,
       dentistId: dentist.id,
       dentistEmail: dentist.email,
-      schedules: [...(dentist.schedules || [])],
+      schedules: normalizedSchedules,
       scheduleForm: buildEmptyScheduleForm(),
     });
   };
@@ -339,6 +363,15 @@ export default function SuperAdminDentists() {
       time: editModal.scheduleForm.time,
     };
 
+    const hasDuplicate = editModal.schedules.some((schedule) =>
+      isSameSchedule(schedule, newSchedule)
+    );
+
+    if (hasDuplicate) {
+      alert("This schedule already exists for this dentist.");
+      return;
+    }
+
     setEditModal((prev) => ({
       ...prev,
       schedules: [...prev.schedules, newSchedule],
@@ -353,17 +386,22 @@ export default function SuperAdminDentists() {
     }));
   };
 
-  const handleSaveEditedSchedules = () => {
-    if (!editModal.dentistId || editModal.schedules.length === 0) return;
+  const handleSaveEditedSchedules = async () => {
+    if (!editModal.dentistId) return;
 
-    setDentists((prev) =>
-      prev.map((dentist) =>
-        dentist.id === editModal.dentistId
-          ? { ...dentist, schedules: editModal.schedules }
-          : dentist
-      )
+    setIsSubmitting(true);
+    const res = await updateSuperAdminDentistSchedules(
+      editModal.dentistId,
+      editModal.schedules
     );
+    setIsSubmitting(false);
 
+    if (!res?.success) {
+      alert(res?.message || "Failed to save schedule changes.");
+      return;
+    }
+
+    await fetchDentists();
     closeEditModal();
   };
 
@@ -532,8 +570,9 @@ export default function SuperAdminDentists() {
                   <button
                     type="submit"
                     className="superadmin-dentists-primary-btn"
+                    disabled={isSubmitting}
                   >
-                    Register Dentist
+                    {isSubmitting ? "Registering..." : "Register Dentist"}
                   </button>
                 </div>
               </form>
@@ -661,7 +700,7 @@ export default function SuperAdminDentists() {
                                   key={`${schedule.branch}-${schedule.day}-${schedule.time}-${index}`}
                                   className="superadmin-dentists-schedule-chip"
                                 >
-                                  {schedule.branch} • {schedule.day} • {schedule.time}
+                                  {schedule.branch} • {normalizeDay(schedule.day)} • {schedule.time}
                                 </div>
                               ))}
                             </div>
@@ -752,7 +791,8 @@ export default function SuperAdminDentists() {
                         (dentist.schedules || [])
                           .filter(
                             (schedule) =>
-                              schedule.branch === branch && schedule.day === day
+                              normalizeBranchStr(schedule.branch) === normalizeBranchStr(branch) && 
+                              normalizeDay(schedule.day) === day
                           )
                           .map((schedule, index) => ({
                             dentistId: dentist.id,
@@ -826,8 +866,9 @@ export default function SuperAdminDentists() {
                 type="button"
                 className="superadmin-dentists-modal-confirm"
                 onClick={handleConfirmAction}
+                disabled={isSubmitting}
               >
-                Confirm
+                {isSubmitting ? "Processing..." : "Confirm"}
               </button>
             </div>
           </div>
@@ -930,7 +971,7 @@ export default function SuperAdminDentists() {
                     className="superadmin-dentists-schedule-tag"
                   >
                     <span>
-                      {schedule.branch} • {schedule.day} • {schedule.time}
+                      {schedule.branch} • {normalizeDay(schedule.day)} • {schedule.time}
                     </span>
                     <button
                       type="button"
@@ -960,8 +1001,9 @@ export default function SuperAdminDentists() {
                 type="button"
                 className="superadmin-dentists-modal-confirm"
                 onClick={handleSaveEditedSchedules}
+                disabled={isSubmitting}
               >
-                Save Schedule
+                {isSubmitting ? "Saving..." : "Save Schedule"}
               </button>
             </div>
           </div>

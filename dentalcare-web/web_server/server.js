@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
 import path from "path";
+
 import authRoutes from "./authentication/routes.js";
 import dashboardRoutes from "./admin/dashboard/dashboardRoutes.js";
 import queueRoutes from "./admin/queuecontrol/queueRoutes.js";
@@ -13,6 +14,15 @@ import dentistDashboardRoutes from "./dentist/dashboard/dashboardRoutes.js";
 import dentistScheduleRoutes from "./dentist/schedule/scheduleRoutes.js";
 import dentistProfileRoutes from "./dentist/profile/profileRoutes.js";
 import dentistPatientsRoutes from "./dentist/patients/patientsRoutes.js";
+
+
+import superAdminDashboardRoutes from "./super_admin/dashboard/dashboardRoutes.js";
+import superAdminAdminsRoutes from "./super_admin/admins/adminsRoutes.js";
+import superAdminDentistsRoutes from "./super_admin/dentists/dentistsRoutes.js";
+import superAdminPatientsRoutes from "./super_admin/patients/patientsRoutes.js";
+import superAdminServicesRoutes from "./super_admin/services/servicesRoutes.js";
+import superAdminFaqsRoutes from "./super_admin/faqs/faqsRoutes.js";
+
 import { getLocalIpAddress, getServerDiscoveryUrls } from "./shared/getServerUrl.js";
 import { verifyEmailTransport } from "./nodemailer/emailOtpService.js";
 
@@ -49,10 +59,19 @@ app.use("/api/admin/profile", profileRoutes);
 app.use("/api/admin/appointments", appointmentsRoutes);
 app.use("/api/admin/dentists", dentistsRoutes);
 app.use("/api/admin/patients", patientsRoutes);
+
 app.use("/api/dentist/dashboard", dentistDashboardRoutes);
 app.use("/api/dentist/schedule", dentistScheduleRoutes);
 app.use("/api/dentist/profile", dentistProfileRoutes);
 app.use("/api/dentist/patients", dentistPatientsRoutes);
+
+// --- Register New Super Admin API Routes ---
+app.use("/api/super_admin/dashboard", superAdminDashboardRoutes);
+app.use("/api/super_admin/admins", superAdminAdminsRoutes);
+app.use("/api/super_admin/dentists", superAdminDentistsRoutes);
+app.use("/api/super_admin/patients", superAdminPatientsRoutes);
+app.use("/api/super_admin/services", superAdminServicesRoutes);
+app.use("/api/super_admin/faqs", superAdminFaqsRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error("Unhandled server error:", err);

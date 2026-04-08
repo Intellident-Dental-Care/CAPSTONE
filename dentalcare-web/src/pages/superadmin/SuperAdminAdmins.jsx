@@ -1,6 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SuperAdminSidebar from "../../components/superadmin/layout/SuperAdminSidebar";
 import SuperAdminTopbar from "../../components/superadmin/layout/SuperAdminTopbar";
+import {
+  getSuperAdminAdmins,
+  createSuperAdminAdmin,
+  updateSuperAdminAdminStatus,
+} from "../../services/superAdminService";
 
 import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
@@ -10,44 +15,8 @@ import "../../styles/admin/shared/admin-responsive.css";
 import "../../styles/superadmin/admins/superadmin-admins.css";
 import "../../styles/superadmin/shared/superadmin-responsive.css";
 
-const initialAdmins = [
-  {
-    id: 1,
-    name: "Andrea Lopez",
-    dateOfBirth: "1994-06-14",
-    age: 30,
-    sex: "Female",
-    contactNumber: "09171234567",
-    email: "admin.dasma@gcdental.com",
-    branch: "Dasmarinas",
-    status: "Active",
-    isProfileCompleted: true,
-  },
-  {
-    id: 2,
-    name: "Mark Reyes",
-    dateOfBirth: "1991-03-22",
-    age: 33,
-    sex: "Male",
-    contactNumber: "09184561234",
-    email: "admin.gentri@gcdental.com",
-    branch: "General Trias",
-    status: "Active",
-    isProfileCompleted: true,
-  },
-  {
-    id: 3,
-    name: "",
-    dateOfBirth: "",
-    age: "",
-    sex: "",
-    contactNumber: "",
-    email: "admin.bacoor@gcdental.com",
-    branch: "Bacoor",
-    status: "Disabled",
-    isProfileCompleted: false,
-  },
-];
+// Updated branches to match database strings found in your bookings table
+const BRANCHES = ["Dasmarinas, Cavite", "General Trias, Cavite", "Bacoor, Cavite"];
 
 export default function SuperAdminAdmins() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -60,13 +29,14 @@ export default function SuperAdminAdmins() {
     },
   ]);
 
-  const [admins, setAdmins] = useState(initialAdmins);
+  const [admins, setAdmins] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     email: "",
-    branch: "Dasmarinas",
+    branch: BRANCHES[0], // Defaults to Dasmarinas, Cavite
   });
 
   const [confirmModal, setConfirmModal] = useState({
@@ -78,15 +48,25 @@ export default function SuperAdminAdmins() {
     payload: null,
   });
 
+  const fetchAdmins = async () => {
+    const res = await getSuperAdminAdmins();
+    if (res?.success) {
+      setAdmins(res.data);
+    }
+  };
+
+  useEffect(() => {
+    fetchAdmins();
+  }, []);
+
   const filteredAdmins = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
-
     if (!keyword) return admins;
 
     return admins.filter((admin) => {
       return (
-        admin.email.toLowerCase().includes(keyword) ||
-        admin.branch.toLowerCase().includes(keyword) ||
+        (admin.email || "").toLowerCase().includes(keyword) ||
+        (admin.branch || "").toLowerCase().includes(keyword) ||
         (admin.name || "").toLowerCase().includes(keyword) ||
         (admin.contactNumber || "").toLowerCase().includes(keyword) ||
         (admin.sex || "").toLowerCase().includes(keyword)
@@ -99,7 +79,7 @@ export default function SuperAdminAdmins() {
     (admin) => admin.status === "Active"
   ).length;
   const inactiveAdmins = filteredAdmins.filter(
-    (admin) => admin.status === "Disabled"
+    (admin) => admin.status === "Disabled" || admin.status === "Inactive"
   ).length;
 
   const allVisibleSelected =
@@ -113,7 +93,6 @@ export default function SuperAdminAdmins() {
 
   const openRegisterModal = (e) => {
     e.preventDefault();
-
     if (!form.email.trim() || !form.branch.trim()) return;
 
     setConfirmModal({
@@ -131,7 +110,6 @@ export default function SuperAdminAdmins() {
 
   const openSingleStatusModal = (admin) => {
     const isActive = admin.status === "Active";
-
     setConfirmModal({
       open: true,
       type: isActive ? "disable-single" : "enable-single",
@@ -146,7 +124,6 @@ export default function SuperAdminAdmins() {
 
   const openBulkDisableModal = () => {
     if (selectedIds.length === 0) return;
-
     setConfirmModal({
       open: true,
       type: "disable-multiple",
@@ -159,7 +136,6 @@ export default function SuperAdminAdmins() {
 
   const openBulkEnableModal = () => {
     if (selectedIds.length === 0) return;
-
     setConfirmModal({
       open: true,
       type: "enable-multiple",
@@ -181,45 +157,50 @@ export default function SuperAdminAdmins() {
     });
   };
 
-  const handleConfirmAction = () => {
+  const handleConfirmAction = async () => {
     const { type, ids, payload } = confirmModal;
 
     if (type === "register-admin" && payload) {
-      const newAdmin = {
-        id: Date.now(),
-        name: "",
-        dateOfBirth: "",
-        age: "",
-        sex: "",
-        contactNumber: "",
+      setIsSubmitting(true);
+      const res = await createSuperAdminAdmin({
         email: payload.email,
         branch: payload.branch,
-        status: "Active",
-        isProfileCompleted: false,
-      };
-
-      setAdmins((prev) => [newAdmin, ...prev]);
-      setForm({
-        email: "",
-        branch: "Dasmarinas",
+        name: "New Admin", 
+        contactNumber: "Not Set"
       });
+      setIsSubmitting(false);
+
+      if (res?.success) {
+        fetchAdmins();
+        setForm({ email: "", branch: BRANCHES[0] });
+      } else {
+        alert(res?.message || "Failed to create admin.");
+      }
     }
 
     if (type === "disable-single" || type === "disable-multiple") {
-      setAdmins((prev) =>
-        prev.map((admin) =>
-          ids.includes(admin.id) ? { ...admin, status: "Disabled" } : admin
-        )
-      );
+      setIsSubmitting(true);
+      const results = await Promise.all(ids.map((id) => updateSuperAdminAdminStatus(id, false)));
+      setIsSubmitting(false);
+
+      if (results.some((result) => !result?.success)) {
+        alert(results.find((result) => !result?.success)?.message || "Failed to disable one or more admin accounts.");
+      }
+
+      await fetchAdmins();
       setSelectedIds([]);
     }
 
     if (type === "enable-single" || type === "enable-multiple") {
-      setAdmins((prev) =>
-        prev.map((admin) =>
-          ids.includes(admin.id) ? { ...admin, status: "Active" } : admin
-        )
-      );
+      setIsSubmitting(true);
+      const results = await Promise.all(ids.map((id) => updateSuperAdminAdminStatus(id, true)));
+      setIsSubmitting(false);
+
+      if (results.some((result) => !result?.success)) {
+        alert(results.find((result) => !result?.success)?.message || "Failed to enable one or more admin accounts.");
+      }
+
+      await fetchAdmins();
       setSelectedIds([]);
     }
 
@@ -238,7 +219,6 @@ export default function SuperAdminAdmins() {
       setSelectedIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
       return;
     }
-
     const visibleIds = filteredAdmins.map((admin) => admin.id);
     setSelectedIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
   };
@@ -246,7 +226,6 @@ export default function SuperAdminAdmins() {
   return (
     <div className="admin-dashboard-page">
       <SuperAdminSidebar />
-
       <main className="admin-main-content">
         <SuperAdminTopbar
           title="Admin Management"
@@ -271,12 +250,10 @@ export default function SuperAdminAdmins() {
                 <span>Total Admin</span>
                 <h3>{totalAdmins}</h3>
               </div>
-
               <div className="superadmin-admin-stat-card">
                 <span>Active Admin</span>
                 <h3>{activeAdmins}</h3>
               </div>
-
               <div className="superadmin-admin-stat-card">
                 <span>Inactive Admin</span>
                 <h3>{inactiveAdmins}</h3>
@@ -291,39 +268,32 @@ export default function SuperAdminAdmins() {
                 </div>
               </div>
 
-              <form
-                onSubmit={openRegisterModal}
-                className="superadmin-admins-form-grid"
-              >
+              <form onSubmit={openRegisterModal} className="superadmin-admins-form-grid">
                 <div className="superadmin-admins-field">
                   <label>Email</label>
                   <input
                     type="email"
                     placeholder="admin@email.com"
                     value={form.email}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, email: e.target.value }))
-                    }
+                    onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
                   />
                 </div>
-
                 <div className="superadmin-admins-field">
                   <label>Branch</label>
                   <select
                     value={form.branch}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, branch: e.target.value }))
-                    }
+                    onChange={(e) => setForm((prev) => ({ ...prev, branch: e.target.value }))}
                   >
-                    <option value="Dasmarinas">Dasmarinas</option>
-                    <option value="General Trias">General Trias</option>
-                    <option value="Bacoor">Bacoor</option>
+                    {BRANCHES.map((branch) => (
+                      <option key={branch} value={branch}>
+                        {branch}
+                      </option>
+                    ))}
                   </select>
                 </div>
-
                 <div className="superadmin-admins-form-action">
-                  <button type="submit" className="superadmin-admins-primary-btn">
-                    Register Admin
+                  <button type="submit" className="superadmin-admins-primary-btn" disabled={isSubmitting}>
+                    {isSubmitting ? "Registering..." : "Register Admin"}
                   </button>
                 </div>
               </form>
@@ -335,7 +305,6 @@ export default function SuperAdminAdmins() {
                   <h3>Admin List</h3>
                   <p>Only the list area scrolls when there are many records.</p>
                 </div>
-
                 <div className="superadmin-admins-top-actions">
                   <input
                     type="text"
@@ -344,7 +313,6 @@ export default function SuperAdminAdmins() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="superadmin-admins-search"
                   />
-
                   <button
                     type="button"
                     onClick={openBulkEnableModal}
@@ -353,7 +321,6 @@ export default function SuperAdminAdmins() {
                   >
                     Enable Selected
                   </button>
-
                   <button
                     type="button"
                     onClick={openBulkDisableModal}
@@ -388,7 +355,6 @@ export default function SuperAdminAdmins() {
                         <th>Action</th>
                       </tr>
                     </thead>
-
                     <tbody>
                       {filteredAdmins.map((admin) => (
                         <tr key={admin.id}>
@@ -399,87 +365,35 @@ export default function SuperAdminAdmins() {
                               onChange={() => toggleSelectOne(admin.id)}
                             />
                           </td>
-
                           <td className="superadmin-admins-name-cell">
-                            {admin.name || (
-                              <span className="superadmin-admins-empty-text">
-                                Not set yet
-                              </span>
-                            )}
+                            {admin.name || <span className="superadmin-admins-empty-text">Not set yet</span>}
                           </td>
-
-                          <td>
-                            {admin.dateOfBirth || (
-                              <span className="superadmin-admins-empty-text">
-                                Not set yet
-                              </span>
-                            )}
-                          </td>
-
-                          <td>
-                            {admin.age || (
-                              <span className="superadmin-admins-empty-text">
-                                Not set yet
-                              </span>
-                            )}
-                          </td>
-
-                          <td>
-                            {admin.sex || (
-                              <span className="superadmin-admins-empty-text">
-                                Not set yet
-                              </span>
-                            )}
-                          </td>
-
-                          <td>
-                            {admin.contactNumber || (
-                              <span className="superadmin-admins-empty-text">
-                                Not set yet
-                              </span>
-                            )}
-                          </td>
-
-                          <td className="superadmin-admins-email-cell">
-                            {admin.email}
-                          </td>
-
+                          <td>{admin.dateOfBirth || <span className="superadmin-admins-empty-text">Not set yet</span>}</td>
+                          <td>{admin.age || <span className="superadmin-admins-empty-text">Not set yet</span>}</td>
+                          <td>{admin.sex || <span className="superadmin-admins-empty-text">Not set yet</span>}</td>
+                          <td>{admin.contactNumber || <span className="superadmin-admins-empty-text">Not set yet</span>}</td>
+                          <td className="superadmin-admins-email-cell">{admin.email}</td>
                           <td>{admin.branch}</td>
-
                           <td>
-                            <span
-                              className={`superadmin-admins-status ${
-                                admin.status === "Active"
-                                  ? "is-active"
-                                  : "is-disabled"
-                              }`}
-                            >
+                            <span className={`superadmin-admins-status ${admin.status === "Active" ? "is-active" : "is-disabled"}`}>
                               {admin.status}
                             </span>
                           </td>
-
                           <td>
                             <button
                               type="button"
                               onClick={() => openSingleStatusModal(admin)}
-                              className={`superadmin-admins-action-btn ${
-                                admin.status === "Active"
-                                  ? "disable-btn"
-                                  : "enable-btn"
-                              }`}
+                              className={`superadmin-admins-action-btn ${admin.status === "Active" ? "disable-btn" : "enable-btn"}`}
                             >
                               {admin.status === "Active" ? "Disable" : "Enable"}
                             </button>
                           </td>
                         </tr>
                       ))}
-
                       {filteredAdmins.length === 0 && (
                         <tr>
                           <td colSpan="10">
-                            <div className="superadmin-admins-empty-state">
-                              No admin records found.
-                            </div>
+                            <div className="superadmin-admins-empty-state">No admin records found.</div>
                           </td>
                         </tr>
                       )}
@@ -493,32 +407,14 @@ export default function SuperAdminAdmins() {
       </main>
 
       {confirmModal.open && (
-        <div
-          className="superadmin-admins-modal-overlay"
-          onClick={closeConfirmModal}
-        >
-          <div
-            className="superadmin-admins-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="superadmin-admins-modal-overlay" onClick={closeConfirmModal}>
+          <div className="superadmin-admins-modal" onClick={(e) => e.stopPropagation()}>
             <h3>{confirmModal.title}</h3>
             <p>{confirmModal.message}</p>
-
             <div className="superadmin-admins-modal-actions">
-              <button
-                type="button"
-                className="superadmin-admins-modal-cancel"
-                onClick={closeConfirmModal}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                className="superadmin-admins-modal-confirm"
-                onClick={handleConfirmAction}
-              >
-                Confirm
+              <button type="button" className="superadmin-admins-modal-cancel" onClick={closeConfirmModal}>Cancel</button>
+              <button type="button" className="superadmin-admins-modal-confirm" onClick={handleConfirmAction} disabled={isSubmitting}>
+                {isSubmitting ? "Processing..." : "Confirm"}
               </button>
             </div>
           </div>

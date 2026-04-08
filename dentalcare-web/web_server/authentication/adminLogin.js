@@ -255,7 +255,7 @@ export const authenticateAdmin = async (email, password) => {
     if (!admin.is_active) {
       return {
         success: false,
-        message: "Account is inactive. Contact support.",
+        message: "This account has been disabled by an Administrator",
         statusCode: 403,
       };
     }

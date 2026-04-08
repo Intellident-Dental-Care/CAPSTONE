@@ -115,7 +115,7 @@ export const authenticateDentist = async (email, password) => {
     if (!dentist.is_active) {
       return {
         success: false,
-        message: "Account is inactive. Contact administrator.",
+        message: "This account has been disabled by an Administrator",
         statusCode: 403,
       };
     }

@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SuperAdminSidebar from "../../components/superadmin/layout/SuperAdminSidebar";
 import SuperAdminTopbar from "../../components/superadmin/layout/SuperAdminTopbar";
+import { getSuperAdminServices, createSuperAdminService } from "../../services/superAdminService";
 
 import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
@@ -9,30 +10,6 @@ import "../../styles/admin/shared/admin-responsive.css";
 
 import "../../styles/superadmin/services/superadmin-services.css";
 import "../../styles/superadmin/shared/superadmin-responsive.css";
-
-const initialServices = [
-  {
-    id: 1,
-    name: "Dental Cleaning",
-    category: "Cleaning",
-    description: "Professional teeth cleaning and stain removal.",
-    status: "Active",
-  },
-  {
-    id: 2,
-    name: "Root Canal Treatment",
-    category: "Restoration",
-    description: "Treatment for infected tooth pulp and preservation of tooth.",
-    status: "Active",
-  },
-  {
-    id: 3,
-    name: "Teeth Whitening",
-    category: "Cosmetic Dentistry",
-    description: "Cosmetic treatment that helps improve tooth shade and smile appearance.",
-    status: "Disabled",
-  },
-];
 
 export default function SuperAdminServices() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -45,15 +22,29 @@ export default function SuperAdminServices() {
     },
   ]);
 
-  const [services, setServices] = useState(initialServices);
+  const [services, setServices] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Memoize categories from existing data to populate the dropdown
+  const categories = useMemo(() => {
+    if (services.length === 0) return ["Consultation", "Cleaning", "Restoration", "Orthodontics", "Surgery", "Pediatric Dentistry", "Cosmetic Dentistry"];
+    const unique = [...new Set(services.map((s) => s.category))];
+    return unique.sort();
+  }, [services]);
 
   const [form, setForm] = useState({
     name: "",
     category: "Consultation",
     description: "",
   });
+
+  // Ensure form category matches available categories once loaded
+  useEffect(() => {
+    if (categories.length > 0 && !categories.includes(form.category)) {
+      setForm(prev => ({ ...prev, category: categories[0] }));
+    }
+  }, [categories]);
 
   const [confirmModal, setConfirmModal] = useState({
     open: false,
@@ -64,6 +55,15 @@ export default function SuperAdminServices() {
     payload: null,
   });
 
+  const fetchServices = async () => {
+    const res = await getSuperAdminServices();
+    if (res?.success) setServices(res.data);
+  };
+
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
   const filteredServices = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
 
@@ -71,10 +71,10 @@ export default function SuperAdminServices() {
 
     return services.filter((service) => {
       return (
-        service.name.toLowerCase().includes(keyword) ||
-        service.category.toLowerCase().includes(keyword) ||
-        service.description.toLowerCase().includes(keyword) ||
-        service.status.toLowerCase().includes(keyword)
+        (service.name || "").toLowerCase().includes(keyword) ||
+        (service.category || "").toLowerCase().includes(keyword) ||
+        (service.description || "").toLowerCase().includes(keyword) ||
+        (service.status || "").toLowerCase().includes(keyword)
       );
     });
   }, [services, searchTerm]);
@@ -159,24 +159,19 @@ export default function SuperAdminServices() {
     });
   };
 
-  const handleConfirmAction = () => {
+  const handleConfirmAction = async () => {
     const { type, ids, payload } = confirmModal;
 
     if (type === "add-service" && payload) {
-      const newService = {
-        id: Date.now(),
-        name: payload.name,
-        category: payload.category,
-        description: payload.description,
-        status: "Active",
-      };
-
-      setServices((prev) => [newService, ...prev]);
-      setForm({
-        name: "",
-        category: "Consultation",
-        description: "",
-      });
+      const res = await createSuperAdminService(payload);
+      if (res?.success) {
+        setServices((prev) => [res.data, ...prev]);
+        setForm({
+          name: "",
+          category: categories[0],
+          description: "",
+        });
+      }
     }
 
     if (type === "disable-single" || type === "disable-multiple") {
@@ -272,13 +267,11 @@ export default function SuperAdminServices() {
                       setForm((prev) => ({ ...prev, category: e.target.value }))
                     }
                   >
-                    <option value="Consultation">Consultation</option>
-                    <option value="Cleaning">Cleaning</option>
-                    <option value="Restoration">Restoration</option>
-                    <option value="Orthodontics">Orthodontics</option>
-                    <option value="Surgery">Surgery</option>
-                    <option value="Pediatric Dentistry">Pediatric Dentistry</option>
-                    <option value="Cosmetic Dentistry">Cosmetic Dentistry</option>
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
