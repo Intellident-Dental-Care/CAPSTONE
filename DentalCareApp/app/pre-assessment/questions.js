@@ -114,7 +114,9 @@ export default function Questions() {
             user_id: user.id,
             profile_id: profileId,
             answers: state.answers,
-            description: null
+            description: null,
+            // ADDED: Save the specific tooth directly from our state!
+            tooth_selected: state.tooth === "3rd Molar" ? null : state.tooth
           }])
           .select()
           .single();

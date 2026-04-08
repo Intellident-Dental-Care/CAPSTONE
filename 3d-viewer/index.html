@@ -16,6 +16,9 @@
         display: flex; flex-direction: column; gap: 4px;
       }
       
+      /* NEW: CSS Shield to hide UI if 'protected' mode is in URL */
+      body.is-protected #ui { display: none !important; }
+
       .row { display: flex; gap: 4px; justify-content: space-between; }
       
       button {
@@ -57,6 +60,14 @@
       import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
       import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 
+      // --- 1. Mode Check (Do this FIRST) ---
+      const urlParams = new URLSearchParams(window.location.search);
+      const isProtected = urlParams.get('mode') === 'protected';
+      
+      if (isProtected) {
+        document.body.classList.add('is-protected');
+      }
+
       // --- Scene Setup ---
       const app = document.getElementById("app");
       const statusEl = document.getElementById("status");
@@ -84,13 +95,18 @@
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.05; 
-      controls.zoomSpeed = 0.6; 
+      
+      // ROTATE: Allowed | ZOOM: Disabled in Protected
+      controls.enableRotate = true; 
+      controls.enableZoom = !isProtected; 
+      controls.zoomSpeed = isProtected ? 0 : 0.6; 
+      
       controls.minDistance = 1.0; 
       controls.maxDistance = 8.0; 
       controls.minAzimuthAngle = -Math.PI / 2.5; 
       controls.maxAzimuthAngle = Math.PI / 2.5;  
       controls.maxPolarAngle = Math.PI / 1.6;    
-      controls.enablePan = true; 
+      controls.enablePan = !isProtected; 
       
       controls.target.copy(defaultTarget);
       let currentTarget = new THREE.Vector3();
@@ -174,6 +190,7 @@
       const pointer = new THREE.Vector2();
 
       renderer.domElement.addEventListener("wheel", (e) => {
+        if (isProtected) return;
         const rect = renderer.domElement.getBoundingClientRect();
         pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -185,6 +202,7 @@
       }, { passive: true });
 
       renderer.domElement.addEventListener("touchmove", (e) => {
+        if (isProtected) return;
         if (e.touches.length === 2) {
           const rect = renderer.domElement.getBoundingClientRect();
           const touch1 = e.touches[0];
@@ -246,6 +264,9 @@
       }
 
       function selectSingle(mesh, hitPoint) {
+        // Double check for protection
+        if (isProtected) return; 
+
         clearOverlays(); 
         highlightMesh(mesh, hitPoint);
         
@@ -303,6 +324,9 @@
       }
 
       renderer.domElement.addEventListener("pointerdown", (e) => {
+        // --- HARD BLOCK: No selection in protected mode ---
+        if (isProtected) return;
+
         const rect = renderer.domElement.getBoundingClientRect();
         pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
