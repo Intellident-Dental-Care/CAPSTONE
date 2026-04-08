@@ -284,12 +284,40 @@ export const createWalkInAppointment = async (payload) => {
     apptTime24 = toTwentyFourHourTime(payload.time) || now.time24;
   }
 
-  // UUID verification to ensure we don't crash Supabase with Integers from frontend mocks
   const safeDentistId = isValidUuid(payload.dentistId) ? payload.dentistId : null;
-  const safeUserId = isValidUuid(payload.userId) ? payload.userId : null;
+  
+  // --- SMART PROFILE ID RESOLUTION ---
+  let finalUserId = null;
+  let finalProfileId = null;
+
+  if (payload.userId) {
+    let rawId = String(payload.userId);
+
+    // If patientsService passed a composite key (e.g. "uuid::profile_name"), split it
+    if (rawId.includes("::")) {
+      rawId = rawId.split("::")[0];
+    }
+
+    if (isValidUuid(rawId)) {
+      finalUserId = rawId;
+
+      // Query to see if the patient name specifically belongs to a sub-profile
+      const { data: profileData } = await supabaseAdmin
+        .from("user_profiles")
+        .select("id")
+        .eq("user_id", finalUserId)
+        .ilike("name", String(payload.patientName || "").trim())
+        .maybeSingle();
+
+      if (profileData) {
+        finalProfileId = profileData.id;
+      }
+    }
+  }
 
   const row = {
-    user_id: safeUserId,
+    user_id: finalUserId,
+    profile_id: finalProfileId,
     patient_name: payload.patientName,
     dentist_id: safeDentistId,
     branch: payload.branch,
