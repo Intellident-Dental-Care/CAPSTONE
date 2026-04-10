@@ -39,6 +39,14 @@ export default function PreAssessmentModal({
     }
   };
 
+  // Re-apply tooth selection whenever the modal opens with a tooth value
+  useEffect(() => {
+    if (!open || !iframeRef.current) return;
+    if (!data?.tooth || data.tooth === "Not specified") return;
+
+    iframeRef.current.contentWindow.postMessage({ type: 'SELECT_TOOTH', tooth: data.tooth }, '*');
+  }, [open, data?.tooth]);
+
   if (!open || !data) return null;
 
   const {

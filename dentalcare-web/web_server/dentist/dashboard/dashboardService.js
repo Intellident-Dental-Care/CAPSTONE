@@ -69,8 +69,10 @@ const toPreAssessmentPayload = (row, fallbackService, questionnaireLookup = new 
       ? answers.photos
       : [];
 
+  const selectedTooth = String(row.tooth_selected || answers?.tooth || "").trim();
+
   return {
-    tooth: answers?.tooth || "Not specified",
+    tooth: selectedTooth || "Not specified",
     uploadedPhotos,
     questions,
     suggestedTreatment: row.description || answers?.suggestedTreatment || fallbackService || "Dental Appointment",
@@ -178,7 +180,7 @@ export const getDentistDashboardSnapshot = async (dentistProfileId) => {
   if (preassessmentIds.length) {
     const preassessmentResult = await supabaseAdmin
       .from("patient_preassessment")
-      .select("id, answers, description")
+      .select("id, answers, description, tooth_selected")
       .in("id", preassessmentIds);
 
     if (!preassessmentResult.error) {
