@@ -1,0 +1,334 @@
+.superadmin-services-fixed-page {
+  height: calc(100vh - 78px);
+  overflow: hidden;
+  background: #f9fafc;
+}
+
+.superadmin-services-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  gap: 16px;
+}
+
+.superadmin-services-header {
+  flex-shrink: 0;
+}
+
+.superadmin-services-title {
+  margin: 0;
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #f05a96;
+}
+
+.superadmin-services-subtitle {
+  margin-top: 8px;
+  color: #7f8596;
+  font-size: 0.95rem;
+}
+
+/* CARDS */
+.superadmin-services-form-card,
+.superadmin-services-list-card {
+  background: #ffffff;
+  border: 1px solid #f3cfdb;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(236, 72, 153, 0.05);
+}
+
+/* MAKE FORM SMALLER */
+.superadmin-services-form-card {
+  padding: 16px 20px;
+  flex-shrink: 0;
+}
+
+/* MAKE LIST BIGGER */
+.superadmin-services-list-card {
+  padding: 18px 20px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* HEADER */
+.superadmin-services-card-head {
+  margin-bottom: 14px;
+}
+
+.superadmin-services-card-head-wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.superadmin-services-card-head h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #495167;
+}
+
+.superadmin-services-card-head p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: #8a90a2;
+}
+
+/* FORM GRID (COMPACT) */
+.superadmin-services-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.superadmin-services-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.superadmin-services-field-full {
+  grid-column: 1 / 3;
+}
+
+.superadmin-services-field label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #8a90a2;
+}
+
+.superadmin-services-field input,
+.superadmin-services-field select,
+.superadmin-services-field textarea,
+.superadmin-services-search {
+  width: 100%;
+  border: 1px solid #f2c9d8;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  color: #3f4658;
+  background: #fff;
+  outline: none;
+}
+
+.superadmin-services-field input,
+.superadmin-services-field select,
+.superadmin-services-search {
+  height: 44px;
+}
+
+.superadmin-services-field textarea {
+  min-height: 80px;
+  resize: none;
+}
+
+/* BUTTON RIGHT SIDE */
+.superadmin-services-form-action {
+  grid-column: 3 / 4;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.superadmin-services-primary-btn {
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #f37aa8, #ec4f8f);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ACTIONS */
+.superadmin-services-top-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.superadmin-services-search {
+  min-width: 260px;
+}
+
+.superadmin-services-secondary-btn {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: #fde7ef;
+  color: #d55386;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.superadmin-services-secondary-btn.enable-selected-btn {
+  background: #e8f7ed;
+  color: #209b58;
+}
+
+/* TABLE (LESS COMPRESSED) */
+.superadmin-services-table-scroll {
+  flex: 1;
+  overflow: auto;
+}
+
+.superadmin-services-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 10px;
+  min-width: 1000px;
+}
+
+.superadmin-services-table thead th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  font-size: 0.8rem;
+  color: #8a90a2;
+  padding: 0 12px 6px;
+}
+
+.superadmin-services-table tbody td {
+  background: #fff;
+  padding: 14px 12px;
+  font-size: 0.9rem;
+  color: #556074;
+  border-top: 1px solid #f3cfdb;
+  border-bottom: 1px solid #f3cfdb;
+}
+
+/* ROUND ROWS */
+.superadmin-services-table tbody tr td:first-child {
+  border-left: 1px solid #f3cfdb;
+  border-radius: 14px 0 0 14px;
+}
+
+.superadmin-services-table tbody tr td:last-child {
+  border-right: 1px solid #f3cfdb;
+  border-radius: 0 14px 14px 0;
+}
+
+/* CELLS */
+.superadmin-services-name-cell {
+  font-weight: 700;
+  color: #f05a96;
+}
+
+.superadmin-services-category-cell {
+  font-weight: 600;
+}
+
+.superadmin-services-description-cell {
+  min-width: 260px;
+  max-width: 380px;
+  line-height: 1.4;
+}
+
+/* STATUS */
+.superadmin-services-status {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.superadmin-services-status.is-active {
+  background: #e5f7ea;
+  color: #1f9d57;
+}
+
+.superadmin-services-status.is-disabled {
+  background: #fbe6ee;
+  color: #d35b85;
+}
+
+/* ACTION BUTTON */
+.superadmin-services-action-btn {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+.superadmin-services-action-btn.disable-btn {
+  background: linear-gradient(90deg, #ff8fb6, #f05a96);
+}
+
+.superadmin-services-action-btn.enable-btn {
+  background: linear-gradient(90deg, #79c98a, #4eb86b);
+}
+
+/* EMPTY */
+.superadmin-services-empty-state {
+  text-align: center;
+  padding: 20px;
+  color: #8a90a2;
+}
+
+/* MODAL */
+.superadmin-services-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 35, 0.38);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.superadmin-services-modal {
+  background: #fff;
+  padding: 22px;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.superadmin-services-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.superadmin-services-modal-cancel {
+  background: #f6f7fb;
+  padding: 10px 14px;
+}
+
+.superadmin-services-modal-confirm {
+  background: linear-gradient(90deg, #f37aa8, #ec4f8f);
+  color: #fff;
+  padding: 10px 16px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 1024px) {
+  .superadmin-services-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .superadmin-services-field-full,
+  .superadmin-services-form-action {
+    grid-column: auto;
+  }
+
+  .superadmin-services-primary-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .superadmin-services-fixed-page {
+    height: auto;
+  }
+
+  .superadmin-services-content {
+    height: auto;
+  }
+}

@@ -1,0 +1,375 @@
+.superadmin-faqs-fixed-page {
+  height: calc(100vh - 78px);
+  overflow: hidden;
+  background: #f9fafc;
+}
+
+.superadmin-faqs-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  gap: 16px;
+}
+
+.superadmin-faqs-header {
+  flex-shrink: 0;
+}
+
+.superadmin-faqs-title {
+  margin: 0;
+  font-size: 2.2rem;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #f05a96;
+}
+
+.superadmin-faqs-subtitle {
+  margin: 10px 0 0;
+  color: #7f8596;
+  font-size: 0.98rem;
+}
+
+.superadmin-faqs-form-card,
+.superadmin-faqs-list-card {
+  background: #ffffff;
+  border: 1px solid #f3cfdb;
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(236, 72, 153, 0.05);
+}
+
+/* SMALLER ADD FAQ CARD */
+.superadmin-faqs-form-card {
+  padding: 16px 18px;
+  flex-shrink: 0;
+}
+
+/* BIGGER FAQ LIST CARD */
+.superadmin-faqs-list-card {
+  padding: 18px 20px;
+}
+
+.superadmin-faqs-list-flex {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.superadmin-faqs-card-head {
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.superadmin-faqs-card-head-wrap {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.superadmin-faqs-card-head h3 {
+  margin: 0;
+  color: #495167;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.superadmin-faqs-card-head p {
+  margin: 6px 0 0;
+  color: #8a90a2;
+  font-size: 0.88rem;
+}
+
+/* COMPACT FORM */
+.superadmin-faqs-form-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.superadmin-faqs-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.superadmin-faqs-field-full {
+  grid-column: 1 / 3;
+}
+
+.superadmin-faqs-field label {
+  color: #8a90a2;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.superadmin-faqs-field input,
+.superadmin-faqs-field select,
+.superadmin-faqs-field textarea,
+.superadmin-faqs-search,
+.superadmin-faqs-filter {
+  width: 100%;
+  border: 1px solid #f2c9d8;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 0.92rem;
+  color: #3f4658;
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.superadmin-faqs-field input,
+.superadmin-faqs-field select,
+.superadmin-faqs-search,
+.superadmin-faqs-filter {
+  height: 46px;
+}
+
+.superadmin-faqs-field textarea {
+  resize: none;
+  min-height: 82px;
+}
+
+.superadmin-faqs-field input:focus,
+.superadmin-faqs-field select:focus,
+.superadmin-faqs-field textarea:focus,
+.superadmin-faqs-search:focus,
+.superadmin-faqs-filter:focus {
+  border-color: #ee8cb3;
+  box-shadow: 0 0 0 4px rgba(240, 90, 150, 0.09);
+}
+
+.superadmin-faqs-form-action {
+  grid-column: 3 / 4;
+  display: flex;
+  justify-content: flex-end;
+  align-self: end;
+}
+
+.superadmin-faqs-primary-btn,
+.superadmin-faqs-delete-btn,
+.superadmin-faqs-modal-cancel,
+.superadmin-faqs-modal-confirm {
+  border: none;
+  border-radius: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.superadmin-faqs-primary-btn {
+  height: 46px;
+  padding: 0 18px;
+  min-width: 140px;
+  background: linear-gradient(90deg, #f37aa8, #ec4f8f);
+  color: #fff;
+}
+
+.superadmin-faqs-primary-btn:hover {
+  opacity: 0.95;
+}
+
+.superadmin-faqs-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.superadmin-faqs-search {
+  min-width: 300px;
+}
+
+.superadmin-faqs-filter {
+  min-width: 180px;
+}
+
+/* FAQ LIST TAKES BIG SPACE */
+.superadmin-faqs-list-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.superadmin-faqs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.superadmin-faqs-item {
+  border: 1px solid #f3cfdb;
+  border-radius: 20px;
+  padding: 18px;
+  background: #fff;
+}
+
+.superadmin-faqs-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.superadmin-faqs-item-top h4 {
+  margin: 0;
+  color: #f05a96;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.superadmin-faqs-category {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #fbe6ee;
+  color: #d45c87;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.superadmin-faqs-item p {
+  margin: 0;
+  color: #6a7285;
+  line-height: 1.6;
+}
+
+.superadmin-faqs-item-actions {
+  margin-top: 14px;
+}
+
+.superadmin-faqs-delete-btn {
+  height: 40px;
+  padding: 0 16px;
+  background: linear-gradient(90deg, #ff8fb6, #f05a96);
+  color: #fff;
+}
+
+.superadmin-faqs-delete-btn:hover {
+  opacity: 0.95;
+}
+
+.superadmin-faqs-empty-state {
+  text-align: center;
+  padding: 24px 0;
+  color: #8a90a2;
+  font-weight: 600;
+}
+
+.superadmin-faqs-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 35, 0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.superadmin-faqs-modal {
+  width: 100%;
+  max-width: 430px;
+  background: #fff;
+  border-radius: 24px;
+  border: 1px solid #f3cfdb;
+  box-shadow: 0 24px 60px rgba(25, 28, 38, 0.18);
+  padding: 24px;
+}
+
+.superadmin-faqs-modal h3 {
+  margin: 0 0 10px;
+  color: #495167;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.superadmin-faqs-modal p {
+  margin: 0;
+  color: #7f8596;
+  line-height: 1.6;
+}
+
+.superadmin-faqs-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.superadmin-faqs-modal-cancel {
+  height: 44px;
+  padding: 0 16px;
+  background: #f6f7fb;
+  color: #5e6679;
+}
+
+.superadmin-faqs-modal-confirm {
+  height: 44px;
+  padding: 0 18px;
+  background: linear-gradient(90deg, #f37aa8, #ec4f8f);
+  color: #fff;
+}
+
+@media (max-width: 1024px) {
+  .superadmin-faqs-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .superadmin-faqs-field-full,
+  .superadmin-faqs-form-action {
+    grid-column: auto;
+  }
+
+  .superadmin-faqs-form-action {
+    justify-content: stretch;
+  }
+
+  .superadmin-faqs-primary-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .superadmin-faqs-fixed-page {
+    height: auto;
+    overflow: visible;
+  }
+
+  .superadmin-faqs-content {
+    height: auto;
+    padding: 18px;
+  }
+
+  .superadmin-faqs-title {
+    font-size: 1.8rem;
+  }
+
+  .superadmin-faqs-search,
+  .superadmin-faqs-filter {
+    min-width: 100%;
+  }
+
+  .superadmin-faqs-top-actions {
+    width: 100%;
+  }
+
+  .superadmin-faqs-item-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .superadmin-faqs-filter {
+    width: 100%;
+  }
+}

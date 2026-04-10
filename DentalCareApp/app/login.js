@@ -20,6 +20,7 @@ import { storeSession } from "./_storage/authStorage";
 import { handleGoogleLogin } from "../server/googleLogin";
 import { handleAppleLogin } from "../server/appleLogin";
 import { handleFacebookLogin } from "../server/facebookLogin";
+import { cancelOverdueAppointments } from "../server/cancelOverdueAppointments";
 
 const { height: H } = Dimensions.get("window");
 
@@ -71,16 +72,34 @@ export default function Login() {
     return { transform: [{ translateY: ty }, { scale }] };
   }, [logoAnim]);
 
-const handleLogin = async () => {
-  setError("");
+  const navigateAfterLogin = (firstTimeOnboarding, needsPatientSetup) => {
+    Animated.parallel([
+      Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
+      Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+    ]).start(() => {
+      if (firstTimeOnboarding) {
+        router.replace("/onboarding");
+      } else if (needsPatientSetup) {
+        router.replace("/patient-first-setup");
+      } else {
+        router.replace("/home");
+      }
+    });
+  };
 
-  if (!email.trim() || !password) {
-    setError("Please enter your email and password.");
-    return;
-  }
+  const handleLogin = async () => {
+    setError("");
 
-  try {
-    setLoading(true);
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !password) {
+      setError("Please enter your email and password.");
+      return;
+    }
+
+    try {
+      setLoading(true);
     
     // Sign in the user first
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -103,7 +122,7 @@ const handleLogin = async () => {
     // Now fetch the user profile with the authenticated user
     const { data: userProfile, error: profileError } = await supabase
       .from("users")
-      .select("is_verified, full_name")
+      .select("is_verified, full_name, onboarding_seen")
       .eq("id", data.user.id)
       .single();
 
@@ -127,26 +146,18 @@ const handleLogin = async () => {
       fullName: userProfile.full_name || data.user.email
     });
 
-    // Success - redirect based on onboarding status
-    const firstTime = !data.user.user_metadata?.onboardingSeen;
+      // Run status cleanup right after login so overdue bookings are handled immediately.
+      await cancelOverdueAppointments({ userId: data.user.id });
 
-    Animated.parallel([
-      Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
-      Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
-    ]).start(() => {
-      router.back();
-      setTimeout(() => {
-        if (firstTime) router.replace("/onboarding");
-        else router.replace("/home");
-      }, 60);
-    });
-  } catch (err) {
-    console.error("Login error:", err);
-    setLoading(false);
-    setError("Something went wrong. Please try again.");
-  }
-};
+      // Success - redirect based on onboarding status from DB
+      const firstTimeOnboarding = !userProfile.onboarding_seen;
+      navigateAfterLogin(firstTimeOnboarding, false);
+    } catch (err) {
+      console.error("Login error:", err);
+      setLoading(false);
+      setError("Something went wrong. Please try again.");
+    }
+  };
 
   const handleSocialLogin = async (provider) => {
     try {
@@ -179,7 +190,7 @@ const handleLogin = async () => {
         // Fetch user profile for social login users too
         const { data: userProfile } = await supabase
           .from("users")
-          .select("full_name")
+          .select("full_name, onboarding_seen")
           .eq("id", user.id)
           .single();
           
@@ -189,20 +200,14 @@ const handleLogin = async () => {
           session: await supabase.auth.getSession(),
           fullName: userProfile?.full_name || user.user_metadata?.full_name || user.email
         });
+
+        await cancelOverdueAppointments({ userId: user.id });
         
         setError("Login successful! Welcome to DentalCare!");
         
-        // Navigate to home after successful social login
-        Animated.parallel([
-          Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-          Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
-          Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
-        ]).start(() => {
-          router.back();
-          setTimeout(() => {
-            router.replace("/home");
-          }, 100);
-        });
+        // For Google login, check onboarding_seen from DB; always go to home for others
+        const firstTimeOnboarding = provider === 'google' ? !userProfile?.onboarding_seen : false;
+        navigateAfterLogin(firstTimeOnboarding, false);
       }
     } catch (error) {
       console.error(`${provider} login error:`, error);
@@ -233,105 +238,115 @@ const handleLogin = async () => {
       </Pressable>
 
       <Animated.View style={[styles.screen, { transform: [{ translateY }] }]}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-            <View style={styles.container}>
-              <View style={styles.top}>
-                <Pressable style={styles.backRow} onPress={close}>
-                  <Feather name="chevron-left" size={18} color={colors.textGrayLight} />
-                  <Text style={styles.backText}>Back</Text>
-                </Pressable>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            <View style={styles.top}>
+              <Pressable style={styles.backRow} onPress={close}>
+                <Feather name="chevron-left" size={18} color={colors.textGrayLight} />
+                <Text style={styles.backText}>Back</Text>
+              </Pressable>
 
-                <Animated.Image source={require("../assets/logo.png")} style={[styles.logoSmall, logoStyle]} />
+              <Animated.Image
+                source={require("../assets/logo.png")}
+                style={[styles.logoSmall, logoStyle]}
+              />
+            </View>
+
+            <View style={styles.card}>
+              <Text style={styles.h1}>Welcome Back</Text>
+              <Text style={styles.h2}>
+                Ready to continue your dental journey?{"\n"}Your path is right here.
+              </Text>
+
+              <View style={{ height: 18 }} />
+
+              <TextInput
+                placeholder="Enter Email"
+                placeholderTextColor={colors.textGray}
+                style={styles.input}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+
+              <View style={styles.inputPass}>
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor={colors.textGray}
+                  secureTextEntry={!showPass}
+                  style={styles.passField}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <Pressable onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn}>
+                  <Feather name={showPass ? "eye" : "eye-off"} size={18} color={colors.textGray} />
+                </Pressable>
               </View>
 
-              <View style={styles.card}>
-                <Text style={styles.h1}>Welcome Back</Text>
-                <Text style={styles.h2}>
-                  Ready to continue your dental journey?{"\n"}Your path is right here.
-                </Text>
+              <AuthAlert message={error} />
 
-                <View style={{ height: 18 }} />
-
-                <TextInput
-                  placeholder="Enter Email"
-                  placeholderTextColor={colors.textGray}
-                  style={styles.input}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-
-                <View style={styles.inputPass}>
-                  <TextInput
-                    placeholder="Password"
-                    placeholderTextColor={colors.textGray}
-                    secureTextEntry={!showPass}
-                    style={styles.passField}
-                    value={password}
-                    onChangeText={setPassword}
-                  />
-                  <Pressable onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn}>
-                    <Feather name={showPass ? "eye" : "eye-off"} size={18} color={colors.textGray} />
-                  </Pressable>
-                </View>
-
-                <AuthAlert message={error} />
-
-                <View style={styles.rowBetween}>
-                  <Pressable style={styles.rememberRow} onPress={() => setRemember((r) => !r)}>
-                    <View style={[styles.fakeCheck, remember ? styles.fakeCheckChecked : null]} />
-                    <Text style={styles.smallPink}>Remember me</Text>
-                  </Pressable>
-
-                  <Pressable onPress={() => {}}>
-                    <Text style={styles.smallPink}>Forgot Password?</Text>
-                  </Pressable>
-                </View>
-
-                <Pressable style={styles.loginBtn} onPress={handleLogin} disabled={loading}>
-                  <Text style={styles.loginText}>{loading ? "Logging in..." : "Log In"}</Text>
+              <View style={styles.rowBetween}>
+                <Pressable style={styles.rememberRow} onPress={() => setRemember((r) => !r)}>
+                  <View style={[styles.fakeCheck, remember ? styles.fakeCheckChecked : null]} />
+                  <Text style={styles.smallPink}>Remember me</Text>
                 </Pressable>
 
-                <View style={styles.dividerRow}>
-                  <View style={styles.line} />
-                  <Text style={styles.dividerText}>Sign in with</Text>
-                  <View style={styles.line} />
-                </View>
+                <Pressable onPress={() => {}}>
+                  <Text style={styles.smallPink}>Forgot Password?</Text>
+                </Pressable>
+              </View>
 
-                <View style={styles.socialRow}>
-                  <Pressable 
+              <Pressable style={styles.loginBtn} onPress={handleLogin} disabled={loading}>
+                <Text style={styles.loginText}>{loading ? "Logging in..." : "Log In"}</Text>
+              </Pressable>
+
+              <View style={styles.dividerRow}>
+                <View style={styles.line} />
+                <Text style={styles.dividerText}>Sign in with</Text>
+                <View style={styles.line} />
+              </View>
+
+              <View style={styles.socialRow}>
+                <Pressable 
                     style={styles.socialBtn}
                     onPress={() => handleSocialLogin('facebook')}
                     disabled={loading}
                   >
-                    <FontAwesome name="facebook" size={18} color={colors.primary} />
-                  </Pressable>
+                  <FontAwesome name="facebook" size={18} color={colors.primary} />
+                </Pressable>
                   
-                  <Pressable 
+                <Pressable 
                     style={styles.socialBtn}
                     onPress={() => handleSocialLogin('google')}
                     disabled={loading}
                   >
-                    <AntDesign name="google" size={18} color={colors.primary} />
-                  </Pressable>
+                  <AntDesign name="google" size={18} color={colors.primary} />
+                </Pressable>
                   
-                  <Pressable 
+                <Pressable 
                     style={styles.socialBtn}
                     onPress={() => handleSocialLogin('apple')}
                     disabled={loading}
                   >
-                    <Ionicons name="logo-apple" size={18} color={colors.primary} />
-                  </Pressable>
-                </View>
+                  <Ionicons name="logo-apple" size={18} color={colors.primary} />
+                </Pressable>
+              </View>
 
-                <View style={styles.bottomTextRow}>
-                  <Text style={{ color: colors.textGray, fontSize: 12 }}>Don’t have an account? </Text>
-                  <Pressable onPress={() => switchTo("/signup")} disabled={loading}>
-                    <Text style={styles.linkPink}>Sign Up</Text>
-                  </Pressable>
-                </View>
+              <View style={styles.bottomTextRow}>
+                <Text style={{ color: colors.textGray, fontSize: 12 }}>
+                  Don’t have an account?{" "}
+                </Text>
+                <Pressable onPress={() => switchTo("/signup")} disabled={loading}>
+                  <Text style={styles.linkPink}>Sign Up</Text>
+                </Pressable>
               </View>
             </View>
           </ScrollView>
@@ -342,27 +357,36 @@ const handleLogin = async () => {
 }
 
 const styles = StyleSheet.create({
-
   overlayRoot: { flex: 1, backgroundColor: "transparent" },
   backdrop: { flex: 1, backgroundColor: "#000" },
   screen: { position: "absolute", left: 0, right: 0, bottom: 0, height: "100%" },
 
-  container: { flex: 1, backgroundColor: colors.pinkBg },
+  scrollContent: {
+    flexGrow: 1,
+    backgroundColor: colors.pinkBg,
+  },
+
   top: { height: 170, paddingTop: 48, paddingHorizontal: 18 },
   backRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   backText: { fontSize: 12, color: colors.textGrayLight },
 
-  logoSmall: { width: 180, height: 180, resizeMode: "contain", alignSelf: "center", marginTop: 12 },
+  logoSmall: {
+    width: 180,
+    height: 180,
+    resizeMode: "contain",
+    alignSelf: "center",
+    marginTop: 12,
+  },
 
   card: {
-    flex: 1,
     backgroundColor: colors.white,
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
     paddingHorizontal: 22,
     paddingTop: 26,
-    paddingBottom: 30,
+    paddingBottom: 40,
     marginTop: 60,
+    minHeight: H - 170,
   },
 
   h1: { fontSize: 27, fontWeight: "800", color: colors.primary, textAlign: "center" },
@@ -393,7 +417,12 @@ const styles = StyleSheet.create({
   passField: { flex: 1, fontSize: 12, color: colors.textDark },
   eyeBtn: { paddingLeft: 10, paddingVertical: 6 },
 
-  rowBetween: { marginTop: 10, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  rowBetween: {
+    marginTop: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   rememberRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   fakeCheck: { width: 12, height: 12, borderRadius: 3, borderWidth: 1, borderColor: colors.primary },
   fakeCheckChecked: { backgroundColor: colors.primary },
@@ -421,7 +450,7 @@ const styles = StyleSheet.create({
       shadowOffset: { width: 0, height: 3 },
     }),
   },
-  
+
   loginText: { color: colors.white, fontSize: 13, fontWeight: "800" },
 
   dividerRow: { marginTop: 30, flexDirection: "row", alignItems: "center", gap: 10 },
@@ -429,8 +458,21 @@ const styles = StyleSheet.create({
   dividerText: { fontSize: 10, color: colors.textGray },
 
   socialRow: { marginTop: 30, flexDirection: "row", justifyContent: "center", gap: 16 },
-  socialBtn: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: colors.line, alignItems: "center", justifyContent: "center" },
+  socialBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-  bottomTextRow: { marginTop: 16, flexDirection: "row", justifyContent: "center", alignItems: "center" },
+  bottomTextRow: {
+    marginTop: 16,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   linkPink: { color: colors.primary, fontSize: 12, fontWeight: "700" },
 });

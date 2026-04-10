@@ -1,13 +1,34 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable, Image } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { WebView } from "react-native-webview";
 import { colors } from "../theme/colors";
 import { usePreAssessment } from "./_layout";
 
 export default function Model() {
   const router = useRouter();
   const { state, dispatch } = usePreAssessment();
+
+  const handleWebViewMessage = (event) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === "TOOTH_SELECTED") {
+        dispatch({ type: "SET_TOOTH", payload: data.tooth });
+      } else if (data.type === "SELECTION_CLEARED") {
+        dispatch({ type: "SET_TOOTH", payload: "Not specified" });
+      }
+    } catch (e) {}
+  };
+
+  const injectedJS = `
+    window.addEventListener('message', function(event) {
+      if (event.data && event.data.type) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(event.data));
+      }
+    });
+    true;
+  `;
 
   return (
     <View style={styles.container}>
@@ -21,9 +42,13 @@ export default function Model() {
       </Text>
 
       <View style={styles.modelBox}>
-        <Image
-            source={require("../../assets/tooth_model.png")}
-            style={styles.modelBox}
+        <WebView
+          source={{ uri: "https://intellident-3d-viewer.vercel.app/" }}
+          style={styles.webview}
+          scrollEnabled={false}
+          injectedJavaScript={injectedJS}
+          onMessage={handleWebViewMessage}
+          containerStyle={{ backgroundColor: 'transparent' }}
         />
       </View>
 
@@ -47,11 +72,16 @@ const styles = StyleSheet.create({
     height: 300,
     width: "90%",
     borderRadius: 40,
-    resizeMode: "cover",
+    overflow: "hidden", // Ensures the webview respects the border radius
     alignContent: "center",
     marginTop: 60,
     marginBottom: 10,
     marginHorizontal: 20,
+    backgroundColor: "transparent",
+  },
+  webview: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
 
   toothText: { position: "absolute", left: 50, bottom: 65, fontSize: 12, color: colors.textGray },

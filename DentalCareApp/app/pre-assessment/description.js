@@ -1,15 +1,45 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
 import { usePreAssessment } from "./_layout";
+import { supabase } from "../../server/supabaseService"; // <-- Added Supabase import
 
 export default function Description() {
   const router = useRouter();
   const { state, dispatch } = usePreAssessment();
+  const [saving, setSaving] = useState(false); // <-- Added loading state for safety
 
   const canNext = state.description && state.description.trim().length > 0;
+
+  // <-- Added handleNext function to UPDATE the database record
+  const handleNext = async () => {
+    if (!canNext || saving) return;
+
+    setSaving(true);
+    try {
+      if (state.preassessmentId) {
+        // Update the existing pre-assessment record with the description
+        const { error } = await supabase
+          .from("patient_preassessment")
+          .update({ description: state.description.trim() })
+          .eq("id", state.preassessmentId);
+
+        if (error) {
+          console.error("Error saving description to Supabase:", error);
+        }
+      }
+      
+      // Proceed to the photo screen regardless
+      router.push("/pre-assessment/photo");
+    } catch (err) {
+      console.error("Network error saving description:", err);
+      router.push("/pre-assessment/photo");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -20,7 +50,7 @@ export default function Description() {
 
         <Text style={styles.topTitle}>Pre Assessment Questions</Text>
 
-        {/* spacer to keep title centered */}
+       
         <View style={styles.headerSpacer} />
       </View>
 
@@ -49,9 +79,11 @@ export default function Description() {
           <Text style={styles.btnOutlineText}>Back</Text>
         </Pressable>
 
+        {/* <-- Updated Pressable to use handleNext and respect saving state */}
         <Pressable
-          style={[styles.btnFilled, !canNext && { opacity: 0.5 }]}
-          onPress={() => canNext && router.push("/pre-assessment/photo")}
+          style={[styles.btnFilled, (!canNext || saving) && { opacity: 0.5 }]}
+          onPress={handleNext}
+          disabled={saving}
         >
           <Text style={styles.btnFilledText}>Next</Text>
         </Pressable>
@@ -74,7 +106,7 @@ const styles = StyleSheet.create({
  },
 
     headerSpacer: {
-    width: 36, // same width as backIcon
+    width: 36, 
  },
 
     topTitle: {

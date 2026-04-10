@@ -59,17 +59,41 @@ export default function Signup() {
 
   const close = () => {
     Animated.parallel([
-      Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
-      Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+      Animated.timing(backdrop, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: H,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(logoAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
     ]).start(() => router.back());
   };
 
   const switchTo = (path) => {
     Animated.parallel([
-      Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
-      Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+      Animated.timing(backdrop, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: H,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(logoAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
     ]).start(() => {
       router.back();
       setTimeout(() => router.push(path), 50);
@@ -78,15 +102,35 @@ export default function Signup() {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(backdrop, { toValue: 1, duration: 220, useNativeDriver: true }),
-      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 140 }),
-      Animated.spring(logoAnim, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 140 }),
+      Animated.timing(backdrop, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 18,
+        stiffness: 140,
+      }),
+      Animated.spring(logoAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        damping: 18,
+        stiffness: 140,
+      }),
     ]).start();
   }, [backdrop, translateY, logoAnim]);
 
   const logoStyle = useMemo(() => {
-    const scale = logoAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.72] });
-    const ty = logoAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -22] });
+    const scale = logoAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [1, 0.72],
+    });
+    const ty = logoAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, -22],
+    });
     return { transform: [{ translateY: ty }, { scale }] };
   }, [logoAnim]);
 
@@ -94,7 +138,10 @@ export default function Signup() {
     console.log("=== Starting signup process ===");
     setError("");
 
-    if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
+    const cleanFullName = fullName.trim();
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanFullName || !cleanEmail || !password || !confirmPassword) {
       console.log("Validation failed: Missing fields");
       setError("Please fill in all fields.");
       return;
@@ -132,69 +179,44 @@ export default function Signup() {
         return;
       }
 
-      // Insert user profile into users table (after authentication)
-      const userId = signUpData?.user?.id || signUpData?.session?.user?.id;
-      console.log("2. Extracted userId:", userId);
+      // Send OTP verification email
+      console.log("2. Sending OTP email for:", cleanEmail);
+      const url = serverUrl || await getServerUrl();
+      const emailResponse = await fetch(`${url}/send-verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: cleanEmail,
+          fullName: cleanFullName,
+          userId: signUpData.user?.id,
+        }),
+      });
 
-      if (userId) {
-        console.log("Inserting user profile into database...");
-        const { error: insertError } = await supabase
-          .from("users")
-          .insert([{ 
-            id: userId, 
-            full_name: fullName, 
-            email, 
-            is_verified: false,
-            verification_otp: null,
-            otp_expires_at: null
-          }]);
-
-        console.log("Database insert result:", { insertError });
-
-        if (insertError) {
-          console.log("Database insert failed:", insertError.message);
-          setLoading(false);
-          setError(insertError.message);
-          return;
-        }
-
-        // Send OTP verification email using pre-loaded server URL
-        console.log("3. Sending OTP verification email...");
-        try {
-          const emailServerUrl = serverUrl || await getServerUrl();
-          console.log("Using server URL:", emailServerUrl);
-          
-          const emailResponse = await fetch(`${emailServerUrl}/send-verification`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, fullName, userId }),
-          });
-
-          console.log("Email server response status:", emailResponse.status);
-
-          if (emailResponse.ok) {
-            const emailResult = await emailResponse.json();
-            console.log("Email server response body:", emailResult);
-            console.log("OTP sent successfully!");
-          } else {
-            const errorResult = await emailResponse.json();
-            console.log("Email server returned error:", errorResult);
-            console.log("Continuing with signup despite email error");
-          }
-        } catch (emailError) {
-          console.error("Email request failed:", emailError);
-          console.log("Continuing with signup despite email request error");
-        }
+      if (!emailResponse.ok) {
+        const emailError = await emailResponse.json();
+        console.error("Failed to send OTP email:", emailError);
+        setLoading(false);
+        setError("Account created but failed to send verification email. Please try resending.");
+      } else {
+        console.log("OTP email sent successfully");
       }
 
-      console.log("4. Signup process completed, redirecting to OTP verification");
-      setLoading(false);
-
-      // Redirect to OTP verification screen
       Animated.parallel([
-        Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
-        Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+        Animated.timing(backdrop, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: H,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoAnim, {
+          toValue: 0,
+          duration: 220,
+          useNativeDriver: true,
+        }),
       ]).start(() => {
         router.back();
         setTimeout(() => {
@@ -202,7 +224,7 @@ export default function Signup() {
             pathname: "/otp-verification",
             params: {
               email: email,
-              userId: userId,
+              userId: signUpData.user?.id, // Fixed: Grab ID from Supabase response
               fullName: fullName
             }
           });
@@ -212,6 +234,7 @@ export default function Signup() {
       console.error("=== Signup process error ===", e);
       setLoading(false);
       setError("Something went wrong. Please try again.");
+      console.log("handleSignup error:", e); // Fixed: changed 'error' to 'e'
     }
   };
 
@@ -246,7 +269,7 @@ export default function Signup() {
         // Fetch user profile for social login users too
         const { data: userProfile } = await supabase
           .from("users")
-          .select("full_name")
+          .select("full_name, onboarding_seen")
           .eq("id", user.id)
           .single();
           
@@ -258,8 +281,12 @@ export default function Signup() {
         });
         
         setError("Signup successful! Welcome to DentalCare!");
-        
-        // Navigate to home after successful social signup
+
+        // For Google signup, check onboarding_seen and route accordingly
+        const destination = (provider === 'google' && !userProfile?.onboarding_seen)
+          ? "/onboarding"
+          : "/home";
+
         Animated.parallel([
           Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
           Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
@@ -267,7 +294,7 @@ export default function Signup() {
         ]).start(() => {
           router.back();
           setTimeout(() => {
-            router.replace("/home");
+            router.replace(destination);
           }, 100);
         });
       }
@@ -294,130 +321,172 @@ export default function Signup() {
         <Animated.View
           style={[
             styles.backdrop,
-            { opacity: backdrop.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] }) },
+            {
+              opacity: backdrop.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0.35],
+              }),
+            },
           ]}
         />
       </Pressable>
 
-      <Animated.View style={[styles.screen, { transform: [{ translateY }] }]}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-            <View style={styles.container}>
-              <View style={styles.top}>
-                <Pressable style={styles.backRow} onPress={close}>
-                  <Feather name="chevron-left" size={18} color={colors.textGrayLight} />
-                  <Text style={styles.backText}>Back</Text>
-                </Pressable>
+      <Animated.View
+        style={[styles.screen, { transform: [{ translateY }] }]}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            <View style={styles.top}>
+              <Pressable style={styles.backRow} onPress={close}>
+                <Feather
+                  name="chevron-left"
+                  size={18}
+                  color={colors.textGrayLight}
+                />
+                <Text style={styles.backText}>Back</Text>
+              </Pressable>
 
-                <Animated.Image source={require("../assets/logo.png")} style={[styles.logoSmall, logoStyle]} />
+              <Animated.Image
+                source={require("../assets/logo.png")}
+                style={[styles.logoSmall, logoStyle]}
+              />
+            </View>
+
+            <View style={styles.card}>
+              <Text style={styles.h1}>Create Your Account</Text>
+              <Text style={styles.h2}>
+                Safe and Quality Dentistry.{"\n"}We take your health and safety
+                seriously.
+              </Text>
+
+              <View style={{ height: 18 }} />
+
+              <TextInput
+                placeholder="Enter Full Name"
+                placeholderTextColor={colors.textGray}
+                style={styles.input}
+                value={fullName}
+                onChangeText={setFullName}
+              />
+
+              <View style={{ height: 12 }} />
+
+              <TextInput
+                placeholder="Enter Email"
+                placeholderTextColor={colors.textGray}
+                style={styles.input}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+
+              <View style={styles.inputPass}>
+                <TextInput
+                  placeholder="Enter Password"
+                  placeholderTextColor={colors.textGray}
+                  secureTextEntry={!showPass}
+                  style={styles.passField}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <Pressable
+                  onPress={() => setShowPass((p) => !p)}
+                  style={styles.eyeBtn}
+                >
+                  <Feather
+                    name={showPass ? "eye" : "eye-off"}
+                    size={18}
+                    color={colors.textGray}
+                  />
+                </Pressable>
               </View>
 
-              <View style={styles.card}>
-                <Text style={styles.h1}>Create Your Account</Text>
-                <Text style={styles.h2}>
-                  Safe and Quality Dentistry.{"\n"}We take your health and safety seriously.
-                </Text>
-
-                <View style={{ height: 18 }} />
-
+              <View style={styles.inputPass}>
                 <TextInput
-                  placeholder="Enter Full Name"
+                  placeholder="Confirm Password"
                   placeholderTextColor={colors.textGray}
-                  style={styles.input}
-                  value={fullName}
-                  onChangeText={setFullName}
+                  secureTextEntry={!showConfirmPass}
+                  style={styles.passField}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
                 />
-
-                <View style={{ height: 12 }} />
-
-                <TextInput
-                  placeholder="Enter Email"
-                  placeholderTextColor={colors.textGray}
-                  style={styles.input}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-
-                <View style={styles.inputPass}>
-                  <TextInput
-                    placeholder="Enter Password"
-                    placeholderTextColor={colors.textGray}
-                    secureTextEntry={!showPass}
-                    style={styles.passField}
-                    value={password}
-                    onChangeText={setPassword}
+                <Pressable
+                  onPress={() => setShowConfirmPass((p) => !p)}
+                  style={styles.eyeBtn}
+                >
+                  <Feather
+                    name={showConfirmPass ? "eye" : "eye-off"}
+                    size={18}
+                    color={colors.textGray}
                   />
-                  <Pressable onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn}>
-                    <Feather name={showPass ? "eye" : "eye-off"} size={18} color={colors.textGray} />
-                  </Pressable>
-                </View>
-
-                <View style={styles.inputPass}>
-                  <TextInput
-                    placeholder="Confirm Password"
-                    placeholderTextColor={colors.textGray}
-                    secureTextEntry={!showConfirmPass}
-                    style={styles.passField}
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                  />
-                  <Pressable onPress={() => setShowConfirmPass((p) => !p)} style={styles.eyeBtn}>
-                    <Feather name={showConfirmPass ? "eye" : "eye-off"} size={18} color={colors.textGray} />
-                  </Pressable>
-                </View>
-
-                <AuthAlert message={error} />
-
-                <View style={styles.rightRow}>
-                  <Pressable onPress={() => {}}>
-                    <Text style={styles.smallPink}>Forgot Password?</Text>
-                  </Pressable>
-                </View>
-
-                <Pressable style={styles.loginBtn} onPress={handleSignup} disabled={loading}>
-                  <Text style={styles.loginText}>{loading ? "Saving..." : "Get Started"}</Text>
                 </Pressable>
+              </View>
 
-                <View style={styles.dividerRow}>
-                  <View style={styles.line} />
-                  <Text style={styles.dividerText}>Sign in with</Text>
-                  <View style={styles.line} />
-                </View>
+              <AuthAlert message={error} />
 
-                <View style={styles.socialRow}>
-                  <Pressable 
-                    style={styles.socialBtn}
-                    onPress={() => handleSocialLogin('facebook')}
-                    disabled={loading}
-                  >
-                    <FontAwesome name="facebook" size={18} color={colors.primary} />
-                  </Pressable>
-                  
-                  <Pressable 
-                    style={styles.socialBtn}
-                    onPress={() => handleSocialLogin('google')}
-                    disabled={loading}
-                  >
-                    <AntDesign name="google" size={18} color={colors.primary} />
-                  </Pressable>
-                  
-                  <Pressable 
-                    style={styles.socialBtn}
-                    onPress={() => handleSocialLogin('apple')}
-                    disabled={loading}
-                  >
-                    <Ionicons name="logo-apple" size={18} color={colors.primary} />
-                  </Pressable>
-                </View>
+              <View style={styles.rightRow}>
+                <Pressable onPress={() => {}}>
+                  <Text style={styles.smallPink}>Forgot Password?</Text>
+                </Pressable>
+              </View>
 
-                <View style={styles.bottomTextRow}>
-                  <Text style={{ color: colors.textGray, fontSize: 12 }}>Already have an account? </Text>
-                  <Pressable onPress={() => switchTo("/login")} disabled={loading}>
-                    <Text style={styles.linkPink}>Log In</Text>
-                  </Pressable>
-                </View>
+              <Pressable
+                style={styles.loginBtn}
+                onPress={handleSignup}
+                disabled={loading}
+              >
+                <Text style={styles.loginText}>
+                  {loading ? "Saving..." : "Get Started"}
+                </Text>
+              </Pressable>
+
+              <View style={styles.dividerRow}>
+                <View style={styles.line} />
+                <Text style={styles.dividerText}>Sign in with</Text>
+                <View style={styles.line} />
+              </View>
+
+              <View style={styles.socialRow}>
+                <Pressable 
+                  style={styles.socialBtn}
+                  onPress={() => handleSocialLogin('facebook')}
+                  disabled={loading}
+                >
+                  <FontAwesome name="facebook" size={18} color={colors.primary} />
+                </Pressable>
+                
+                <Pressable 
+                  style={styles.socialBtn}
+                  onPress={() => handleSocialLogin('google')}
+                  disabled={loading}
+                >
+                  <AntDesign name="google" size={18} color={colors.primary} />
+                </Pressable>
+                
+                <Pressable 
+                  style={styles.socialBtn}
+                  onPress={() => handleSocialLogin('apple')}
+                  disabled={loading}
+                >
+                  <Ionicons name="logo-apple" size={18} color={colors.primary} />
+                </Pressable>
+              </View>
+
+              <View style={styles.bottomTextRow}>
+                <Text style={{ color: colors.textGray, fontSize: 12 }}>
+                  Already have an account?{" "}
+                </Text>
+                <Pressable onPress={() => switchTo("/login")} disabled={loading}>
+                  <Text style={styles.linkPink}>Log In</Text>
+                </Pressable>
               </View>
             </View>
           </ScrollView>
@@ -432,26 +501,46 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: "#000" },
   screen: { position: "absolute", left: 0, right: 0, bottom: 0, height: "100%" },
 
-  container: { flex: 1, backgroundColor: colors.pinkBg },
+  scrollContent: {
+    flexGrow: 1,
+    backgroundColor: colors.pinkBg,
+  },
+
   top: { height: 170, paddingTop: 48, paddingHorizontal: 18 },
   backRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   backText: { fontSize: 12, color: colors.textGrayLight },
-
-  logoSmall: { width: 180, height: 180, resizeMode: "contain", alignSelf: "center", marginTop: 12 },
+  logoSmall: {
+    width: 180,
+    height: 180,
+    resizeMode: "contain",
+    alignSelf: "center",
+    marginTop: 12,
+  },
 
   card: {
-    flex: 1,
     backgroundColor: colors.white,
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
     paddingHorizontal: 22,
     paddingTop: 26,
-    paddingBottom: 30,
+    paddingBottom: 60,
     marginTop: 60,
+    minHeight: H - 170,
   },
 
-  h1: { fontSize: 20, fontWeight: "800", color: colors.primary, textAlign: "center" },
-  h2: { marginTop: 10, fontSize: 12, color: colors.textGray, textAlign: "center", lineHeight: 17 },
+  h1: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: colors.primary,
+    textAlign: "center",
+  },
+  h2: {
+    marginTop: 10,
+    fontSize: 12,
+    color: colors.textGray,
+    textAlign: "center",
+    lineHeight: 17,
+  },
 
   input: {
     height: 44,
@@ -494,11 +583,21 @@ const styles = StyleSheet.create({
   },
   loginText: { color: colors.white, fontSize: 13, fontWeight: "800" },
 
-  dividerRow: { marginTop: 20, flexDirection: "row", alignItems: "center", gap: 10 },
+  dividerRow: {
+    marginTop: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   line: { flex: 1, height: 1, backgroundColor: colors.line },
   dividerText: { fontSize: 10, color: colors.textGray },
 
-  socialRow: { marginTop: 14, flexDirection: "row", justifyContent: "center", gap: 16 },
+  socialRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+  },
   socialBtn: {
     width: 42,
     height: 42,
@@ -510,6 +609,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  bottomTextRow: { marginTop: 16, flexDirection: "row", justifyContent: "center", alignItems: "center" },
+  bottomTextRow: {
+    marginTop: 16,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   linkPink: { color: colors.primary, fontSize: 12, fontWeight: "700" },
 });

@@ -18,10 +18,14 @@ const LOCAL_IP = getLocalIpAddress();
 console.log('Detected local IP:', LOCAL_IP);
 
 app.use(cors({
-  origin: '*', // Allow all origins for development
+  origin: '*', 
   credentials: true
 }));
 app.use(express.json());
+
+const timelineRoute = require('./HistoryModel/3DTimeline');
+app.use('/api/3d-timeline', timelineRoute);
+
 
 console.log('Email server starting...');
 console.log('EMAIL_USER configured:', !!process.env.EMAIL_USER);
@@ -60,13 +64,11 @@ app.post('/send-verification', async (req, res) => {
   }
 
   try {
-    // Generate a new 6-digit OTP
     const otp = generateOTP();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
     
     console.log('Generated OTP:', otp, 'Expires at:', otpExpiresAt);
 
-    // Update OTP in the database
     const { error: updateError } = await supabase
       .from('users')
       .update({
@@ -80,7 +82,6 @@ app.post('/send-verification', async (req, res) => {
       return res.status(500).json({ error: 'Failed to store verification code' });
     }
 
-    // Send OTP via email
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
@@ -96,7 +97,6 @@ app.post('/send-verification', async (req, res) => {
     };
 
     console.log('Sending OTP email to:', email);
-    
     const info = await transporter.sendMail(mailOptions);
     console.log('OTP email sent successfully:', info.messageId);
     
@@ -122,13 +122,11 @@ app.post('/resend-otp', async (req, res) => {
   }
 
   try {
-    // Generate a new OTP
     const otp = generateOTP();
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); 
     
     console.log('Generated new OTP:', otp, 'Expires at:', otpExpiresAt);
 
-    // Update OTP in the database
     const { error: updateError } = await supabase
       .from('users')
       .update({
@@ -142,7 +140,6 @@ app.post('/resend-otp', async (req, res) => {
       return res.status(500).json({ error: 'Failed to update verification code' });
     }
 
-    // Send the new OTP via email
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
@@ -158,7 +155,6 @@ app.post('/resend-otp', async (req, res) => {
     };
 
     console.log('Sending new OTP email to:', email);
-    
     const info = await transporter.sendMail(mailOptions);
     console.log('New OTP email sent successfully:', info.messageId);
     
@@ -184,7 +180,6 @@ app.post('/verify-otp', async (req, res) => {
   try {
     console.log('Verifying OTP for user:', userId, 'OTP:', otp);
 
-    // Get user's stored OTP and expiry
     const { data: userData, error: fetchError } = await supabase
       .from('users')
       .select('verification_otp, otp_expires_at, is_verified')
@@ -196,18 +191,15 @@ app.post('/verify-otp', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Check if already verified
     if (userData.is_verified) {
       return res.json({ success: true, message: 'Email already verified' });
     }
 
-    // Check if OTP matches
     if (userData.verification_otp !== otp) {
       console.log('OTP mismatch. Expected:', userData.verification_otp, 'Received:', otp);
       return res.status(400).json({ error: 'Invalid verification code' });
     }
 
-    // Check if OTP has expired
     const now = new Date();
     const expiresAt = new Date(userData.otp_expires_at);
     if (now > expiresAt) {
@@ -215,7 +207,6 @@ app.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ error: 'Verification code has expired' });
     }
 
-    // Mark user as verified and clear OTP
     const { error: updateError } = await supabase
       .from('users')
       .update({
@@ -239,7 +230,6 @@ app.post('/verify-otp', async (req, res) => {
   }
 });
 
-// Add endpoint to get server discovery information
 app.get('/server-discovery', (req, res) => {
   const discoveryInfo = getServerDiscoveryUrls();
   console.log('Server discovery request received from:', req.ip);
@@ -257,7 +247,6 @@ app.get('/server-discovery', (req, res) => {
   });
 });
 
-// Add a simple test endpoint for debugging
 app.get('/test', (req, res) => {
   console.log('Test request received from:', req.ip);
   res.json({ 
@@ -267,7 +256,6 @@ app.get('/test', (req, res) => {
   });
 });
 
-// Add a health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
@@ -276,7 +264,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Keep existing server-info endpoint for backward compatibility
 app.get('/server-info', (req, res) => {
   res.json({ 
     ip: LOCAL_IP, 
@@ -284,6 +271,9 @@ app.get('/server-info', (req, res) => {
     emailServerUrl: `http://${LOCAL_IP}:${PORT}`
   });
 });
+
+const historyRoute = require('./PatientHistory/patientHistory');
+app.use('/api/patient-history', historyRoute);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Email server running on port ${PORT}`);
@@ -293,7 +283,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Health check: http://${LOCAL_IP}:${PORT}/health`);
   console.log(`Network interfaces detected:`);
   
-  // Show all network interfaces for debugging
   const os = require('os');
   const interfaces = os.networkInterfaces();
   for (const interfaceName in interfaces) {

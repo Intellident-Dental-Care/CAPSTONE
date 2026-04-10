@@ -46,6 +46,8 @@ export const initializeLocationInBackground = async () => {
       }
     } catch (error) {
       console.error('❌ Background location initialization failed:', error);
+    } finally {
+      locationInitPromise = null;
     }
     return null;
   })();
@@ -58,7 +60,8 @@ export const initializeLocationInBackground = async () => {
  */
 export const getUserLocationInstant = async () => {
   // Return cached location immediately if available
-  if (userLocation && isLocationInitialized) {
+  if (userLocation) {
+    isLocationInitialized = true;
     console.log('⚡ Using cached location:', userLocation);
     return userLocation;
   }
@@ -111,6 +114,7 @@ export const getUserLocation = async () => {
       longitude: location.coords.longitude,
       accuracy: location.coords.accuracy
     };
+    isLocationInitialized = true;
 
     console.log('📍 User location obtained:', userLocation);
     return userLocation;
@@ -147,6 +151,7 @@ export const startLocationTracking = async (onLocationUpdate) => {
           longitude: location.coords.longitude,
           accuracy: location.coords.accuracy
         };
+        isLocationInitialized = true;
         
         console.log('📍 Location updated:', userLocation);
         onLocationUpdate(userLocation);

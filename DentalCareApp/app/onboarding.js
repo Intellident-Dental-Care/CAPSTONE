@@ -1,16 +1,40 @@
 import React, { useRef, useState } from "react";
-import { View, Text, StyleSheet, Image, FlatList, Pressable, Dimensions } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  FlatList,
+  Pressable,
+  Dimensions,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
 import { getSession, setOnboardingSeenForUser } from "./_storage/authStorage";
+import { updateOnboardingStatus } from "../server/supabaseService";
 
 const { width } = Dimensions.get("window");
 
 const slides = [
-  { id: "1", image: require("../assets/landing1.jpg"), title: "Smile with confidence", desc: "Your journey to better dental health starts here." },
-  { id: "2", image: require("../assets/landing2.jpg"), title: "Never miss a check-up", desc: "Book appointments, get reminders, and manage your visit with ease." },
-  { id: "3", image: require("../assets/landing3.jpg"), title: "Care you can trust", desc: "Gentle hands, expert care. Your smile is in good hands." },
+  {
+    id: "1",
+    image: require("../assets/landing1.jpg"),
+    title: "Smile with confidence",
+    desc: "Your journey to better dental health starts here.",
+  },
+  {
+    id: "2",
+    image: require("../assets/landing2.jpg"),
+    title: "Never miss a check-up",
+    desc: "Book appointments, get reminders, and manage your visit with ease.",
+  },
+  {
+    id: "3",
+    image: require("../assets/landing3.jpg"),
+    title: "Care you can trust",
+    desc: "Gentle hands, expert care. Your smile is in good hands.",
+  },
   {
     id: "4",
     image: require("../assets/logo.png"),
@@ -27,13 +51,26 @@ export default function Onboarding() {
 
   const next = async () => {
     if (index === slides.length - 1) {
-      const session = await getSession();
-      if (session?.id) {
-        await setOnboardingSeenForUser(session.id);
+      try {
+        const session = await getSession();
+
+        if (session?.email) {
+          await setOnboardingSeenForUser(session.email);
+        }
+
+        if (session?.user?.id) {
+          await updateOnboardingStatus(session.user.id);
+        }
+
+        router.replace("/patient-first-setup");
+      } catch (error) {
+        console.log("onboarding next error:", error);
+        router.replace("/patient-first-setup");
       }
-      router.replace("/home");
+
       return;
     }
+
     flatRef.current?.scrollToIndex({ index: index + 1, animated: true });
   };
 
@@ -52,7 +89,10 @@ export default function Onboarding() {
         }}
         renderItem={({ item }) => (
           <View style={styles.slide}>
-            <Image source={item.image} style={item.welcome ? styles.logo : styles.image} />
+            <Image
+              source={item.image}
+              style={item.welcome ? styles.logo : styles.image}
+            />
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.desc}>{item.desc}</Text>
           </View>
@@ -77,14 +117,52 @@ const styles = StyleSheet.create({
 
   slide: { width, flex: 1, paddingTop: 70, paddingHorizontal: 24 },
   image: { width: "100%", height: 450, borderRadius: 40, resizeMode: "cover" },
-  logo: { width: 350, height: 350, resizeMode: "contain", alignSelf: "center", marginTop: 40 },
+  logo: {
+    width: 350,
+    height: 350,
+    resizeMode: "contain",
+    alignSelf: "center",
+    marginTop: 40,
+  },
 
-  title: { marginTop: 18, fontSize: 20, fontWeight: "800", color: colors.primary },
-  desc: { marginTop: 8, fontSize: 12, color: colors.textGray, lineHeight: 16, width: "80%" },
+  title: {
+    marginTop: 18,
+    fontSize: 20,
+    fontWeight: "800",
+    color: colors.primary,
+  },
+  desc: {
+    marginTop: 8,
+    fontSize: 12,
+    color: colors.textGray,
+    lineHeight: 16,
+    width: "80%",
+  },
 
-  dots: { position: "absolute", left: 24, bottom: 58, flexDirection: "row", gap: 6 },
-  dot: { width: 18, height: 4, borderRadius: 4, backgroundColor: "#D9D9D9" },
+  dots: {
+    position: "absolute",
+    left: 24,
+    bottom: 58,
+    flexDirection: "row",
+    gap: 6,
+  },
+  dot: {
+    width: 18,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: "#D9D9D9",
+  },
   dotActive: { backgroundColor: colors.primary },
 
-  arrowBtn: { position: "absolute", right: 24, bottom: 46, width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
+  arrowBtn: {
+    position: "absolute",
+    right: 24,
+    bottom: 46,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

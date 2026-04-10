@@ -1,23 +1,199 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, Image } from "react-native";
+import React, { useCallback, useState } from "react";
+import { View, Text, StyleSheet, Pressable, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "../theme/colors";
-import { getSession, logoutUser } from "../_storage/authStorage";
+import { supabase } from "../../server/supabaseService";
+import {
+  getSession,
+  getProfilesByEmail,
+  getActiveProfileByEmail,
+  setActiveProfileByEmail,
+  ensureDefaultProfileForEmail,
+  addProfileToEmail,
+  logoutUser,
+} from "../_storage/authStorage";
+import {
+  profileIndexCache,
+  myProfileCache,
+  clearAllProfileCaches,
+} from "../_storage/profileCache";
+import ProfileSwitcherModal from "../components/ProfileSwitcherModal";
 
 export default function Profile() {
   const router = useRouter();
 
-  const [fullName, setFullName] = useState("User");
-  const [email, setEmail] = useState("user@email.com");
+  // Initialise from cache so revisits render real data with zero async work
+  const [fullName, setFullName] = useState(profileIndexCache.fullName);
+  const [email, setEmail] = useState(profileIndexCache.email);
+  const [profiles, setProfiles] = useState(profileIndexCache.profiles);
+  const [selectedProfile, setSelectedProfile] = useState(profileIndexCache.selectedProfile);
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [loggedInEmail, setLoggedInEmail] = useState(profileIndexCache.loggedInEmail);
 
-  useEffect(() => {
-    (async () => {
+  const loadProfiles = async (force = false) => {
+    // Skip the full fetch only if cached data is complete.
+    // If email is missing, refresh so the subtitle under the name can be shown.
+    if (profileIndexCache.loaded && profileIndexCache.email?.trim() && !force) return;
+
+    try {
       const session = await getSession();
-      if (session?.fullName) setFullName(session.fullName);
-      if (session?.email) setEmail(session.email);
-    })();
-  }, []);
+      // Support both local and provider sessions.
+      const accountEmail = (
+        session?.user?.email ||
+        session?.session?.user?.email ||
+        session?.email ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
+
+      setLoggedInEmail(accountEmail);
+
+      if (!accountEmail) {
+        setSelectedProfile(null);
+        setProfiles([]);
+        setFullName("");
+        setEmail("");
+        return;
+      }
+
+      const setup = await ensureDefaultProfileForEmail(
+        accountEmail,
+        session?.fullName || ""
+      );
+
+      let activeProfile = setup?.activeProfile;
+      let allProfiles = setup?.profiles || [];
+
+      if (!activeProfile) {
+        activeProfile = await getActiveProfileByEmail(accountEmail);
+      }
+
+      if (!allProfiles.length) {
+        allProfiles = await getProfilesByEmail(accountEmail);
+      }
+
+      // --- Fast path: show local data immediately ---
+      let displayName = activeProfile?.name || session?.fullName || "";
+      let displayEmail = accountEmail;
+
+      setSelectedProfile(activeProfile || null);
+      setProfiles(allProfiles || []);
+      setFullName(displayName);
+      setEmail(displayEmail);
+
+      // Update cache with local data so next visit is instant
+      Object.assign(profileIndexCache, {
+        loaded: true,
+        fullName: displayName,
+        email: displayEmail,
+        profiles: allProfiles || [],
+        selectedProfile: activeProfile || null,
+        loggedInEmail: accountEmail,
+      });
+
+      // --- Background: sync fresh name/email from Supabase ---
+      try {
+        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+        if (supabaseUser?.id) {
+          const { data: userRow } = await supabase
+            .from("users")
+            .select("full_name, email")
+            .eq("id", supabaseUser.id)
+            .single();
+          if (userRow) {
+            const supaName = activeProfile?.name || userRow.full_name || displayName;
+            const supaEmail = userRow.email || displayEmail;
+            if (supaName !== displayName || supaEmail !== displayEmail) {
+              setFullName(supaName);
+              setEmail(supaEmail);
+              profileIndexCache.fullName = supaName;
+              profileIndexCache.email = supaEmail;
+            }
+          }
+        }
+      } catch (_) {
+        // Supabase unavailable — local data already shown
+      }
+    } catch (error) {
+      console.log("loadProfiles error:", error);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      // loadProfiles skips internally when cache is already populated
+      loadProfiles();
+    }, [])
+  );
+
+  const handleSelectProfile = async (profile) => {
+    try {
+      if (!loggedInEmail || !profile) return;
+
+      await setActiveProfileByEmail(loggedInEmail, profile);
+      setSelectedProfile(profile);
+      setFullName(profile?.name || "");
+      setEmail(loggedInEmail || profileIndexCache.email || "");
+      setProfileModalVisible(false);
+
+      // Update index cache and invalidate my-profile cache so it reloads for the new profile
+      profileIndexCache.selectedProfile = profile;
+      profileIndexCache.fullName = profile?.name || "";
+      profileIndexCache.email = loggedInEmail || profileIndexCache.email || "";
+      myProfileCache.loaded = false;
+    } catch (error) {
+      console.log("handleSelectProfile error:", error);
+    }
+  };
+
+  const handleAddProfile = async (profileName) => {
+    try {
+      if (!loggedInEmail || !profileName?.trim()) return;
+
+      const result = await addProfileToEmail(loggedInEmail, profileName);
+
+      if (!result.success) {
+        Alert.alert(
+          "Unable to add profile",
+          result.message || "Please try again."
+        );
+        return;
+      }
+
+      if (result.profile) {
+        await setActiveProfileByEmail(loggedInEmail, result.profile);
+        setSelectedProfile(result.profile);
+        setFullName(result.profile.name || "");
+        setEmail(loggedInEmail || profileIndexCache.email || "");
+        setProfileModalVisible(false);
+        // Invalidate caches so both screens reload for the new profile
+        profileIndexCache.loaded = false;
+        myProfileCache.loaded = false;
+        router.push("/patient-first-setup");
+        return;
+      }
+
+      // Force reload so new profile appears in the list
+      await loadProfiles(true);
+    } catch (error) {
+      console.log("handleAddProfile error:", error);
+      Alert.alert("Error", "Failed to add profile.");
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      setProfileModalVisible(false);
+      clearAllProfileCaches();
+      await logoutUser();
+      router.replace("/get-started");
+    } catch (error) {
+      console.log("handleLogout error:", error);
+    }
+  };
 
   const Row = ({ icon, label, onPress }) => (
     <Pressable style={styles.row} onPress={onPress}>
@@ -31,27 +207,34 @@ export default function Profile() {
 
   return (
     <View style={styles.screen}>
-      {/* Top bar */}
       <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={22} color={colors.primary} />
         </Pressable>
 
         <View style={styles.topRight}>
-          <Pressable style={styles.notifPill}>
-            <Ionicons name="notifications-outline" size={16} color={colors.primary} />
+          <Pressable
+            style={styles.notifPill}
+            onPress={() => router.push("/notification")}
+          >
+            <Ionicons
+              name="notifications-outline"
+              size={16}
+              color={colors.primary}
+            />
           </Pressable>
 
-          <View style={styles.avatarSmall}>
+          <Pressable
+            style={styles.avatarSmall}
+            onPress={() => setProfileModalVisible(true)}
+          >
             <Ionicons name="person" size={16} color={colors.primary} />
-          </View>
+          </Pressable>
         </View>
       </View>
 
-      {/* Title */}
       <Text style={styles.title}>Profile</Text>
 
-      {/* User card */}
       <View style={styles.userRow}>
         <View style={styles.avatarBig}>
           <Ionicons name="person" size={22} color={colors.primary} />
@@ -63,38 +246,71 @@ export default function Profile() {
         </View>
       </View>
 
-      {/* Menu */}
       <View style={styles.menu}>
-        <Row icon="person-outline" label="My Profile" onPress={() => router.push("/profile/my-profile")} />
+        <Row
+          icon="person-outline"
+          label="My Profile"
+          onPress={() => router.push("/profile/my-profile")}
+        />
         <Row icon="settings-outline" label="Settings" onPress={() => {}} />
-        <Row icon="notifications-outline" label="Notifications" onPress={() => {}} />
-        <Row icon="chatbubble-ellipses-outline" label="FAQ" onPress={() => {}} />
-        <Row icon="information-circle-outline" label="About" onPress={() => {}} />
-
-        <Pressable
-          style={[styles.row, { marginTop: 14 }]}
-          onPress={async () => {
-            await logoutUser();
-            router.replace("/get-started");
-          }}
-        >
-          <View style={styles.rowLeft}>
-            <Ionicons name="log-out-outline" size={18} color={colors.primary} />
-            <Text style={styles.rowText}>Sign Out</Text>
-          </View>
-        </Pressable>
+        <Row
+          icon="notifications-outline"
+          label="Notifications"
+          onPress={() => {}}
+        />
+        <Row
+          icon="chatbubble-ellipses-outline"
+          label="FAQ"
+          onPress={() => {}}
+        />
+        <Row
+          icon="information-circle-outline"
+          label="About"
+          onPress={() => {}}
+        />
       </View>
+
+      <ProfileSwitcherModal
+        visible={profileModalVisible}
+        onClose={() => setProfileModalVisible(false)}
+        profiles={profiles}
+        selectedProfile={selectedProfile}
+        onSelectProfile={handleSelectProfile}
+        onAddProfile={handleAddProfile}
+        onLogout={handleLogout}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#fff", paddingTop: 46, paddingHorizontal: 18 },
+  screen: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingTop: 46,
+    paddingHorizontal: 18,
+  },
 
-  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
 
-  topRight: { flexDirection: "row", alignItems: "center", gap: 10 },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  topRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
   notifPill: {
     width: 44,
     height: 28,
@@ -103,6 +319,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
   avatarSmall: {
     width: 30,
     height: 30,
@@ -112,9 +329,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  title: { marginTop: 10, fontSize: 26, fontWeight: "900", color: colors.primary },
+  title: {
+    marginTop: 10,
+    fontSize: 26,
+    fontWeight: "900",
+    color: colors.primary,
+  },
 
-  userRow: { marginTop: 16, flexDirection: "row", alignItems: "center", gap: 12 },
+  userRow: {
+    marginTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
   avatarBig: {
     width: 52,
     height: 52,
@@ -123,10 +351,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  userName: { fontSize: 12, fontWeight: "900", color: colors.primary },
-  userEmail: { marginTop: 2, fontSize: 10, color: colors.textGray },
 
-  menu: { marginTop: 26 },
+  userName: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: colors.primary,
+  },
+
+  userEmail: {
+    marginTop: 2,
+    fontSize: 10,
+    color: colors.textGray,
+  },
+
+  menu: {
+    marginTop: 26,
+  },
+
   row: {
     height: 54,
     borderRadius: 14,
@@ -136,6 +377,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     backgroundColor: "#fff",
   },
-  rowLeft: { flexDirection: "row", alignItems: "center", gap: 15 },
-  rowText: { fontSize: 12, color: colors.textGray },
+
+  rowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 15,
+  },
+
+  rowText: {
+    fontSize: 12,
+    color: colors.textGray,
+  },
 });

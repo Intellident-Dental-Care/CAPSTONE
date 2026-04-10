@@ -1,0 +1,365 @@
+import { supabaseAdmin } from "../../shared/supabaseClient.js";
+
+const STATUS_MAP = {
+  pending: "In Queue",
+  waiting: "In Queue",
+  in_queue: "In Queue",
+  in_treatment: "In Treatment",
+  inqueue: "In Queue",
+  inqueue_: "In Queue",
+  inqueue__: "In Queue",
+  intreatment: "In Treatment",
+  in_treatment_: "In Treatment",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+
+const STATUS_TO_DB = {
+  waiting: "pending",
+  pending: "pending",
+  "in queue": "confirmed",
+  in_queue: "confirmed",
+  confirmed: "confirmed",
+  "in treatment": "in_treatment",
+  in_treatment: "in_treatment",
+  completed: "completed",
+  cancelled: "cancelled",
+};
+
+const normalizeText = (value) => String(value || "").trim().toLowerCase();
+
+const normalizeStatus = (status) => {
+  if (!status) return "Waiting";
+  const key = String(status).trim().toLowerCase().replace(/\s+/g, "_");
+  return STATUS_MAP[key] || String(status);
+};
+
+const toManilaNowParts = () => {
+  const now = new Date();
+  const dateText = now.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+  const timeText = now.toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Manila",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  return {
+    date: dateText,
+    time24: timeText,
+  };
+};
+
+const normalizeBookingType = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "walk-in" || normalized === "walkin") return "Walk-in";
+  return "Online";
+};
+
+const isMissingBookingTypeColumnError = (error) => {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("booking_type") && message.includes("column");
+};
+
+const toDayOfWeekInManila = () => {
+  const now = new Date();
+  const weekday = now.toLocaleString("en-US", { timeZone: "Asia/Manila", weekday: "short" });
+  const map = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+
+  return map[weekday] ?? now.getDay();
+};
+
+const formatTime = (timeValue) => {
+  if (!timeValue) return "-";
+  const text = String(timeValue);
+  const raw = text.includes("T") ? text.split("T")[1] : text;
+  const [hourText = "0", minuteText = "00"] = raw.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return `${hour12.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")} ${suffix}`;
+};
+
+const toTwentyFourHourTime = (time12h) => {
+  const match = String(time12h || "").trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const suffix = match[3].toUpperCase();
+  if (suffix === "PM" && hours !== 12) hours += 12;
+  if (suffix === "AM" && hours === 12) hours = 0;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+};
+
+// Safety Check to prevent Postgres 500 errors from bad ID formats
+const isValidUuid = (id) => {
+  if (!id) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(id));
+};
+
+export const listAppointments = async (adminId) => {
+  let adminBranch = "All";
+
+  if (adminId) {
+    const { data: adminData } = await supabaseAdmin
+      .from("admin_list")
+      .select("branch")
+      .eq("id", adminId)
+      .maybeSingle();
+    
+    if (adminData?.branch) {
+      adminBranch = adminData.branch;
+    }
+  }
+
+  let { data: bookings, error } = await supabaseAdmin
+    .from("bookings")
+    .select("id, user_id, patient_name, dentist_id, branch, service, appointment_date, appointment_time, booking_type, status, created_at")
+    .order("appointment_date", { ascending: false })
+    .order("appointment_time", { ascending: false });
+
+  if (error && isMissingBookingTypeColumnError(error)) {
+    const fallback = await supabaseAdmin
+      .from("bookings")
+      .select("id, user_id, patient_name, dentist_id, branch, service, appointment_date, appointment_time, status, created_at")
+      .order("appointment_date", { ascending: false })
+      .order("appointment_time", { ascending: false });
+
+    bookings = fallback.data;
+    error = fallback.error;
+  }
+
+  if (error) {
+    return { success: false, statusCode: 500, message: "Failed to load appointments" };
+  }
+
+  const dentistIds = [...new Set((bookings || []).map((row) => row.dentist_id).filter(Boolean))];
+  const userIds = [...new Set((bookings || []).map((row) => row.user_id).filter(Boolean))];
+
+  const [dentistsResult, usersResult] = await Promise.all([
+    dentistIds.length
+      ? supabaseAdmin
+          .from("dentist_list")
+          .select("id, name")
+          .in("id", dentistIds)
+      : Promise.resolve({ data: [], error: null }),
+    userIds.length
+      ? supabaseAdmin
+          .from("users")
+          .select("id, full_name, mobile, dob, email")
+          .in("id", userIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const dentistById = new Map((dentistsResult.data || []).map((d) => [d.id, d]));
+  const userById = new Map((usersResult.data || []).map((u) => [u.id, u]));
+
+  const mapped = (bookings || []).map((row) => {
+    const user = userById.get(row.user_id) || {};
+    const dentist = dentistById.get(row.dentist_id) || {};
+    const status = normalizeStatus(row.status);
+    const note = status === "Cancelled" ? "Cancelled due to not showing up" : "";
+
+    return {
+      id: row.id,
+      userId: row.user_id,
+      patientName: row.patient_name || user.full_name || "Unknown Patient",
+      gender: "-",
+      age: 0,
+      dentist: dentist.name || "Unassigned Dentist",
+      branch: row.branch || "-",
+      treatment: row.service || "Dental Appointment",
+      date: row.appointment_date,
+      time: formatTime(row.appointment_time),
+      type: normalizeBookingType(row.booking_type),
+      status,
+      notes: note,
+      contact: user.mobile || "",
+      email: user.email || "",
+      dob: user.dob || "",
+      createdAt: row.created_at,
+    };
+  });
+
+  return { success: true, statusCode: 200, data: mapped, adminBranch };
+};
+
+export const updateAppointmentStatus = async (bookingId, status) => {
+  const normalizedInput = normalizeText(status).replace(/\s+/g, " ");
+  const dbStatus = STATUS_TO_DB[normalizedInput];
+
+  if (!dbStatus) {
+    return { success: false, statusCode: 400, message: "Invalid status" };
+  }
+
+  if (dbStatus === "in_treatment") {
+    const now = toManilaNowParts();
+    const { data: booking, error: bookingLookupError } = await supabaseAdmin
+      .from("bookings")
+      .select("id, appointment_date")
+      .eq("id", bookingId)
+      .maybeSingle();
+
+    if (bookingLookupError || !booking) {
+      return { success: false, statusCode: 404, message: "Booking not found" };
+    }
+
+    if (String(booking.appointment_date || "") !== String(now.date || "")) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Only today appointments can be marked as In Treatment",
+      };
+    }
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("bookings")
+    .update({ status: dbStatus })
+    .eq("id", bookingId);
+
+  if (error) {
+    const errorMessage = error?.message || "Unknown database error";
+    return { success: false, statusCode: 500, message: `Failed to update appointment status: ${errorMessage}` };
+  }
+
+  return { success: true, statusCode: 200, message: "Appointment status updated" };
+};
+
+export const createWalkInAppointment = async (payload) => {
+  const now = toManilaNowParts();
+
+  if (!payload?.dentistId) {
+    return {
+      success: false,
+      statusCode: 400,
+      message: "Dentist is required",
+    };
+  }
+
+  const dayOfWeek = toDayOfWeekInManila();
+  const normalizedBranch = normalizeText(payload.branch);
+
+  // Soft-fail schedule check in case table is missing or malformed
+  let hasBranchScheduleToday = true;
+  try {
+    const { data: dentistSchedule, error: dentistScheduleError } = await supabaseAdmin
+      .from("dentist_schedule")
+      .select("id, branch, day_of_week, is_active")
+      .eq("dentist_id", payload.dentistId)
+      .eq("is_active", true)
+      .eq("day_of_week", dayOfWeek);
+
+    if (!dentistScheduleError && dentistSchedule && dentistSchedule.length > 0) {
+      hasBranchScheduleToday = dentistSchedule.some(
+        (item) => normalizeText(item.branch) === normalizedBranch
+      );
+    } else if (!dentistScheduleError && (!dentistSchedule || dentistSchedule.length === 0)) {
+       hasBranchScheduleToday = false;
+    }
+  } catch (e) {
+    console.warn("Skipping strict dentist schedule check due to error:", e);
+  }
+
+  if (!hasBranchScheduleToday) {
+    return {
+      success: false,
+      statusCode: 400,
+      message: "Selected dentist has no active schedule today for this branch",
+    };
+  }
+
+  let apptTime24 = now.time24;
+  if (payload.time && payload.time !== "Now") {
+    apptTime24 = toTwentyFourHourTime(payload.time) || now.time24;
+  }
+
+  const safeDentistId = isValidUuid(payload.dentistId) ? payload.dentistId : null;
+  
+  // --- SMART PROFILE ID RESOLUTION ---
+  let finalUserId = null;
+  let finalProfileId = null;
+
+  if (payload.userId) {
+    let rawId = String(payload.userId);
+
+    // If patientsService passed a composite key (e.g. "uuid::profile_name"), split it
+    if (rawId.includes("::")) {
+      rawId = rawId.split("::")[0];
+    }
+
+    if (isValidUuid(rawId)) {
+      finalUserId = rawId;
+
+      // Query to see if the patient name specifically belongs to a sub-profile
+      const { data: profileData } = await supabaseAdmin
+        .from("user_profiles")
+        .select("id")
+        .eq("user_id", finalUserId)
+        .ilike("name", String(payload.patientName || "").trim())
+        .maybeSingle();
+
+      if (profileData) {
+        finalProfileId = profileData.id;
+      }
+    }
+  }
+
+  const row = {
+    user_id: finalUserId,
+    profile_id: finalProfileId,
+    patient_name: payload.patientName,
+    dentist_id: safeDentistId,
+    branch: payload.branch,
+    service: payload.service || null,
+    appointment_date: now.date,
+    appointment_time: apptTime24,
+    booking_type: "Walk-in",
+    status: "pending",
+  };
+
+  const { data, error } = await supabaseAdmin
+    .from("bookings")
+    .insert(row)
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("Walk-in Insert Error:", error);
+    if (isMissingBookingTypeColumnError(error)) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Missing bookings.booking_type column. Apply the SQL migration first.",
+      };
+    }
+    return { 
+      success: false, 
+      statusCode: 500, 
+      message: "Failed to create walk-in appointment: " + error.message 
+    };
+  }
+
+  return {
+    success: true,
+    statusCode: 201,
+    message: "Walk-in appointment created",
+    data: {
+      id: data?.id,
+      bookingType: "Walk-in",
+      appointmentDate: now.date,
+      appointmentTime24: apptTime24,
+      appointmentTimeLabel: formatTime(apptTime24),
+    },
+  };
+};

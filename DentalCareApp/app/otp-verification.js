@@ -14,6 +14,7 @@ export default function OtpVerification() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
+  // optional display (you can pass email from signup)
   const email = typeof params?.email === "string" ? params.email : "";
   const userId = params?.userId;
   const displayTo = email || "+00-1234-567-8912";
@@ -64,10 +65,13 @@ export default function OtpVerification() {
     }
   };
 
-  useEffect(() => {
-    if (!isComplete || submitting) return;
-    submitOtp(code);
-  }, [isComplete]);
+  // ✅ auto-submit when 6 digits are filled
+ useEffect(() => {
+  if (!isComplete || submitting) return;
+  submitOtp(code);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [isComplete]);
+
 
   const submitOtp = async (otpCode) => {
     if (submitting) return;
@@ -96,8 +100,14 @@ export default function OtpVerification() {
         setError(errorResult.error || "Invalid OTP. Please try again.");
         clearAll();
       }
-    } catch (error) {
-      console.error("OTP verification error:", error);
+
+      // mark verified for this email (local only)
+      await markOtpVerified(email);
+
+      // You said: after signup + OTP, user should LOGIN first
+      router.replace("/login");
+    } catch (e) {
+      setSubmitting(false);
       setError("Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
