@@ -5,7 +5,7 @@ import adminProfile from "../../../assets/profile_sample.jpg";
 import AuthService from "../../../services/authService";
 import { getAdminProfile } from "../../../services/adminService";
 
-export default function SuperAdminSidebar() {
+export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }) {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => AuthService.getCurrentUser() || {});
@@ -53,9 +53,10 @@ export default function SuperAdminSidebar() {
 
   const displayName =
     currentUser?.fullName || currentUser?.full_name || currentUser?.name || "Super Admin";
+
   const displayRole =
     currentUser?.admin_type === "super_admin" || currentUser?.adminType === "super_admin"
-      ? "Global System Administrator"
+      ? "System Super Administrator"
       : "Administrator";
 
   const handleConfirmLogout = () => {
@@ -64,93 +65,100 @@ export default function SuperAdminSidebar() {
     navigate("/login");
   };
 
+  const handleNavClick = () => {
+    if (window.innerWidth <= 900) {
+      onClose();
+    }
+  };
+
   return (
     <>
-      <aside className="admin-sidebar">
-        <div>
-          <div className="admin-brand">
-            <img
-              src={logo}
-              alt="GC Dental Care"
-              className="admin-brand-logo-img"
-            />
-            <div>
-              <h2>GC Dental Care</h2>
-              <p>Powered by Intellident</p>
+      <div
+        className={`superadmin-sidebar-overlay ${isOpen ? "show" : ""}`}
+        onClick={onClose}
+      ></div>
+
+      <aside className={`admin-sidebar superadmin-mobile-sidebar ${isOpen ? "open" : ""}`}>
+        <div className="superadmin-sidebar-inner">
+          <div>
+            <div className="admin-brand">
+              <img
+                src={logo}
+                alt="GC Dental Care"
+                className="admin-brand-logo-img"
+              />
+              <div>
+                <h2>GC Dental Care</h2>
+                <p>Powered by Intellident</p>
+              </div>
             </div>
+
+            <div className="admin-profile-card">
+              <img src={adminProfile} alt="Super Admin" />
+              <h3>Hello, {displayName}</h3>
+              <p>{displayRole}</p>
+            </div>
+
+            <nav className="admin-sidebar-menu">
+              <NavLink
+                to="/superadmin/dashboard"
+                end
+                onClick={handleNavClick}
+                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+              >
+                Dashboard
+              </NavLink>
+
+              <NavLink
+                to="/superadmin/admins"
+                onClick={handleNavClick}
+                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+              >
+                Admin Management
+              </NavLink>
+
+              <NavLink
+                to="/superadmin/dentists"
+                onClick={handleNavClick}
+                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+              >
+                Dentist Management
+              </NavLink>
+
+              <NavLink
+                to="/superadmin/patients"
+                onClick={handleNavClick}
+                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+              >
+                Patient Management
+              </NavLink>
+
+              <NavLink
+                to="/superadmin/services"
+                onClick={handleNavClick}
+                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+              >
+                Services
+              </NavLink>
+
+              <NavLink
+                to="/superadmin/faqs"
+                onClick={handleNavClick}
+                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+              >
+                FAQs
+              </NavLink>
+            </nav>
           </div>
 
-          <div className="admin-profile-card">
-            <img src={adminProfile} alt="Super Admin" />
-            <h3>Hello, {displayName}</h3>
-            <p>{displayRole}</p>
-          </div>
-
-          <nav className="admin-sidebar-menu">
-            <NavLink
-              to="/superadmin/dashboard"
-              end
-              className={({ isActive }) =>
-                `admin-menu-item ${isActive ? "active" : ""}`
-              }
-            >
-              Dashboard
-            </NavLink>
-
-            <NavLink
-              to="/superadmin/admins"
-              className={({ isActive }) =>
-                `admin-menu-item ${isActive ? "active" : ""}`
-              }
-            >
-              Admin Management
-            </NavLink>
-
-            <NavLink
-              to="/superadmin/dentists"
-              className={({ isActive }) =>
-                `admin-menu-item ${isActive ? "active" : ""}`
-              }
-            >
-              Dentist Management
-            </NavLink>
-
-            <NavLink
-              to="/superadmin/patients"
-              className={({ isActive }) =>
-                `admin-menu-item ${isActive ? "active" : ""}`
-              }
-            >
-              Patient Management
-            </NavLink>
-
-            <NavLink
-              to="/superadmin/services"
-              className={({ isActive }) =>
-                `admin-menu-item ${isActive ? "active" : ""}`
-              }
-            >
-              Services
-            </NavLink>
-
-            <NavLink
-              to="/superadmin/faqs"
-              className={({ isActive }) =>
-                `admin-menu-item ${isActive ? "active" : ""}`
-              }
-            >
-              FAQs
-            </NavLink>
-          </nav>
+          <button
+            type="button"
+            className="admin-logout-btn"
+            onClick={() => setShowLogoutModal(true)}
+          >
+            Sign Out
+          </button>
         </div>
-
-        <button
-          type="button"
-          className="admin-logout-btn"
-          onClick={() => setShowLogoutModal(true)}
-        >
-          Sign Out
-        </button>
       </aside>
 
       {showLogoutModal && (

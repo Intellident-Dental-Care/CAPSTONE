@@ -10,7 +10,7 @@ export default function SectionHeader({
         {badge}
       </p>
 
-      <h2 className="mt-4 text-3xl font-bold leading-tight text-slate-900 sm:text-4xl lg:text-5xl">
+      <h2 className="mt-4 text-[2rem] font-bold leading-tight text-slate-900 sm:text-[2.8rem] lg:text-5xl">
         {title}
       </h2>
 

@@ -1,7 +1,7 @@
 .admin-topbar {
   height: 72px;
-  background: #ffffff;
-  border-bottom: 1px solid #ececec;
+  background: linear-gradient(90deg, #fff4f8 0%, #ffeef5 100%);
+  border-bottom: 1px solid #f3d9e4;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -9,13 +9,21 @@
   flex-shrink: 0;
   position: relative;
   z-index: 20;
+  box-shadow: 0 8px 24px rgba(239, 75, 132, 0.06);
 }
 
 .admin-topbar h1 {
   margin: 0;
   font-size: 19px;
   font-weight: 700;
-  color: #303030;
+  color: #2f2f2f;
+}
+
+.admin-bell-svg {
+  width: 18px;
+  height: 18px;
+  color: #e34d86;
+  display: block;
 }
 
 .admin-topbar-actions {
@@ -33,21 +41,23 @@
 
 /* BELL BUTTON */
 .admin-icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border: none;
-  border-radius: 999px;
-  background: #f7f2f5;
+  border-radius: 12px;
+  background: #ffffff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   transition: 0.2s ease;
+  box-shadow: 0 8px 20px rgba(239, 75, 132, 0.08);
 }
 
 .admin-icon-btn:hover {
-  background: #f2e8ee;
+  background: #fff5f8;
+  transform: translateY(-1px);
 }
 
 .admin-bell-icon {
@@ -75,20 +85,22 @@
 
 /* ADMINISTRATOR BUTTON */
 .admin-profile-trigger {
-  height: 38px;
+  height: 40px;
   border: none;
   border-radius: 999px;
-  background: #f6f6f6;
+  background: #ffffff;
   padding: 0 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
   transition: 0.2s ease;
+  box-shadow: 0 8px 20px rgba(239, 75, 132, 0.08);
 }
 
 .admin-profile-trigger:hover {
-  background: #efefef;
+  background: #fff5f8;
+  transform: translateY(-1px);
 }
 
 .admin-profile-label {
@@ -107,8 +119,7 @@
   transform: rotate(180deg);
 }
 
-/* NOTIFICATION OVERLAY
-   This is ONLY the dim background behind the popup */
+/* NOTIFICATION OVERLAY */
 .admin-notification-overlay {
   position: fixed;
   inset: 0;
@@ -116,8 +127,7 @@
   z-index: 999;
 }
 
-/* NOTIFICATION POPUP
-   Higher z-index than overlay so popup is not grayed out */
+/* NOTIFICATION POPUP */
 .admin-notification-popup {
   position: fixed;
   top: 82px;
@@ -128,7 +138,7 @@
   border-radius: 22px;
   padding: 18px 18px 14px;
   box-shadow: 0 20px 45px rgba(16, 24, 40, 0.16);
-  border: 1px solid #ececec;
+  border: 1px solid #f1dbe4;
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -188,10 +198,10 @@
   grid-template-columns: 10px 1fr auto;
   align-items: start;
   gap: 12px;
-  border: 1.4px solid #ef4b84;
+  border: 1.4px solid #f2c5d8;
   border-radius: 14px;
   padding: 12px 13px;
-  background: #ffffff;
+  background: #fff8fb;
 }
 
 .admin-notification-dot {
@@ -398,7 +408,7 @@
   }
 
   .admin-profile-trigger {
-    width: 38px;
+    width: 40px;
     padding: 0;
     justify-content: center;
   }
@@ -418,5 +428,117 @@
 
   .admin-profile-modal-title {
     font-size: 26px;
+  }
+}
+
+.superadmin-topbar-mobile {
+  gap: 14px;
+}
+
+.superadmin-menu-btn {
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 12px;
+  background: #ffffff;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(239, 75, 132, 0.08);
+  transition: 0.2s ease;
+}
+
+.superadmin-menu-btn:hover {
+  background: #fff5f8;
+}
+
+.superadmin-menu-btn span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: #e34d86;
+}
+
+@media (max-width: 900px) {
+  .admin-topbar.superadmin-topbar-mobile {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px !important;
+    height: auto !important;
+    min-height: 72px;
+    background: linear-gradient(90deg, #fff4f8 0%, #ffeef5 100%);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid #f1d8e2;
+  }
+
+  .superadmin-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+
+  .superadmin-topbar-mobile .admin-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .superadmin-topbar-mobile .admin-profile-label {
+    display: none;
+  }
+
+  .superadmin-topbar-mobile .admin-profile-trigger {
+    min-width: auto;
+    padding: 10px 12px;
+  }
+
+  .superadmin-topbar-title {
+    font-size: 1.15rem;
+    line-height: 1.2;
+    margin: 0;
+    color: #2f2f2f;
+  }
+
+  .superadmin-menu-btn {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 480px) {
+  .superadmin-topbar-title {
+    font-size: 1rem;
+  }
+
+  .superadmin-topbar-mobile .admin-icon-btn,
+  .superadmin-topbar-mobile .admin-profile-trigger,
+  .superadmin-menu-btn {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border-radius: 12px;
+  }
+
+  .superadmin-topbar-mobile .admin-profile-arrow {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .superadmin-topbar-title {
+    display: none;
+  }
+
+  .superadmin-topbar-left {
+    flex: 0 0 auto;
+  }
+
+  .admin-topbar.superadmin-topbar-mobile {
+    padding: 12px 14px !important;
   }
 }
