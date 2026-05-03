@@ -3,11 +3,11 @@ import logo from "../../assets/logo.png";
 export default function Footer() {
   return (
     <footer id="contact" className="w-full px-3 pb-4 pt-0 sm:px-4 lg:px-6">
-      <div className="w-full rounded-[32px] border border-pink-100 bg-white px-6 py-10 shadow-[0_12px_40px_rgba(236,72,153,0.08)] sm:px-8 lg:px-10">
-        <div className="grid gap-10 lg:grid-cols-4">
+      <div className="w-full rounded-[26px] border border-pink-100 bg-white px-5 py-8 shadow-[0_12px_40px_rgba(236,72,153,0.08)] sm:rounded-[30px] sm:px-7 sm:py-9 lg:rounded-[32px] lg:px-10 lg:py-10">
+        <div className="grid gap-8 sm:gap-10 md:grid-cols-2 lg:grid-cols-4">
           <div>
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-pink-50">
+              <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-pink-50 sm:h-12 sm:w-12">
                 <img
                   src={logo}
                   alt="GC Dental Care Logo"
@@ -15,8 +15,8 @@ export default function Footer() {
                 />
               </div>
 
-              <div>
-                <h3 className="font-bold text-slate-900">GC Dental Care</h3>
+              <div className="min-w-0">
+                <h3 className="truncate font-bold text-slate-900">GC Dental Care</h3>
                 <p className="text-sm text-slate-500">Powered by IntelliDent</p>
               </div>
             </div>
@@ -79,7 +79,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 border-t border-pink-100 pt-5 text-center text-sm text-slate-500">
+        <div className="mt-8 border-t border-pink-100 pt-5 text-center text-xs text-slate-500 sm:text-sm">
           © 2026 GC Dental Care | IntelliDent. All rights reserved.
         </div>
       </div>

@@ -12,6 +12,27 @@
   gap: 20px;
 }
 
+.superadmin-patients-page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  flex-shrink: 0;
+}
+
+.superadmin-patients-page-head-left {
+  min-width: 0;
+}
+
+.superadmin-patients-page-head-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
 .superadmin-patients-header {
   flex-shrink: 0;
 }
@@ -77,22 +98,22 @@
   flex-shrink: 0;
 }
 
-.superadmin-patients-card-head-wrap {
+.superadmin-patients-list-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
   flex-wrap: wrap;
 }
 
-.superadmin-patients-card-head h3 {
+.superadmin-patients-list-head-text h3 {
   margin: 0;
   color: #495167;
   font-size: 1.3rem;
   font-weight: 800;
 }
 
-.superadmin-patients-card-head p {
+.superadmin-patients-list-head-text p {
   margin: 6px 0 0;
   color: #8a90a2;
   font-size: 0.92rem;
@@ -101,8 +122,10 @@
 .superadmin-patients-top-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .superadmin-patients-search,
@@ -119,7 +142,7 @@
 }
 
 .superadmin-patients-search {
-  width: 320px;
+  width: 360px;
   max-width: 100%;
 }
 
@@ -127,10 +150,49 @@
   min-width: 190px;
 }
 
+.superadmin-patients-page-filter {
+  min-width: 176px;
+}
+
 .superadmin-patients-search:focus,
 .superadmin-patients-filter:focus {
   border-color: #ee8cb3;
   box-shadow: 0 0 0 4px rgba(240, 90, 150, 0.09);
+}
+
+.superadmin-patients-export-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 148px;
+  height: 52px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+  box-shadow: 0 12px 24px rgba(91, 33, 182, 0.24);
+}
+
+.superadmin-patients-export-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.superadmin-patients-export-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 28px rgba(91, 33, 182, 0.32);
+}
+
+.superadmin-patients-export-btn:active {
+  transform: scale(0.97);
 }
 
 .superadmin-patients-table-scroll {
@@ -550,17 +612,27 @@
     height: auto;
   }
 
+  .superadmin-patients-page-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .superadmin-patients-page-head-right {
+    justify-content: flex-start;
+  }
+
   .superadmin-patients-stats {
     grid-template-columns: 1fr;
   }
 
-  .superadmin-patients-card-head-wrap {
+  .superadmin-patients-list-head {
     flex-direction: column;
     align-items: stretch;
   }
 
   .superadmin-patients-top-actions {
     width: 100%;
+    justify-content: flex-start;
   }
 
   .superadmin-patients-search {
@@ -585,7 +657,15 @@
     font-size: 1.8rem;
   }
 
-  .superadmin-patients-filter {
+  .superadmin-patients-page-head-right {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .superadmin-patients-filter,
+  .superadmin-patients-page-filter,
+  .superadmin-patients-export-btn {
     width: 100%;
   }
 
