@@ -7,6 +7,7 @@ import { usePreAssessment } from "./_layout";
 import { supabase } from "../../server/supabaseService";
 import { getCurrentUser } from "../../server/supabaseService";
 import { getCurrentActiveProfileForSession } from "../_storage/authStorage";
+import { validatePreAssessmentSubmission } from "../../server/Security/PreAssessment/preAssessmentValidator";
 
 function isUuid(value) {
   if (!value) return false;
@@ -99,6 +100,20 @@ export default function Questions() {
       setSaving(true);
       
       try {
+        // SECURITY: Validate all answers before submission
+        const answersArray = Object.values(state.answers).map((answer, qIndex) => ({
+          questionId: qIndex + 1,
+          answer: answer,
+          answerType: 'option'
+        }));
+
+        const validation = validatePreAssessmentSubmission(answersArray);
+        if (!validation.isValid) {
+          Alert.alert("Validation Error", validation.errors[0]);
+          setSaving(false);
+          return;
+        }
+
         const user = await getCurrentUser();
         const activeProfile = await getCurrentActiveProfileForSession();
         if (!user) {
@@ -113,9 +128,8 @@ export default function Questions() {
           .insert([{
             user_id: user.id,
             profile_id: profileId,
-            answers: state.answers,
+            answers: validation.sanitized,
             description: null,
-            // ADDED: Save the specific tooth directly from our state!
             tooth_selected: state.tooth === "3rd Molar" ? null : state.tooth
           }])
           .select()

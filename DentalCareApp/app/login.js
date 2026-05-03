@@ -17,6 +17,8 @@ import { colors } from "./theme/colors";
 import AuthAlert from "./components/authAlert";
 import { supabase } from "../server/supabaseService";
 import { storeSession } from "./_storage/authStorage";
+import { validateLoginInput } from "../server/Security/authentication/inputValidator";
+import bruteForceProtection from "../server/Security/authentication/bruteForceProtection";
 import { handleGoogleLogin } from "../server/googleLogin";
 import { handleAppleLogin } from "../server/appleLogin";
 import { handleFacebookLogin } from "../server/facebookLogin";
@@ -91,25 +93,42 @@ export default function Login() {
   const handleLogin = async () => {
     setError("");
 
-    const cleanEmail = email.trim().toLowerCase();
-
-    if (!cleanEmail || !password) {
-      setError("Please enter your email and password.");
+    // SECURITY: Check if account is locked due to brute force attempts
+    const { isLocked, remainingTimeMs } = bruteForceProtection.isLocked(email);
+    if (isLocked) {
+      const minutes = Math.ceil(remainingTimeMs / 60000);
+      setError(`Account temporarily locked due to multiple failed attempts. Try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`);
       return;
     }
+
+    // SECURITY: Validate login inputs
+    const validation = validateLoginInput({ email, password });
+    if (!validation.isValid) {
+      setError(validation.errors[0]);
+      return;
+    }
+
+    const { email: cleanEmail, password: cleanPassword } = validation.sanitized;
 
     try {
       setLoading(true);
     
-    // Sign in the user first
+    // Sign in the user first using sanitized data
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+      email: cleanEmail,
+      password: cleanPassword,
     });
 
     if (error) {
+      // SECURITY: Record failed login attempt
+      const result = bruteForceProtection.recordFailedAttempt(cleanEmail);
       setLoading(false);
-      setError(error.message);
+      
+      if (!result.success) {
+        setError(result.message);
+      } else {
+        setError(`Invalid email or password. ${result.message}`);
+      }
       return;
     }
 
@@ -138,6 +157,9 @@ export default function Login() {
       setError("Please verify your email before logging in.");
       return;
     }
+
+    // SECURITY: Clear failed attempts on successful login
+    bruteForceProtection.recordSuccessfulLogin(cleanEmail);
 
     // Store session with user data including full name
     await storeSession({

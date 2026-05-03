@@ -17,6 +17,7 @@ import { colors } from "./theme/colors";
 import AuthAlert from "./components/authAlert";
 import { supabase } from "../server/supabaseService";
 import { getServerUrl } from "../server/getClientSideUrl";
+import { validateSignupInput } from "../server/Security/authentication/inputValidator";
 import { storeSession } from "./_storage/authStorage";
 import { handleGoogleLogin } from "../server/googleLogin";
 import { handleAppleLogin } from "../server/appleLogin";
@@ -138,36 +139,30 @@ export default function Signup() {
     console.log("=== Starting signup process ===");
     setError("");
 
-    const cleanFullName = fullName.trim();
-    const cleanEmail = email.trim().toLowerCase();
+    // SECURITY: Validate all inputs
+    const validation = validateSignupInput({
+      email,
+      password,
+      confirmPassword,
+      fullName,
+    });
 
-    if (!cleanFullName || !cleanEmail || !password || !confirmPassword) {
-      console.log("Validation failed: Missing fields");
-      setError("Please fill in all fields.");
+    if (!validation.isValid) {
+      console.log("Validation failed:", validation.errors);
+      setError(validation.errors[0]);
       return;
     }
 
-    const strongPassword = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
-    if (!strongPassword.test(password)) {
-      console.log("Validation failed: Weak password");
-      setError("Password must be at least 8 characters and include 1 uppercase letter, 1 number, and 1 special character.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      console.log("Validation failed: Password mismatch");
-      setError("Password and Confirm Password do not match.");
-      return;
-    }
+    const { email: cleanEmail, fullName: cleanFullName, password: cleanPassword } = validation.sanitized;
 
     try {
       setLoading(true);
-      console.log("1. Starting Supabase signup for:", email);
+      console.log("1. Starting Supabase signup for:", cleanEmail);
 
-      // Sign up user with Supabase Auth
+      // Sign up user with Supabase Auth using sanitized data
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
+        email: cleanEmail,
+        password: cleanPassword,
       });
 
       console.log("Supabase signup response:", { signUpData, signUpError });
@@ -223,9 +218,9 @@ export default function Signup() {
           router.push({
             pathname: "/otp-verification",
             params: {
-              email: email,
-              userId: signUpData.user?.id, // Fixed: Grab ID from Supabase response
-              fullName: fullName
+              email: cleanEmail,
+              userId: signUpData.user?.id,
+              fullName: cleanFullName
             }
           });
         }, 50);

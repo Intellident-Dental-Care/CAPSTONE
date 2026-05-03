@@ -4,26 +4,39 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
 import { usePreAssessment } from "./_layout";
-import { supabase } from "../../server/supabaseService"; // <-- Added Supabase import
+import { supabase } from "../../server/supabaseService";
+import { validateSymptomDescription } from "../../server/Security/PreAssessment/preAssessmentValidator";
 
 export default function Description() {
   const router = useRouter();
   const { state, dispatch } = usePreAssessment();
-  const [saving, setSaving] = useState(false); // <-- Added loading state for safety
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const canNext = state.description && state.description.trim().length > 0;
+  const descriptionLength = state.description ? state.description.trim().length : 0;
+  const minRequired = 10;
+  const maxAllowed = 2000;
+  const canNext = descriptionLength >= minRequired;
+  const charsRemaining = minRequired - descriptionLength;
+  const isOverLimit = descriptionLength > maxAllowed;
 
-  // <-- Added handleNext function to UPDATE the database record
   const handleNext = async () => {
     if (!canNext || saving) return;
+
+    // SECURITY: Validate symptom description
+    const validation = validateSymptomDescription(state.description);
+    if (!validation.isValid) {
+      setError(validation.errors[0]);
+      return;
+    }
 
     setSaving(true);
     try {
       if (state.preassessmentId) {
-        // Update the existing pre-assessment record with the description
+        // Update the existing pre-assessment record with sanitized description
         const { error } = await supabase
           .from("patient_preassessment")
-          .update({ description: state.description.trim() })
+          .update({ description: validation.sanitized })
           .eq("id", state.preassessmentId);
 
         if (error) {
@@ -31,7 +44,7 @@ export default function Description() {
         }
       }
       
-      // Proceed to the photo screen regardless
+      // Proceed to the photo screen
       router.push("/pre-assessment/photo");
     } catch (err) {
       console.error("Network error saving description:", err);
@@ -72,7 +85,29 @@ export default function Description() {
         onChangeText={(t) => dispatch({ type: "SET_DESCRIPTION", payload: t })}
       />
 
-      {!canNext && <Text style={styles.warn}>Please add a description to continue.</Text>}
+      {/* Character Count and Requirement Hint */}
+      <View style={styles.hintContainer}>
+        <Text style={styles.charCount}>
+          {descriptionLength} / {maxAllowed} characters
+        </Text>
+        {!canNext && (
+          <Text style={[styles.hintText, { color: colors.primary }]}>
+            ⓘ Add {charsRemaining} more character{charsRemaining !== 1 ? 's' : ''} (minimum {minRequired})
+          </Text>
+        )}
+        {canNext && !isOverLimit && (
+          <Text style={[styles.hintText, { color: '#4CAF50' }]}>
+            ✓ Perfect! Your description is ready
+          </Text>
+        )}
+        {isOverLimit && (
+          <Text style={[styles.hintText, { color: '#FF6B6B' }]}>
+            ✕ Description is too long ({descriptionLength - maxAllowed} characters over limit)
+          </Text>
+        )}
+      </View>
+
+      {!canNext && <Text style={styles.warn}>Please add at least {minRequired} characters to continue.</Text>}
 
       <View style={styles.bottomRow}>
         <Pressable style={styles.btnOutline} onPress={() => router.back()}>
@@ -81,9 +116,9 @@ export default function Description() {
 
         {/* <-- Updated Pressable to use handleNext and respect saving state */}
         <Pressable
-          style={[styles.btnFilled, (!canNext || saving) && { opacity: 0.5 }]}
+          style={[styles.btnFilled, (!canNext || saving || isOverLimit) && { opacity: 0.5 }]}
           onPress={handleNext}
-          disabled={saving}
+          disabled={!canNext || saving || isOverLimit}
         >
           <Text style={styles.btnFilledText}>Next</Text>
         </Pressable>
@@ -136,6 +171,28 @@ const styles = StyleSheet.create({
   },
 
   warn: { marginTop: 10, marginLeft: 15, fontSize: 10, color: colors.primary },
+
+  hintContainer: { 
+    marginTop: 12, 
+    marginHorizontal: 10, 
+    paddingHorizontal: 12, 
+    paddingVertical: 8,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  charCount: { 
+    fontSize: 11, 
+    color: colors.textGray, 
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  hintText: { 
+    fontSize: 11, 
+    fontWeight: "500",
+    marginTop: 4,
+  },
 
   bottomRow: { position: "absolute", left: 18, right: 18, bottom: 65, flexDirection: "row", gap: 12 },
   btnOutline: { flex: 1, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.primary, alignItems: "center", justifyContent: "center" },
