@@ -1,16 +1,13 @@
-import React, { useMemo, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  ScrollView,
-} from "react-native";
+import React, { useMemo, useEffect, useState } from "react";
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { WebView } from "react-native-webview";
 import { colors } from "../theme/colors";
 import { usePreAssessment } from "./_layout";
+import { supabase } from "../../server/supabaseService"; 
+import { getServerUrl } from "../../server/getClientSideUrl";
+import { getRecommendedServiceCriteria } from "../../server/AIRecommendation/serviceMapper"; 
 
 const QUESTIONS = [
   "Do you feel tooth pain when biting or chewing?",
@@ -28,6 +25,68 @@ const QUESTIONS = [
 export default function AISummary() {
   const router = useRouter();
   const { state, dispatch } = usePreAssessment();
+  
+  const [analyzing, setAnalyzing] = useState(true);
+  const [detectedProblem, setDetectedProblem] = useState("Unknown");
+  const [suggestedService, setSuggestedService] = useState("Analyzing...");
+  const [suggestedPrice, setSuggestedPrice] = useState("...");
+
+  useEffect(() => {
+    runAnalysis();
+  }, []);
+
+  const runAnalysis = async () => {
+    try {
+      // 1. SAFELY EXTRACT THE FIRST IMAGE FROM THE ARRAY
+      const imageToAnalyze = Array.isArray(state.photoUri) ? state.photoUri[0] : state.photoUri;
+
+      if (!imageToAnalyze) throw new Error("No photo provided");
+
+      const baseNodeUrl = await getServerUrl();
+      const AI_API_URL = baseNodeUrl.replace(/:[0-9]+/, ":8000") + "/analyze";
+
+      const formData = new FormData();
+      // 2. SEND ONLY THE EXTRACTED IMAGE TO THE AI
+      formData.append("file", { uri: imageToAnalyze, name: "tooth.jpg", type: "image/jpeg" });
+
+      const aiResponse = await fetch(AI_API_URL, { method: "POST", headers: { "Content-Type": "multipart/form-data" }, body: formData });
+      const aiData = await aiResponse.json();
+      const problem = aiData.detected_problem || "Normal";
+      
+      setDetectedProblem(problem);
+
+      // Get the database search criteria based on the AI problem
+      const criteria = getRecommendedServiceCriteria(problem);
+
+      // Dynamically query Supabase based on the router's instructions
+      const { data } = await supabase
+        .from('dental_services')
+        .select('*')
+        .eq('is_active', true) // Only grab active services
+        .ilike(criteria.field, `%${criteria.value}%`)
+        .order('price_min', { ascending: true }) // Recommends the most affordable starting option first
+        .limit(1)
+        .single();
+
+      if (data) {
+        setSuggestedService(data.name);
+        setSuggestedPrice(data.price_display);
+        dispatch({ type: "SET_SUGGESTED_SERVICE", payload: data.name });
+      } else {
+        setSuggestedService("Dental Consultation Required");
+        setSuggestedPrice("Price varies");
+      }
+    } catch (error) {
+      // Prints the exact reason for the crash in your VS Code Terminal
+      console.error("AI Analysis Error: ", error);
+
+      setDetectedProblem("Analysis Error");
+      setSuggestedService("Unable to determine service");
+      setSuggestedPrice("-");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
   const qaList = useMemo(() => {
     return QUESTIONS.map((qText, i) => {
@@ -36,15 +95,14 @@ export default function AISummary() {
     });
   }, [state.answers]);
 
-  const suggestedService = "Tooth Cleaning";
-  const suggestedPrice = "Starting Price: 1000";
-
-  useEffect(() => {
-    dispatch({
-      type: "SET_SUGGESTED_SERVICE",
-      payload: suggestedService,
-    });
-  }, [dispatch, suggestedService]);
+  if (analyzing) {
+    return (
+      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 20, color: colors.primary, fontWeight: "bold" }}>IntelliDent AI is analyzing your scan...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -64,12 +122,7 @@ export default function AISummary() {
           source={{ uri: "https://intellident-3d-viewer.vercel.app/?mode=protected" }}
           style={styles.toothImage}
           scrollEnabled={false}
-          injectedJavaScript={`
-            setTimeout(function() {
-              window.postMessage({ type: 'SELECT_TOOTH', tooth: '${state.tooth}' }, '*');
-            }, 1000);
-            true;
-          `}
+          injectedJavaScript={`setTimeout(function() { window.postMessage({ type: 'SELECT_TOOTH', tooth: '${state.tooth}' }, '*'); }, 1000); true;`}
           containerStyle={{ backgroundColor: 'transparent' }}
           cacheEnabled={true}
           domStorageEnabled={true}
@@ -78,11 +131,7 @@ export default function AISummary() {
 
       <Text style={styles.tooth}>Tooth: {state.tooth}</Text>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={styles.section}>Summary of Pre Assessment</Text>
 
         <View style={styles.summaryBox}>
@@ -92,31 +141,30 @@ export default function AISummary() {
                 <Text style={styles.qLabel}>Question: </Text>
                 {x.qText}
               </Text>
-
               <Text style={styles.aLine}>
                 <Text style={styles.aLabel}>    Answer: </Text>
                 {x.ans}
               </Text>
             </View>
           ))}
-
           <View style={{ height: 12 }} />
-
           <Text style={styles.qLine}>
             <Text style={styles.qLabel}>Question: </Text>
-            Kindly describe any symptoms or discomfort you are currently
-            experiencing.
+            Kindly describe any symptoms or discomfort you are currently experiencing.
           </Text>
-
           <Text style={styles.aLine}>
             <Text style={styles.aLabel}>    Answer: </Text>
             {state.description?.trim() ? state.description.trim() : "-"}
           </Text>
         </View>
 
-        <Text style={[styles.section, { marginTop: 18 }]}>
-          Suggested Treatment and Price
-        </Text>
+        <Text style={[styles.section, { marginTop: 18 }]}>AI Diagnosis</Text>
+
+        <View style={styles.treatBox}>
+          <Text style={styles.treatTitle}>Condition Found: {detectedProblem.toUpperCase()}</Text>
+        </View>
+
+        <Text style={[styles.section, { marginTop: 18 }]}>Suggested Treatment and Price</Text>
 
         <View style={styles.treatBox}>
           <Text style={styles.treatTitle}>{suggestedService}</Text>
@@ -125,22 +173,11 @@ export default function AISummary() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable
-          style={styles.btnOutline}
-          onPress={() => router.replace("/home")}
-        >
+        <Pressable style={styles.btnOutline} onPress={() => router.replace("/home")}>
           <Text style={styles.btnOutlineText}>Back to Home</Text>
         </Pressable>
 
-        <Pressable
-          style={styles.btnFilled}
-          onPress={() =>
-            router.push({
-              pathname: "/booking",
-              params: { service: suggestedService, preassessmentId: state.preassessmentId },
-            })
-          }
-        >
+        <Pressable style={styles.btnFilled} onPress={() => router.push({ pathname: "/booking", params: { service: suggestedService, preassessmentId: state.preassessmentId } })}>
           <Text style={styles.btnFilledText}>Book Now</Text>
         </Pressable>
       </View>
