@@ -13,39 +13,68 @@
   flex-direction: column;
   justify-content: space-between;
   box-shadow: 0 8px 20px rgba(16, 24, 40, 0.04);
+  position: relative;
+  overflow: hidden;
 }
 
 .summary-card.pink {
   background: linear-gradient(135deg, #ec5b90, #f07ba6);
-  color: white;
+  color: #ffffff;
 }
 
 .summary-card.rose {
   background: linear-gradient(135deg, #ea4f84, #e96b98);
-  color: white;
+  color: #ffffff;
 }
 
 .summary-card.white {
-  background: white;
+  background: #ffffff;
   border: 1px solid #ececec;
   box-shadow: none;
+}
+
+.summary-card.pink::before,
+.summary-card.rose::before {
+  content: "";
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  right: -30px;
+  top: -30px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+}
+
+.summary-card.pink::after,
+.summary-card.rose::after {
+  content: "";
+  position: absolute;
+  width: 78px;
+  height: 78px;
+  right: 18px;
+  bottom: -28px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
 }
 
 .summary-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
+  z-index: 1;
 }
 
 .summary-header span {
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .summary-header small {
   display: block;
-  font-size: 13px;
-  opacity: 0.85;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .summary-value {
@@ -54,39 +83,21 @@
   align-items: center;
   justify-content: center;
   font-size: 30px;
-  font-weight: 700;
+  font-weight: 800;
+  position: relative;
+  z-index: 1;
 }
 
-.left-mini-stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  flex-shrink: 0;
+.summary-card.pink .summary-header span,
+.summary-card.rose .summary-header span,
+.summary-card.pink .summary-header small,
+.summary-card.rose .summary-header small,
+.summary-card.pink .summary-value,
+.summary-card.rose .summary-value {
+  color: #ffffff !important;
 }
 
-.mini-stat-card {
-  background: #ffffff;
-  border: 1px solid #ececf2;
-  border-radius: 16px;
-  padding: 12px 14px;
-  box-shadow: 0 6px 16px rgba(16, 24, 40, 0.03);
-  min-height: 84px;
-}
-
-.mini-stat-title {
-  margin: 0 0 6px;
-  font-size: 11px;
-  color: #8a8f9d;
-  font-weight: 600;
-}
-
-.mini-stat-card h4 {
-  margin: 0 0 4px;
-  font-size: 18px;
-  color: #232733;
-}
-
-.mini-stat-card span {
-  font-size: 11px;
-  color: #8a8f9d;
+.summary-card.pink .summary-header small,
+.summary-card.rose .summary-header small {
+  opacity: 0.95;
 }

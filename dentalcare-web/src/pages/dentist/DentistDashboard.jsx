@@ -20,6 +20,7 @@ import "../../styles/dentist/dashboard/calendar.css";
 import "../../styles/dentist/dashboard/right-panel.css";
 import "../../styles/dentist/patients/preassessment-modal.css";
 import "../../styles/dentist/shared/responsive.css";
+import "../../styles/admin/layout/admin-topbar.css";
 import "../../styles/dentist/layout/topbar.css";
 import "../../styles/dentist/layout/sidebar.css";
 import "../../styles/dentist/patients/procedure-modal.css";
@@ -85,6 +86,8 @@ export default function DentistDashboard() {
   const [treatmentCompletion, setTreatmentCompletion] = useState([]);
   const [weeklyFlow, setWeeklyFlow] = useState([]);
   const [summary, setSummary] = useState({ totalClients: 0, pendingPreAssessments: 0 });
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -322,7 +325,10 @@ export default function DentistDashboard() {
   return (
     <>
       <div className="dentist-dashboard">
-        <Sidebar />
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+        />
 
         <main className="main-content">
           <Topbar
@@ -333,6 +339,7 @@ export default function DentistDashboard() {
             onCloseNotifications={handleCloseNotifications}
             onMarkAllRead={handleMarkAllRead}
             profileImage={profileImage}
+            onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           />
 
           <div className="dashboard-grid">
@@ -374,7 +381,9 @@ export default function DentistDashboard() {
 
                 <div className="patient-list patient-list-scroll">
                   {!isLoading && filteredPatients.length === 0 ? (
-                    <div className="section-subtitle">No patients found for the selected filters.</div>
+                    <div className="empty-patient-message">
+                      No patients found for the selected filters.
+                    </div>
                   ) : null}
 
                   {filteredPatients.map((patient) => (
@@ -388,16 +397,6 @@ export default function DentistDashboard() {
                       branch={patient.branch}
                       onViewDetails={() => handleOpenPreAssessment(patient)}
                     />
-                  ))}
-                </div>
-
-                <div className="left-mini-stats-grid">
-                  {quickStats.map((item) => (
-                    <div className="mini-stat-card" key={item.title}>
-                      <p className="mini-stat-title">{item.title}</p>
-                      <h4>{item.value}</h4>
-                      <span>{item.note}</span>
-                    </div>
                   ))}
                 </div>
               </div>

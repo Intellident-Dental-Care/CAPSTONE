@@ -142,12 +142,29 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
               </NavLink>
 
               <NavLink
+                to="/superadmin/tooth-questions"
+                onClick={handleNavClick}
+                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+              >
+                Tooth Questions
+              </NavLink>
+
+              <NavLink
                 to="/superadmin/faqs"
                 onClick={handleNavClick}
                 className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
               >
                 FAQs
               </NavLink>
+
+              <NavLink
+                to="/superadmin/terms-and-conditions"
+                onClick={handleNavClick}
+                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+              >
+                Terms & Conditions
+              </NavLink>
+
             </nav>
           </div>
 

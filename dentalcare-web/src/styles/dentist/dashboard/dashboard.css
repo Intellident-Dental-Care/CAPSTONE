@@ -8,7 +8,6 @@ body,
   height: 100%;
   margin: 0;
   overflow: auto;
-  font-family: Arial, Helvetica, sans-serif;
   background: #f6f7fb;
   color: #2f2f2f;
 }
@@ -105,4 +104,22 @@ body,
     opacity: 0;
     transform: translateY(8px);
   }
+}
+
+.patient-list {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.empty-patient-message {
+  height: 100%;
+  min-height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #8a8f9d;
+  font-size: 13px;
+  font-weight: 600;
 }

@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import SuperAdminSidebar from "../../components/superadmin/layout/SuperAdminSidebar";
 import SuperAdminTopbar from "../../components/superadmin/layout/SuperAdminTopbar";
-import { getSuperAdminFaqs, createSuperAdminFaq } from "../../services/superAdminService";
+import {
+  getSuperAdminFaqs,
+  createSuperAdminFaq,
+} from "../../services/superAdminService";
 
 import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
@@ -10,6 +13,14 @@ import "../../styles/admin/shared/admin-responsive.css";
 
 import "../../styles/superadmin/faqs/superadmin-faqs.css";
 import "../../styles/superadmin/shared/superadmin-responsive.css";
+
+const FAQ_CATEGORIES = [
+  "General",
+  "Appointments",
+  "Payments",
+  "Services",
+  "Accounts",
+];
 
 export default function SuperAdminFaqs() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -23,6 +34,11 @@ export default function SuperAdminFaqs() {
   ]);
 
   const [faqs, setFaqs] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const [form, setForm] = useState({
     question: "",
@@ -30,8 +46,12 @@ export default function SuperAdminFaqs() {
     category: "General",
   });
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [editForm, setEditForm] = useState({
+    id: null,
+    question: "",
+    answer: "",
+    category: "General",
+  });
 
   const [confirmModal, setConfirmModal] = useState({
     open: false,
@@ -42,7 +62,7 @@ export default function SuperAdminFaqs() {
 
   const fetchFaqs = async () => {
     const res = await getSuperAdminFaqs();
-    if (res?.success) setFaqs(res.data);
+    if (res?.success) setFaqs(res.data || []);
   };
 
   useEffect(() => {
@@ -54,12 +74,29 @@ export default function SuperAdminFaqs() {
     setIsNotificationOpen(false);
   };
 
+  const resetAddForm = () => {
+    setForm({
+      question: "",
+      answer: "",
+      category: "General",
+    });
+  };
+
+  const openAddFaqModal = () => {
+    resetAddForm();
+    setIsAddModalOpen(true);
+  };
+
+  const closeAddFaqModal = () => {
+    setIsAddModalOpen(false);
+    resetAddForm();
+  };
+
   const handleAddFaq = async (e) => {
     e.preventDefault();
 
     if (!form.question.trim() || !form.answer.trim()) return;
 
-    // Call the backend API
     const res = await createSuperAdminFaq({
       question: form.question.trim(),
       answer: form.answer.trim(),
@@ -67,19 +104,53 @@ export default function SuperAdminFaqs() {
     });
 
     if (res?.success) {
-      // Add the real database record (with the Supabase UUID) to the top of the list
       setFaqs((prev) => [res.data, ...prev]);
-
-      // Clear the form
-      setForm({
-        question: "",
-        answer: "",
-        category: "General",
-      });
+      closeAddFaqModal();
     } else {
       console.error("Failed to save FAQ to the database");
       alert("Failed to add FAQ. Please check your connection.");
     }
+  };
+
+  const openEditFaqModal = (faq) => {
+    setEditForm({
+      id: faq.id,
+      question: faq.question || "",
+      answer: faq.answer || "",
+      category: faq.category || "General",
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const closeEditFaqModal = () => {
+    setIsEditModalOpen(false);
+    setEditForm({
+      id: null,
+      question: "",
+      answer: "",
+      category: "General",
+    });
+  };
+
+  const handleEditFaq = (e) => {
+    e.preventDefault();
+
+    if (!editForm.question.trim() || !editForm.answer.trim()) return;
+
+    setFaqs((prev) =>
+      prev.map((faq) =>
+        faq.id === editForm.id
+          ? {
+              ...faq,
+              question: editForm.question.trim(),
+              answer: editForm.answer.trim(),
+              category: editForm.category,
+            }
+          : faq
+      )
+    );
+
+    closeEditFaqModal();
   };
 
   const openDeleteModal = (faq) => {
@@ -139,76 +210,20 @@ export default function SuperAdminFaqs() {
         <div className="superadmin-faqs-fixed-page">
           <div className="superadmin-faqs-content">
             <section className="superadmin-faqs-header">
-              <h2 className="superadmin-faqs-title">FAQs Management</h2>
-              <p className="superadmin-faqs-subtitle">
-                Manage the frequently asked questions shown to users.
-              </p>
-            </section>
-
-            <section className="superadmin-faqs-form-card">
-              <div className="superadmin-faqs-card-head">
-                <div>
-                  <h3>Add FAQ</h3>
-                  <p>Enter the FAQ details before adding it to the list.</p>
-                </div>
+              <div>
+                <h2 className="superadmin-faqs-title">FAQs Management</h2>
+                <p className="superadmin-faqs-subtitle">
+                  Manage the frequently asked questions shown to users.
+                </p>
               </div>
 
-              <form onSubmit={handleAddFaq} className="superadmin-faqs-form-grid">
-                <div className="superadmin-faqs-field">
-                  <label>Question</label>
-                  <input
-                    type="text"
-                    placeholder="Enter question"
-                    value={form.question}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        question: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="superadmin-faqs-field">
-                  <label>Category</label>
-                  <select
-                    value={form.category}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        category: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="General">General</option>
-                    <option value="Appointments">Appointments</option>
-                    <option value="Payments">Payments</option>
-                    <option value="Services">Services</option>
-                    <option value="Accounts">Accounts</option>
-                  </select>
-                </div>
-
-                <div className="superadmin-faqs-field superadmin-faqs-field-full">
-                  <label>Answer</label>
-                  <textarea
-                    placeholder="Enter answer"
-                    rows={4}
-                    value={form.answer}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        answer: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="superadmin-faqs-form-action">
-                  <button type="submit" className="superadmin-faqs-primary-btn">
-                    Add FAQ
-                  </button>
-                </div>
-              </form>
+              <button
+                type="button"
+                className="superadmin-faqs-primary-btn superadmin-faqs-add-open-btn"
+                onClick={openAddFaqModal}
+              >
+                Add FAQ
+              </button>
             </section>
 
             <section className="superadmin-faqs-list-card superadmin-faqs-list-flex">
@@ -233,11 +248,11 @@ export default function SuperAdminFaqs() {
                     className="superadmin-faqs-filter"
                   >
                     <option value="All">All Categories</option>
-                    <option value="General">General</option>
-                    <option value="Appointments">Appointments</option>
-                    <option value="Payments">Payments</option>
-                    <option value="Services">Services</option>
-                    <option value="Accounts">Accounts</option>
+                    {FAQ_CATEGORIES.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -246,23 +261,35 @@ export default function SuperAdminFaqs() {
                 <div className="superadmin-faqs-list">
                   {filteredFaqs.map((faq) => (
                     <div key={faq.id} className="superadmin-faqs-item">
-                      <div className="superadmin-faqs-item-top">
-                        <h4>{faq.question}</h4>
-                        <span className="superadmin-faqs-category">
-                          {faq.category}
-                        </span>
-                      </div>
+                      <div className="superadmin-faqs-item-head">
+                        <div className="superadmin-faqs-item-main">
+                          <div className="superadmin-faqs-item-top">
+                            <span className="superadmin-faqs-category">
+                              {faq.category}
+                            </span>
+                          </div>
 
-                      <p>{faq.answer}</p>
+                          <h4>{faq.question}</h4>
+                          <p>{faq.answer}</p>
+                        </div>
 
-                      <div className="superadmin-faqs-item-actions">
-                        <button
-                          type="button"
-                          className="superadmin-faqs-delete-btn"
-                          onClick={() => openDeleteModal(faq)}
-                        >
-                          Delete
-                        </button>
+                        <div className="superadmin-faqs-item-actions">
+                          <button
+                            type="button"
+                            className="superadmin-faqs-edit-btn"
+                            onClick={() => openEditFaqModal(faq)}
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            className="superadmin-faqs-delete-btn"
+                            onClick={() => openDeleteModal(faq)}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -279,6 +306,202 @@ export default function SuperAdminFaqs() {
         </div>
       </main>
 
+      {isAddModalOpen && (
+        <div
+          className="superadmin-faqs-modal-overlay"
+          onClick={closeAddFaqModal}
+        >
+          <div
+            className="superadmin-faqs-modal superadmin-faqs-form-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="superadmin-faqs-modal-top">
+              <div>
+                <h3>Add FAQ</h3>
+                <p>Enter the FAQ details before adding it to the list.</p>
+              </div>
+
+              <button
+                type="button"
+                className="superadmin-faqs-modal-close"
+                onClick={closeAddFaqModal}
+              >
+                ×
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleAddFaq}
+              className="superadmin-faqs-form-grid superadmin-faqs-modal-form-grid"
+            >
+              <div className="superadmin-faqs-field">
+                <label>Question</label>
+                <input
+                  type="text"
+                  placeholder="Enter question"
+                  value={form.question}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      question: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="superadmin-faqs-field">
+                <label>Category</label>
+                <select
+                  value={form.category}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      category: e.target.value,
+                    }))
+                  }
+                >
+                  {FAQ_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="superadmin-faqs-field superadmin-faqs-field-full">
+                <label>Answer</label>
+                <textarea
+                  placeholder="Enter answer"
+                  rows={5}
+                  value={form.answer}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      answer: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="superadmin-faqs-modal-actions">
+                <button
+                  type="button"
+                  className="superadmin-faqs-modal-cancel"
+                  onClick={closeAddFaqModal}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="superadmin-faqs-modal-confirm"
+                >
+                  Add FAQ
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isEditModalOpen && (
+        <div
+          className="superadmin-faqs-modal-overlay"
+          onClick={closeEditFaqModal}
+        >
+          <div
+            className="superadmin-faqs-modal superadmin-faqs-form-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="superadmin-faqs-modal-top">
+              <div>
+                <h3>Edit FAQ</h3>
+                <p>Update the question, answer, or category.</p>
+              </div>
+
+              <button
+                type="button"
+                className="superadmin-faqs-modal-close"
+                onClick={closeEditFaqModal}
+              >
+                ×
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleEditFaq}
+              className="superadmin-faqs-form-grid superadmin-faqs-modal-form-grid"
+            >
+              <div className="superadmin-faqs-field">
+                <label>Question</label>
+                <input
+                  type="text"
+                  placeholder="Enter question"
+                  value={editForm.question}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      question: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="superadmin-faqs-field">
+                <label>Category</label>
+                <select
+                  value={editForm.category}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      category: e.target.value,
+                    }))
+                  }
+                >
+                  {FAQ_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="superadmin-faqs-field superadmin-faqs-field-full">
+                <label>Answer</label>
+                <textarea
+                  placeholder="Enter answer"
+                  rows={5}
+                  value={editForm.answer}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      answer: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="superadmin-faqs-modal-actions">
+                <button
+                  type="button"
+                  className="superadmin-faqs-modal-cancel"
+                  onClick={closeEditFaqModal}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="superadmin-faqs-modal-confirm"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {confirmModal.open && (
         <div
           className="superadmin-faqs-modal-overlay"
@@ -288,7 +511,17 @@ export default function SuperAdminFaqs() {
             className="superadmin-faqs-modal"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3>{confirmModal.title}</h3>
+            <div className="superadmin-faqs-modal-top">
+              <h3>{confirmModal.title}</h3>
+              <button
+                type="button"
+                className="superadmin-faqs-modal-close"
+                onClick={closeDeleteModal}
+              >
+                ×
+              </button>
+            </div>
+
             <p>{confirmModal.message}</p>
 
             <div className="superadmin-faqs-modal-actions">
