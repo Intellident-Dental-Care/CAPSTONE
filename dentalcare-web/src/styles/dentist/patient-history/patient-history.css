@@ -41,16 +41,11 @@
   background: #fff;
   font-size: 14px;
   color: #4b5563;
-  transition: 0.2s ease;
 }
 
 .patient-history-search:focus {
   border-color: #ef4b84;
   box-shadow: 0 0 0 4px rgba(239, 75, 132, 0.1);
-}
-
-.patient-history-search::placeholder {
-  color: #b4bac5;
 }
 
 .patient-history-search-icon {
@@ -80,13 +75,12 @@
 .patient-history-table-wrap {
   flex: 1;
   overflow-y: auto;
-  overflow-x: auto;
+  overflow-x: hidden;
   padding-right: 4px;
 }
 
 .patient-history-table-wrap::-webkit-scrollbar {
   width: 8px;
-  height: 8px;
 }
 
 .patient-history-table-wrap::-webkit-scrollbar-thumb {
@@ -97,62 +91,99 @@
 .patient-history-table {
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 14px;
-  min-width: 760px;
+  border-spacing: 0;
+}
+
+.patient-history-table thead {
+  display: table-header-group;
+}
+
+.patient-history-table thead tr {
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 2fr)
+    minmax(80px, 0.7fr)
+    minmax(60px, 0.5fr)
+    minmax(150px, 1.3fr)
+    minmax(140px, 1.2fr)
+    minmax(110px, 0.8fr);
+  gap: 16px;
+  padding: 0 22px 8px;
 }
 
 .patient-history-table thead th {
   text-align: left;
-  padding: 0 16px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   color: #98a1b2;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
+.patient-history-table tbody {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+
 .patient-history-table tbody tr {
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 2fr)
+    minmax(80px, 0.7fr)
+    minmax(60px, 0.5fr)
+    minmax(150px, 1.3fr)
+    minmax(140px, 1.2fr)
+    minmax(110px, 0.8fr);
+
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 20px 22px;
+  border-radius: 22px;
   background: #ffffff;
-  border-radius: 20px;
+  border: 1px solid #f3d9e4;
   box-shadow:
     0 8px 24px rgba(16, 24, 40, 0.04),
+    inset 0 0 0 1px #f4d8e3;
+  box-sizing: border-box;
+  transition: 0.2s ease;
+}
+
+.patient-history-table tbody tr:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 14px 30px rgba(239, 75, 132, 0.08),
     inset 0 0 0 1px #f4d8e3;
 }
 
 .patient-history-table tbody td {
-  padding: 18px 16px;
   font-size: 14px;
-  color: #4b5563;
   font-weight: 600;
-  vertical-align: middle;
-}
-
-.patient-history-table tbody tr td:first-child {
-  border-top-left-radius: 20px;
-  border-bottom-left-radius: 20px;
-}
-
-.patient-history-table tbody tr td:last-child {
-  border-top-right-radius: 20px;
-  border-bottom-right-radius: 20px;
+  color: #4b5563;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .patient-name-cell {
   color: #ef4b84;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .patient-history-view-btn {
-  min-width: 96px;
-  height: 38px;
+  width: 100%;
+  max-width: 120px;
+  height: 42px;
   border: none;
   border-radius: 12px;
   background: linear-gradient(135deg, #ef4b84, #f472a0);
   color: #ffffff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: 0.2s ease;
+  justify-self: end;
   box-shadow: 0 8px 18px rgba(239, 75, 132, 0.2);
 }
 
@@ -165,11 +196,9 @@
   padding: 80px 20px !important;
   color: #9aa3b2 !important;
   font-size: 14px;
-  background: transparent !important;
-  box-shadow: none !important;
 }
 
-/* MODAL */
+/* MODALS */
 
 .history-modal-overlay,
 .history-detail-overlay {
@@ -430,42 +459,138 @@
   box-shadow: 0 10px 24px rgba(47, 180, 110, 0.28);
 }
 
-/* TABLET */
+/* =========================
+   LARGE / MEDIUM SCREENS
+========================= */
 
-@media (max-width: 900px) {
+@media (max-width: 1200px) {
   .patient-history-page {
     padding: 16px;
+    overflow-x: hidden;
   }
 
   .patient-history-card {
+    padding: 18px;
     height: auto;
     min-height: calc(100vh - 110px);
-    padding: 18px;
+  }
+
+  .patient-history-table-wrap {
+    overflow-x: auto;
+  }
+
+  .patient-history-table {
+    min-width: 980px;
+  }
+}
+
+/* =========================
+   TABLET
+========================= */
+
+@media (max-width: 900px) {
+  .patient-history-page {
+    padding: 14px;
+    overflow-x: hidden;
+  }
+
+  .patient-history-card {
+    border-radius: 24px;
+    padding: 16px;
+    height: auto;
+    min-height: calc(100vh - 110px);
   }
 
   .patient-history-toolbar {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
   }
 
+  .patient-history-search-wrap,
   .patient-history-branch-filter {
     width: 100%;
+    min-width: 0;
+  }
+
+  .patient-history-table-wrap {
+    overflow-x: hidden;
+  }
+
+  .patient-history-table {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .patient-history-table tbody {
+    gap: 18px;
+  }
+
+  .patient-history-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+    padding: 18px;
+  }
+
+  .patient-history-table tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    font-size: 13px;
+  }
+
+  .patient-history-table tbody td::before {
+    font-size: 11px;
+    font-weight: 800;
+    color: #98a1b2;
+    text-transform: uppercase;
+  }
+
+  .patient-history-table tbody td:nth-child(1)::before {
+    content: "Patient";
+  }
+
+  .patient-history-table tbody td:nth-child(2)::before {
+    content: "Gender";
+  }
+
+  .patient-history-table tbody td:nth-child(3)::before {
+    content: "Age";
+  }
+
+  .patient-history-table tbody td:nth-child(4)::before {
+    content: "Phone";
+  }
+
+  .patient-history-table tbody td:nth-child(5)::before {
+    content: "Date";
+  }
+
+  .patient-history-table tbody td:nth-child(6)::before {
+    content: "";
+  }
+
+  .patient-history-view-btn {
+    width: 100%;
+    max-width: unset;
+    height: 42px;
   }
 
   .history-modal-body {
     grid-template-columns: 1fr;
   }
-
-  .history-modal-left {
-    align-items: stretch;
-  }
-
-  .history-modal {
-    max-height: 96vh;
-  }
 }
 
-/* PHONE */
+/* =========================
+   MOBILE
+========================= */
 
 @media (max-width: 640px) {
   .patient-history-page {
@@ -484,8 +609,21 @@
     font-size: 13px;
   }
 
-  .patient-history-table {
-    min-width: 640px;
+  .patient-history-table tbody {
+    gap: 16px;
+  }
+
+  .patient-history-table tbody tr {
+    padding: 16px;
+  }
+
+  .patient-history-table tbody td {
+    font-size: 12px;
+  }
+
+  .patient-history-view-btn {
+    height: 40px;
+    font-size: 12px;
   }
 
   .history-modal-header,
@@ -514,4 +652,245 @@
   .history-detail-actions {
     flex-direction: column;
   }
+}
+
+@media (max-width: 900px) {
+  .patient-history-page,
+  .patient-history-card,
+  .patient-history-table-wrap,
+  .patient-history-table,
+  .patient-history-table tbody,
+  .patient-history-table tbody tr {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .patient-history-table thead {
+    display: none !important;
+  }
+
+  .patient-history-table tbody tr {
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 16px !important;
+  }
+
+  .patient-history-table tbody td {
+    display: grid !important;
+    grid-template-columns: 95px 1fr !important;
+    width: 100% !important;
+    padding: 7px 0 !important;
+    white-space: normal !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    text-align: right !important;
+  }
+
+  .patient-history-table tbody td::before {
+    text-align: left !important;
+  }
+
+  .patient-history-table tbody td:nth-child(1)::before {
+    content: "Patient";
+  }
+
+  .patient-history-table tbody td:nth-child(2)::before {
+    content: "Gender";
+  }
+
+  .patient-history-table tbody td:nth-child(3)::before {
+    content: "Age";
+  }
+
+  .patient-history-table tbody td:nth-child(4)::before {
+    content: "Phone";
+  }
+
+  .patient-history-table tbody td:nth-child(5)::before {
+    content: "Date";
+  }
+
+  .patient-history-table tbody td:nth-child(6) {
+    display: block !important;
+    padding-top: 14px !important;
+  }
+
+  .patient-history-table tbody td:nth-child(6)::before {
+    content: "";
+  }
+
+  .patient-history-view-btn {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+.history-modal-record-subtext {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 13px;
+  color: #98a1b2;
+  line-height: 1.6;
+}
+
+.history-timeline-subtitle {
+  margin: -4px 0 18px;
+  font-size: 13px;
+  color: #98a1b2;
+}
+
+.history-timeline-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 18px;
+  margin-top: 14px;
+}
+
+.history-timeline-grid p {
+  margin: 0;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.history-timeline-grid span {
+  color: #ef4b84;
+  font-weight: 700;
+}
+
+.history-detail-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.history-detail-status {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #fff0f5;
+  color: #ef4b84;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.history-no-assessment {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 22px;
+  border-radius: 18px;
+  border: 1px dashed #f3bfd2;
+  background: #fff8fb;
+}
+
+.history-no-assessment-icon {
+  width: 62px;
+  height: 62px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #ef4b84, #f58db3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.history-no-assessment h4 {
+  margin: 0 0 6px;
+  color: #ef4b84;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.history-no-assessment p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.history-timeline-card {
+  border-radius: 22px;
+  padding: 18px;
+  background: #fffafb;
+  border: 1px solid #f7d1de;
+  margin-bottom: 16px;
+  transition: 0.2s ease;
+}
+
+.history-timeline-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(239, 75, 132, 0.08);
+}
+
+.history-view-details-btn {
+  border: none;
+  background: transparent;
+  color: #ef4b84;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.history-view-details-btn:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .history-timeline-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-no-assessment {
+    align-items: flex-start;
+  }
+}
+
+.history-status-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.history-status-badge.completed {
+  background: #e9f8ef;
+  color: #23824b;
+}
+
+.history-status-badge.pending,
+.history-status-badge.waiting {
+  background: #fff7df;
+  color: #a46a00;
+}
+
+.history-status-badge.ongoing,
+.history-status-badge.in-progress,
+.history-status-badge.in-treatment {
+  background: #eef4ff;
+  color: #3157b7;
+}
+
+.history-status-badge.cancelled,
+.history-status-badge.canceled {
+  background: #ffecec;
+  color: #bd2f2f;
+}
+
+.history-status-badge.confirmed,
+.history-status-badge.scheduled {
+  background: #fff0f6;
+  color: #ef4b84;
+}
+
+.history-status-badge.no-status {
+  background: #f1f5f9;
+  color: #64748b;
 }

@@ -16,6 +16,31 @@ import "../../styles/dentist/profile/profile-page.css";
 import "../../styles/dentist/shared/responsive.css";
 import "../../styles/dentist/patient-history/patient-history.css";
 
+const formatStatus = (status) => {
+  if (!status) return "Pending";
+
+  const normalized = String(status).toLowerCase().replace(/_/g, " ");
+
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
+const getRecordStatus = (record) => {
+  return formatStatus(
+    record?.status ||
+      record?.bookingStatus ||
+      record?.appointmentStatus ||
+      record?.booking_status ||
+      record?.appointment_status
+  );
+};
+
+const getStatusClass = (status) => {
+  return String(status || "pending")
+    .toLowerCase()
+    .replace(/_/g, "-")
+    .replace(/\s+/g, "-");
+};
+
 export default function DentistPatientHistory() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -106,19 +131,6 @@ export default function DentistPatientHistory() {
     );
   }, [selectedPatient, selectedTooth]);
 
-  const handleToggleNotifications = () => {
-    setIsNotificationOpen((prev) => !prev);
-  };
-
-  const handleCloseNotifications = () => {
-    setIsNotificationOpen(false);
-  };
-
-  const handleMarkAllRead = () => {
-    setNotifications([]);
-    setIsNotificationOpen(false);
-  };
-
   const handleViewPatient = (patient) => {
     setSelectedPatient(patient);
     setSelectedProcedure(null);
@@ -129,10 +141,6 @@ export default function DentistPatientHistory() {
   const handleViewDetails = (procedure) => {
     setSelectedProcedure(procedure);
     setDetailsModalOpen(true);
-  };
-
-  const handleOpenProcedureModal = () => {
-    setProcedureModalOpen(true);
   };
 
   const handleSaveProcedure = async (payload) => {
@@ -179,19 +187,19 @@ export default function DentistPatientHistory() {
 
   return (
     <div className="dentist-dashboard">
-      <Sidebar
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-      />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       <main className="main-content">
         <Topbar
           title="Patient History"
           notifications={notifications}
           isNotificationOpen={isNotificationOpen}
-          onToggleNotifications={handleToggleNotifications}
-          onCloseNotifications={handleCloseNotifications}
-          onMarkAllRead={handleMarkAllRead}
+          onToggleNotifications={() => setIsNotificationOpen((prev) => !prev)}
+          onCloseNotifications={() => setIsNotificationOpen(false)}
+          onMarkAllRead={() => {
+            setNotifications([]);
+            setIsNotificationOpen(false);
+          }}
           profileImage={profileImage}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         />
@@ -282,7 +290,8 @@ export default function DentistPatientHistory() {
         >
           <div className="history-modal" onClick={(e) => e.stopPropagation()}>
             <div className="history-modal-header">
-              <h2 className="history-modal-title">Patient History</h2>
+              <h2 className="history-modal-title">Booking History Overview</h2>
+
               <button
                 type="button"
                 className="history-modal-close"
@@ -306,52 +315,90 @@ export default function DentistPatientHistory() {
                   />
                 </div>
 
-                <p className="history-modal-record-label">
-                  {selectedPatient.currentDentalRecordLabel}
+                <h3 className="history-modal-record-label">
+                  Patient Dental Record
+                </h3>
+
+                <p className="history-modal-record-subtext">
+                  Select a booking history from the timeline to view complete
+                  details and pre-assessment information.
                 </p>
               </div>
 
               <div className="history-modal-right">
-                <h3 className="history-timeline-title">
+                <h2 className="history-timeline-title">
                   {selectedTooth
-                    ? `Procedure Timeline: ${selectedTooth}`
-                    : "Procedure Timeline"}
-                </h3>
+                    ? `Booking History • ${selectedTooth}`
+                    : "Booking History"}
+                </h2>
+
+                <p className="history-timeline-subtitle">
+                  Complete appointment and procedure history of the patient.
+                </p>
 
                 <div className="history-timeline-list">
                   {filteredTimeline.length > 0 ? (
-                    filteredTimeline.map((procedure) => (
-                      <div className="history-timeline-card" key={procedure.id}>
-                        <div className="history-timeline-card-top">
-                          <span className="history-timeline-date">
-                            {procedure.date}
-                          </span>
+                    filteredTimeline.map((procedure) => {
+                      const status = getRecordStatus(procedure);
 
-                          <button
-                            type="button"
-                            className="history-view-details-btn"
-                            onClick={() => handleViewDetails(procedure)}
-                          >
-                            View details
-                          </button>
+                      return (
+                        <div
+                          className="history-timeline-card"
+                          key={procedure.id}
+                        >
+                          <div className="history-timeline-card-top">
+                            <span className="history-timeline-date">
+                              {procedure.date}
+                            </span>
+
+                            <button
+                              type="button"
+                              className="history-view-details-btn"
+                              onClick={() => handleViewDetails(procedure)}
+                            >
+                              View Details
+                            </button>
+                          </div>
+
+                          <div className="history-timeline-grid">
+                            <p>
+                              <span>Appointment:</span>{" "}
+                              <strong
+                                className={`history-status-badge ${getStatusClass(
+                                  status
+                                )}`}
+                              >
+                                {status}
+                              </strong>
+                            </p>
+
+                            <p>
+                              <span>Procedure:</span> {procedure.procedure}
+                            </p>
+
+                            <p>
+                              <span>Tooth:</span> {procedure.tooth}
+                            </p>
+
+                            <p>
+                              <span>Dentist:</span> {procedure.dentist}
+                            </p>
+
+                            <p>
+                              <span>Pre-Assessment:</span>{" "}
+                              {procedure.preAssessment
+                                ? "Available"
+                                : "No Pre-Assessment"}
+                            </p>
+                          </div>
                         </div>
-
-                        <p className="history-timeline-text">
-                          <span>Procedure:</span> {procedure.procedure}
-                        </p>
-                        <p className="history-timeline-text">
-                          <span>Tooth:</span> {procedure.tooth}
-                        </p>
-                        <p className="history-timeline-text">
-                          <span>Dentist:</span> {procedure.dentist}
-                        </p>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="history-timeline-empty">
                       {selectedTooth
-                        ? `No procedure history found for ${selectedTooth}.`
-                        : "No procedure history found."}
+                        ? `No booking history found for ${selectedTooth}.`
+                        : "No booking history found."}
                     </div>
                   )}
                 </div>
@@ -368,7 +415,7 @@ export default function DentistPatientHistory() {
                   <button
                     type="button"
                     className="history-add-btn"
-                    onClick={handleOpenProcedureModal}
+                    onClick={() => setProcedureModalOpen(true)}
                   >
                     Add Procedure
                   </button>
@@ -390,6 +437,7 @@ export default function DentistPatientHistory() {
           >
             <div className="history-detail-header">
               <h2 className="history-detail-title">Patient History Details</h2>
+
               <button
                 type="button"
                 className="history-detail-close"
@@ -401,9 +449,17 @@ export default function DentistPatientHistory() {
 
             <div className="history-detail-content">
               <div className="history-detail-section">
-                <h3 className="history-detail-section-title">
-                  Pre-Assessment
-                </h3>
+                <div className="history-detail-section-header">
+                  <h3 className="history-detail-section-title">
+                    Pre-Assessment Review
+                  </h3>
+
+                  <span className="history-detail-status">
+                    {selectedProcedure.preAssessment
+                      ? "Available"
+                      : "No Assessment"}
+                  </span>
+                </div>
 
                 {selectedProcedure.preAssessment ? (
                   <div className="history-detail-info-card history-preassessment-scroll">
@@ -413,6 +469,7 @@ export default function DentistPatientHistory() {
                           <p>
                             <span>Question {idx + 1}:</span> {item.question}
                           </p>
+
                           <p>
                             <span>Answer:</span> {item.answer}
                           </p>
@@ -430,8 +487,17 @@ export default function DentistPatientHistory() {
                     )}
                   </div>
                 ) : (
-                  <div className="history-detail-empty-box">
-                    No pre-assessment done for this record.
+                  <div className="history-no-assessment">
+                    <div className="history-no-assessment-icon">🦷</div>
+
+                    <div>
+                      <h4>No Pre-Assessment Submitted</h4>
+
+                      <p>
+                        The patient proceeded directly to booking without
+                        submitting a pre-assessment form.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -443,17 +509,25 @@ export default function DentistPatientHistory() {
 
                 <div className="history-detail-info-card">
                   <p>
+                    <span>Status:</span> {getRecordStatus(selectedProcedure)}
+                  </p>
+
+                  <p>
                     <span>Date:</span> {selectedProcedure.date}
                   </p>
+
                   <p>
                     <span>Procedure:</span> {selectedProcedure.procedure}
                   </p>
+
                   <p>
                     <span>Tooth:</span> {selectedProcedure.tooth}
                   </p>
+
                   <p>
                     <span>Dentist:</span> {selectedProcedure.dentist}
                   </p>
+
                   <p>
                     <span>Remarks:</span> {selectedProcedure.remarks}
                   </p>
