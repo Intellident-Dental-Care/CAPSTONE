@@ -6,6 +6,9 @@ import { requireAuth, requireRole, requireVerificationToken } from "../shared/au
 import { generateOtp, sendOtpEmail } from "../nodemailer/emailOtpService.js";
 import { signToken, verifyToken } from "./authUtils.js";
 
+// --- ADDED SECURITY IMPORT ---
+import { bruteForceProtection, sanitizeLoginInputs } from "../security/loginSecurity.js";
+
 const router = express.Router();
 const ROLE_TABLE_MAP = { admin: "admin_list", dentist: "dentist_list" };
 const inMemoryOtpStore = new Map();
@@ -34,12 +37,14 @@ const verifyOtpAndActivate = async ({ role, profileId, otp }) => {
   return { success: true, statusCode: 200, data };
 };
 
-router.post("/admin/login", async (req, res) => {
+// --- APPLIED SECURITY MIDDLEWARE HERE ---
+router.post("/admin/login", bruteForceProtection, sanitizeLoginInputs, async (req, res) => {
   const result = await authenticateAdmin(req.body.email, req.body.password);
   res.status(result.statusCode || 500).json(result);
 });
 
-router.post("/dentist/login", async (req, res) => {
+// --- APPLIED SECURITY MIDDLEWARE HERE ---
+router.post("/dentist/login", bruteForceProtection, sanitizeLoginInputs, async (req, res) => {
   const result = await authenticateDentist(req.body.email, req.body.password);
   res.status(result.statusCode || 500).json(result);
 });

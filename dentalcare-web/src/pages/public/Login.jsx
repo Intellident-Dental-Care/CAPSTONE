@@ -38,6 +38,9 @@ export default function Login() {
     confirmPassword: "",
   });
 
+  // This checks if the backend sent the lockout error message
+  const isLockedOut = error.includes("Account locked due to too many login attempts");
+
   const monthOptions = useMemo(() => [
     { value: "01", label: "January" }, { value: "02", label: "February" }, { value: "03", label: "March" },
     { value: "04", label: "April" }, { value: "05", label: "May" }, { value: "06", label: "June" },
@@ -283,8 +286,13 @@ export default function Login() {
                 </label>
                 <button type="button" onClick={() => navigate("/forgot-password")} className="text-sm font-semibold text-pink-600">Forgot Password?</button>
               </div>
-              <button type="submit" disabled={loading} className="w-full rounded-2xl bg-gradient-to-r from-pink-500 to-rose-400 py-3 text-white font-bold uppercase tracking-widest">
-                {loading ? "Wait..." : "Login"}
+              <button 
+                type="submit" 
+
+                disabled={loading || isLockedOut} 
+                className="w-full rounded-2xl bg-gradient-to-r from-pink-500 to-rose-400 py-3 text-white font-bold uppercase tracking-widest disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {loading ? "Wait..." : (isLockedOut ? "Locked Out" : "Login")}
               </button>
             </form>
           </div>
