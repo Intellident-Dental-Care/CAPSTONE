@@ -1,81 +1,141 @@
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-  overflow: auto;
-  font-family: Arial, Helvetica, sans-serif;
-  background: #f6f7fb;
-  color: #2f2f2f;
-}
-
-.dentist-dashboard {
-  display: flex;
-  height: 100vh;
-  background: #f6f7fb;
-  overflow: hidden;
-}
-
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.topbar {
+.admin-topbar.dentist-topbar {
   height: 72px;
-  background: #ffffff;
-  border-bottom: 1px solid #ececec;
+  background: linear-gradient(90deg, #fff4f8 0%, #ffeef5 100%);
+  border-bottom: 1px solid #f3d9e4;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 20;
+  box-shadow: 0 8px 24px rgba(239, 75, 132, 0.06);
 }
 
-.topbar h1 {
+.dentist-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.admin-topbar.dentist-topbar h1 {
   margin: 0;
   font-size: 19px;
   font-weight: 700;
+  color: #2f2f2f;
 }
 
-.topbar-actions {
+.admin-topbar-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  position: relative;
+  z-index: 30;
 }
 
-.icon-btn {
-  width: 38px;
-  height: 38px;
-  border: none;
-  border-radius: 50%;
-  background: #f8f1f5;
-  cursor: pointer;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.admin-notification-wrapper {
+  position: relative;
+}
+
+/* SAME AS ADMIN BELL */
+.admin-topbar.dentist-topbar .admin-icon-btn {
+  width: 40px !important;
+  height: 40px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  transition: 0.2s ease !important;
+  box-shadow: 0 8px 20px rgba(239, 75, 132, 0.08) !important;
+  padding: 0 !important;
+}
+
+.admin-topbar.dentist-topbar .admin-icon-btn:hover {
+  background: #fff5f8 !important;
+  transform: translateY(-1px) !important;
+}
+
+.admin-topbar.dentist-topbar .admin-bell-icon {
+  font-size: 15px !important;
+  line-height: 1 !important;
+  display: block !important;
+}
+
+.admin-topbar.dentist-topbar .admin-notification-badge {
+  position: absolute !important;
+  top: -3px !important;
+  right: -2px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  padding: 0 5px !important;
+  border-radius: 999px !important;
+  background: #ef4b84 !important;
+  color: #ffffff !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 4px 10px rgba(239, 75, 132, 0.25) !important;
 }
 
 .top-profile-btn {
+  width: 40px;
+  height: 40px;
   border: none;
-  background: transparent;
+  background: #ffffff;
+  border-radius: 12px;
   padding: 0;
   cursor: pointer;
+  box-shadow: 0 8px 20px rgba(239, 75, 132, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s ease;
+}
+
+.top-profile-btn:hover {
+  background: #fff5f8;
+  transform: translateY(-1px);
 }
 
 .top-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   object-fit: cover;
   display: block;
+}
+
+.dentist-menu-btn {
+  display: none;
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 12px;
+  background: #ffffff;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(239, 75, 132, 0.08);
+  transition: 0.2s ease;
+}
+
+.dentist-menu-btn:hover {
+  background: #fff5f8;
+}
+
+.dentist-menu-btn span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: #e34d86;
 }

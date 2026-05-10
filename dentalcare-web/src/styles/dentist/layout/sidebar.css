@@ -1,13 +1,19 @@
 .sidebar {
   width: 290px;
-  background: #ffffff;
-  border-right: 1px solid #ececec;
+  background: linear-gradient(180deg, #ff5f98 0%, #f04f8a 45%, #e84582 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.18);
   padding: 24px 20px;
+  height: 100vh;
+  flex-shrink: 0;
+  box-shadow: 10px 0 30px rgba(232, 69, 130, 0.14);
+  overflow-y: auto;
+}
+
+.dentist-sidebar-inner {
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 100vh;
-  flex-shrink: 0;
 }
 
 .brand {
@@ -21,25 +27,29 @@
   width: 54px;
   height: 54px;
   object-fit: contain;
-  display: block;
 }
 
 .brand h2 {
   margin: 0;
   font-size: 19px;
-  font-weight: 600;
-  line-height: 1.2;
+  font-weight: 700;
+  color: #ffffff;
 }
 
 .brand p {
   margin: 4px 0 0;
   font-size: 12px;
-  color: #8a8a8a;
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .profile-card {
   text-align: center;
-  padding: 14px 10px 20px;
+  padding: 16px 14px 20px;
+  margin-bottom: 12px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(10px);
 }
 
 .profile-card img {
@@ -48,19 +58,20 @@
   border-radius: 50%;
   object-fit: cover;
   display: block;
-  margin: 0 auto 14px auto;
+  margin: 0 auto 14px;
+  border: 3px solid rgba(255, 255, 255, 0.7);
 }
 
 .profile-card h3 {
   margin: 0;
   font-size: 16px;
-  line-height: 1.4;
-  font-weight: 600;
+  font-weight: 700;
+  color: #ffffff;
 }
 
 .profile-card p {
   margin-top: 6px;
-  color: #777;
+  color: rgba(255, 255, 255, 0.82);
   font-size: 13px;
 }
 
@@ -68,43 +79,64 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 8px;
 }
 
 .menu-item {
-  display: block;
   text-decoration: none;
-  border: none;
-  background: transparent;
-  text-align: left;
   padding: 13px 15px;
   border-radius: 14px;
   font-size: 14px;
-  color: #666;
-  cursor: pointer;
-  transition: 0.2s ease;
+  color: rgba(255, 255, 255, 0.9);
+  transition: 0.22s ease;
+  font-weight: 500;
 }
 
 .menu-item:hover {
-  background: #f8edf3;
-  color: #e34d86;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  transform: translateX(2px);
 }
 
 .menu-item.active {
-  background: #fde8f0;
-  color: #e34d86;
-  font-weight: 600;
+  background: #ffffff;
+  color: #df3f7d;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(255, 255, 255, 0.2);
 }
 
 .logout-btn {
   margin-top: 20px;
-  border: 1px solid #f1d4de;
-  background: white;
-  color: #e34d86;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
   padding: 13px 15px;
   border-radius: 14px;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 600;
+}
+
+.logout-btn:hover {
+  background: #ffffff;
+  color: #df3f7d;
+}
+
+.dentist-sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(24, 28, 38, 0.45);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: 0.25s ease;
+  z-index: 998;
+}
+
+.dentist-sidebar-overlay.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .logout-modal-overlay {
@@ -137,7 +169,6 @@
 .logout-modal p {
   margin: 0;
   font-size: 15px;
-  line-height: 1.5;
   color: #7a7a7a;
 }
 
@@ -156,7 +187,6 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: 0.2s ease;
 }
 
 .logout-cancel-btn {
@@ -165,17 +195,8 @@
   color: #d85d93;
 }
 
-.logout-cancel-btn:hover {
-  background: #fff6fa;
-}
-
 .logout-confirm-btn {
   background: #ef4b84;
   border: 1.5px solid #ef4b84;
   color: #ffffff;
-}
-
-.logout-confirm-btn:hover {
-  background: #e13f79;
-  border-color: #e13f79;
 }

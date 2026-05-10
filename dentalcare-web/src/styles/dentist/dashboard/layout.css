@@ -1,3 +1,34 @@
+* {
+  box-sizing: border-box;
+  font-family: "Inter", Arial, Helvetica, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: auto;
+  background: #f6f7fb;
+  color: #2f2f2f;
+}
+
+.dentist-dashboard {
+  display: flex;
+  height: 100vh;
+  background: #f6f7fb;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1.7fr 0.95fr;
@@ -5,6 +36,9 @@
   padding: 14px 16px 16px;
   height: calc(100vh - 72px);
   overflow: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(240, 90, 150, 0.08), transparent 28%),
+    linear-gradient(180deg, #fffafb 0%, #f9fafc 100%);
 }
 
 .left-section,
@@ -40,7 +74,7 @@
 .welcome-label {
   margin: 0 0 6px;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #e34d86;
@@ -49,7 +83,8 @@
 .welcome-card h2 {
   margin: 0 0 6px;
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 800;
+  color: #232733;
 }
 
 .welcome-description {
@@ -80,7 +115,8 @@
 .section-title h3 {
   margin: 0;
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 800;
+  color: #232733;
 }
 
 .section-subtitle {
@@ -118,6 +154,88 @@
   border: 1px solid #ececf2;
   color: #656b78;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
+}
+
+.patient-list {
+  flex: 1;
+  min-height: 0;
+}
+
+.patient-list-scroll {
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.left-mini-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-top: 12px;
+}
+
+.mini-stat-card {
+  background: #ffffff;
+  border: 1px solid #ececf2;
+  border-radius: 16px;
+  padding: 12px 14px;
+  box-shadow: 0 6px 16px rgba(16, 24, 40, 0.03);
+  min-height: 84px;
+}
+
+.mini-stat-title {
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: #8a8f9d;
+  font-weight: 700;
+}
+
+.mini-stat-card h4 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  color: #232733;
+}
+
+.mini-stat-card span {
+  font-size: 11px;
+  color: #8a8f9d;
+}
+
+.save-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 10020;
+  background: #2fb46e;
+  color: #ffffff;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(47, 180, 110, 0.28);
+  animation: toastInOut 1.8s ease forwards;
+}
+
+@keyframes toastInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  12% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  82% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }

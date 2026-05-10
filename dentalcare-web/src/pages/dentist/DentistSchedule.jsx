@@ -5,6 +5,7 @@ import profileImage from "../../assets/profile_sample.jpg";
 import { getDentistSchedule } from "../../services/dentistService";
 
 import "../../styles/dentist/layout/sidebar.css";
+import "../../styles/admin/layout/admin-topbar.css";
 import "../../styles/dentist/layout/topbar.css";
 import "../../styles/dentist/notifications/notification-popup.css";
 import "../../styles/dentist/schedule/schedule-page.css";
@@ -55,6 +56,8 @@ function formatDateForInput(date) {
 
 export default function DentistSchedule() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const [selectedBranch, setSelectedBranch] = useState("");
   const [selectedDate, setSelectedDate] = useState(formatDateForInput(new Date()));
   const [branches, setBranches] = useState([]);
@@ -106,19 +109,6 @@ export default function DentistSchedule() {
     };
   }, [selectedDate, selectedBranch]);
 
-  const handleToggleNotifications = () => {
-    setIsNotificationOpen((prev) => !prev);
-  };
-
-  const handleCloseNotifications = () => {
-    setIsNotificationOpen(false);
-  };
-
-  const handleMarkAllRead = () => {
-    setNotifications([]);
-    setIsNotificationOpen(false);
-  };
-
   const timeSlots = useMemo(() => generateTimeSlots(START_HOUR, END_HOUR), []);
 
   const positionedAppointments = useMemo(() => {
@@ -141,20 +131,35 @@ export default function DentistSchedule() {
 
   return (
     <div className="dentist-dashboard">
-      <Sidebar />
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       <main className="main-content">
         <Topbar
           title="Manage Schedule"
           notifications={notifications}
           isNotificationOpen={isNotificationOpen}
-          onToggleNotifications={handleToggleNotifications}
-          onCloseNotifications={handleCloseNotifications}
-          onMarkAllRead={handleMarkAllRead}
+          onToggleNotifications={() => setIsNotificationOpen((prev) => !prev)}
+          onCloseNotifications={() => setIsNotificationOpen(false)}
+          onMarkAllRead={() => {
+            setNotifications([]);
+            setIsNotificationOpen(false);
+          }}
           profileImage={profileImage}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         />
 
         <section className="schedule-page">
+          <div className="schedule-page-header">
+            <div>
+              <p className="schedule-label">Dentist Schedule</p>
+              <h2>Appointments Timeline</h2>
+              <span>View your appointments by branch and selected date.</span>
+            </div>
+          </div>
+
           <div className="schedule-filters">
             <div className="filter-group">
               <label>Select Branch</label>
@@ -162,6 +167,7 @@ export default function DentistSchedule() {
                 value={selectedBranch}
                 onChange={(e) => setSelectedBranch(e.target.value)}
               >
+                {branches.length === 0 && <option>No branch available</option>}
                 {branches.map((branch) => (
                   <option key={branch} value={branch}>
                     {branch}
@@ -199,14 +205,20 @@ export default function DentistSchedule() {
                   {positionedAppointments.map((appointment) => (
                     <div
                       key={appointment.id}
-                      className={`appointment-card ${STATUS_CLASS[appointment.status] || "confirmed"}`}
+                      className={`appointment-card ${
+                        STATUS_CLASS[appointment.status] || "confirmed"
+                      }`}
                       style={{
                         top: `${appointment.top}px`,
-                        height: `${appointment.height - 6}px`,
+                        height: `${Math.max(appointment.height - 6, 56)}px`,
                       }}
                     >
-                      <div className="appointment-status">{appointment.status.replace("_", " ")}</div>
-                      <div className="appointment-patient">{appointment.patientName}</div>
+                      <div className="appointment-status">
+                        {appointment.status.replace("_", " ")}
+                      </div>
+                      <div className="appointment-patient">
+                        {appointment.patientName}
+                      </div>
                       <div className="appointment-time">
                         {appointment.startTime} to {appointment.endTime}
                       </div>
@@ -214,7 +226,9 @@ export default function DentistSchedule() {
                   ))}
 
                   {appointments.length === 0 && (
-                    <div className="schedule-empty">No appointments for this date and branch.</div>
+                    <div className="schedule-empty">
+                      No appointments for this date and branch.
+                    </div>
                   )}
                 </div>
               </div>

@@ -14,6 +14,11 @@
 
 .superadmin-services-header {
   flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
 }
 
 .superadmin-services-title {
@@ -38,13 +43,6 @@
   box-shadow: 0 8px 24px rgba(236, 72, 153, 0.05);
 }
 
-/* MAKE FORM SMALLER */
-.superadmin-services-form-card {
-  padding: 16px 20px;
-  flex-shrink: 0;
-}
-
-/* MAKE LIST BIGGER */
 .superadmin-services-list-card {
   padding: 18px 20px;
   flex: 1;
@@ -79,12 +77,16 @@
   color: #8a90a2;
 }
 
-/* FORM GRID (COMPACT) */
+/* FORM */
 .superadmin-services-form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 12px;
-  align-items: end;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.superadmin-services-modal-form-grid {
+  margin-top: 14px;
 }
 
 .superadmin-services-field {
@@ -94,7 +96,7 @@
 }
 
 .superadmin-services-field-full {
-  grid-column: 1 / 3;
+  grid-column: 1 / -1;
 }
 
 .superadmin-services-field label {
@@ -124,25 +126,50 @@
 }
 
 .superadmin-services-field textarea {
-  min-height: 80px;
+  min-height: 110px;
   resize: none;
 }
 
-/* BUTTON RIGHT SIDE */
-.superadmin-services-form-action {
-  grid-column: 3 / 4;
-  display: flex;
-  justify-content: flex-end;
-}
-
+/* BUTTONS */
 .superadmin-services-primary-btn {
   height: 44px;
   padding: 0 18px;
+  border: none;
   border-radius: 12px;
   background: linear-gradient(90deg, #f37aa8, #ec4f8f);
   color: #fff;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 8px 18px rgba(236, 79, 143, 0.22);
+}
+
+.superadmin-services-add-open-btn {
+  min-width: 150px;
+}
+
+.superadmin-services-secondary-btn {
+  height: 48px;
+  padding: 0 18px;
+  border: 1px solid #f4bfd3;
+  border-radius: 12px;
+  background: #ffe9ee;
+  color: #8f214d;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.superadmin-services-secondary-btn.enable-selected-btn {
+  background: #e7f7ec;
+  color: #167a3f;
+  border: 1px solid #bde6c9;
+}
+
+.superadmin-services-secondary-btn:not(:disabled):hover {
+  background: #ffd8e4;
+}
+
+.superadmin-services-secondary-btn.enable-selected-btn:not(:disabled):hover {
+  background: #d9f4e2;
 }
 
 /* ACTIONS */
@@ -150,28 +177,14 @@
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .superadmin-services-search {
   min-width: 260px;
 }
 
-.superadmin-services-secondary-btn {
-  height: 44px;
-  padding: 0 16px;
-  border-radius: 12px;
-  background: #fde7ef;
-  color: #d55386;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.superadmin-services-secondary-btn.enable-selected-btn {
-  background: #e8f7ed;
-  color: #209b58;
-}
-
-/* TABLE (LESS COMPRESSED) */
+/* TABLE */
 .superadmin-services-table-scroll {
   flex: 1;
   overflow: auto;
@@ -202,7 +215,6 @@
   border-bottom: 1px solid #f3cfdb;
 }
 
-/* ROUND ROWS */
 .superadmin-services-table tbody tr td:first-child {
   border-left: 1px solid #f3cfdb;
   border-radius: 14px 0 0 14px;
@@ -213,7 +225,6 @@
   border-radius: 0 14px 14px 0;
 }
 
-/* CELLS */
 .superadmin-services-name-cell {
   font-weight: 700;
   color: #f05a96;
@@ -251,17 +262,38 @@
 .superadmin-services-action-btn {
   height: 38px;
   padding: 0 12px;
+  border: none;
   border-radius: 10px;
   color: #fff;
   font-size: 0.85rem;
+  cursor: pointer;
 }
 
 .superadmin-services-action-btn.disable-btn {
-  background: linear-gradient(90deg, #ff8fb6, #f05a96);
+  background: linear-gradient(90deg, #ff4d4f, #c81e1e);
 }
 
 .superadmin-services-action-btn.enable-btn {
-  background: linear-gradient(90deg, #79c98a, #4eb86b);
+  background: linear-gradient(90deg, #1ab65c, #0b7d3a);
+}
+
+.superadmin-services-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.superadmin-services-search {
+  flex: 1; /* THIS pushes buttons to right */
+  min-width: 260px;
+}
+
+.superadmin-services-bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto; /* THIS forces far right */
 }
 
 /* EMPTY */
@@ -279,6 +311,8 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 20px;
+  z-index: 999;
 }
 
 .superadmin-services-modal {
@@ -287,6 +321,42 @@
   border-radius: 20px;
   width: 100%;
   max-width: 420px;
+  box-shadow: 0 18px 40px rgba(31, 41, 55, 0.18);
+}
+
+.superadmin-services-add-modal {
+  max-width: 700px;
+}
+
+.superadmin-services-modal-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.superadmin-services-modal-top h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #495167;
+}
+
+.superadmin-services-modal-top p {
+  margin: 6px 0 0;
+  color: #8a90a2;
+  font-size: 0.9rem;
+}
+
+.superadmin-services-modal-close {
+  border: none;
+  background: #f6f7fb;
+  color: #6b7280;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .superadmin-services-modal-actions {
@@ -294,17 +364,27 @@
   justify-content: flex-end;
   gap: 10px;
   margin-top: 18px;
+  grid-column: 1 / -1;
 }
 
 .superadmin-services-modal-cancel {
+  border: none;
   background: #f6f7fb;
+  color: #4b5563;
   padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
 }
 
 .superadmin-services-modal-confirm {
+  border: none;
   background: linear-gradient(90deg, #f37aa8, #ec4f8f);
   color: #fff;
   padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
 }
 
 /* RESPONSIVE */
@@ -314,12 +394,16 @@
   }
 
   .superadmin-services-field-full,
-  .superadmin-services-form-action {
+  .superadmin-services-modal-actions {
     grid-column: auto;
   }
 
   .superadmin-services-primary-btn {
     width: 100%;
+  }
+
+  .superadmin-services-add-open-btn {
+    width: auto;
   }
 }
 
@@ -330,5 +414,21 @@
 
   .superadmin-services-content {
     height: auto;
+  }
+
+  .superadmin-services-header {
+    align-items: stretch;
+  }
+
+  .superadmin-services-add-open-btn {
+    width: 100%;
+  }
+
+  .superadmin-services-search {
+    min-width: 100%;
+  }
+
+  .superadmin-services-modal {
+    padding: 18px;
   }
 }

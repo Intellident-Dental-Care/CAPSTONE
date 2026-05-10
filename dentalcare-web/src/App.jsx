@@ -15,6 +15,9 @@ import Appointments from "./pages/admin/AdminAppointments";
 import AdminDentist from "./pages/admin/AdminDentist";
 import AdminPatient from "./pages/admin/AdminPatient";
 
+import SuperAdminTermsConditions from "./pages/superadmin/SuperAdminTermsConditions";
+import SuperAdminToothQuestions from "./pages/superadmin/SuperAdminToothQuestions";
+
 function ProtectedRoute({ expectedRole, children }) {
   const isAuthenticated = AuthService.isAuthenticated();
   const role = AuthService.getRole();
@@ -145,6 +148,8 @@ export default function App() {
         <Route path="/superadmin/patients" element={<SuperAdminPatients />} />
         <Route path="/superadmin/services" element={<SuperAdminServices />} />
         <Route path="/superadmin/faqs" element={<SuperAdminFaqs />} />
+        <Route path="/superadmin/terms-and-conditions" element={<SuperAdminTermsConditions />} />
+        <Route path="/superadmin/tooth-questions" element={<SuperAdminToothQuestions />} />
       </Routes>
     </BrowserRouter>
   );
