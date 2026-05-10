@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import SuperAdminSidebar from "../../components/superadmin/layout/SuperAdminSidebar";
 import SuperAdminTopbar from "../../components/superadmin/layout/SuperAdminTopbar";
+import { getSuperAdminTerms, saveSuperAdminTerms } from "../../services/superAdminService";
 
 import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
@@ -9,72 +10,15 @@ import "../../styles/admin/shared/admin-responsive.css";
 import "../../styles/superadmin/shared/superadmin-responsive.css";
 import "../../styles/superadmin/shared/superadmin-terms-conditions.css";
 
-const TERMS_STORAGE_KEY = "superadmin_terms_conditions_content";
-
 const stripLeadingNumber = (value) =>
   String(value || "").replace(/^\s*\d+\.\s*/, "").trim();
 
-const DEFAULT_TERMS = [
-  {
-    id: 1,
-    title: "General Use of the System",
-    content:
-      "IntelliDent is provided to support appointment booking, pre-assessment, patient record viewing, and clinic workflow management. Users must provide truthful and complete information when using the system.",
-  },
-  {
-    id: 2,
-    title: "Patient Information and Accuracy",
-    content:
-      "Patients are responsible for ensuring that submitted personal, medical, and appointment information is accurate and updated. Incorrect information may affect dental recommendations, scheduling, and treatment preparation.",
-  },
-  {
-    id: 3,
-    title: "Pre-Assessment Responses",
-    content:
-      "The pre-assessment feature is intended only for initial screening and appointment preparation. It does not replace professional diagnosis, clinical examination, or emergency treatment.",
-  },
-  {
-    id: 4,
-    title: "Uploaded Images and Descriptions",
-    content:
-      "Any uploaded image, symptom description, or tooth concern must be relevant to the patient’s oral health concern. The clinic may use these only for assessment support, appointment review, and treatment planning within the system.",
-  },
-  {
-    id: 5,
-    title: "Appointment Booking and Cancellation",
-    content:
-      "Appointment requests are subject to dentist availability, clinic confirmation, and branch scheduling policies. Patients are expected to arrive on time and inform the clinic in advance in case of cancellation or rescheduling.",
-  },
-  {
-    id: 6,
-    title: "Privacy and Data Protection",
-    content:
-      "Personal and dental information stored in the system must be handled securely and only by authorized personnel. The clinic must process user data in accordance with applicable privacy policies and data protection practices.",
-  },
-  {
-    id: 7,
-    title: "Emergency Cases",
-    content:
-      "IntelliDent is not intended for medical or dental emergencies. Patients experiencing severe bleeding, trauma, swelling, difficulty breathing, or intense pain should immediately contact the clinic or seek urgent care.",
-  },
-  {
-    id: 8,
-    title: "System Limitations",
-    content:
-      "The system may provide structured questions, suggested categories, and appointment guidance, but final diagnosis, treatment recommendation, and clinical decisions remain under the authority of the licensed dental professional.",
-  },
-  {
-    id: 9,
-    title: "Acceptance",
-    content:
-      "By continuing to use IntelliDent, users acknowledge that they understand these terms and agree to comply with clinic policies, patient responsibilities, and system usage guidelines.",
-  },
-];
-
 export default function SuperAdminTermsConditions() {
-  const [sections, setSections] = useState(DEFAULT_TERMS);
-  const [draftSections, setDraftSections] = useState(DEFAULT_TERMS);
+  const [sections, setSections] = useState([]);
+  const [draftSections, setDraftSections] = useState([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newSection, setNewSection] = useState({
@@ -83,25 +27,24 @@ export default function SuperAdminTermsConditions() {
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem(TERMS_STORAGE_KEY);
-
-    if (!saved) return;
-
-    try {
-      const parsed = JSON.parse(saved);
-
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const cleaned = parsed.map((item) => ({
+    const fetchTerms = async () => {
+      setIsLoading(true);
+      const response = await getSuperAdminTerms();
+      
+      if (response?.success && Array.isArray(response.data)) {
+        const cleaned = response.data.map((item) => ({
           ...item,
           title: stripLeadingNumber(item.title),
         }));
-
         setSections(cleaned);
         setDraftSections(cleaned);
+      } else {
+        console.error("Failed to load terms from database.");
       }
-    } catch (error) {
-      console.error("Failed to parse saved terms and conditions.", error);
-    }
+      setIsLoading(false);
+    };
+
+    fetchTerms();
   }, []);
 
   const handleEditClick = () => {
@@ -126,10 +69,19 @@ export default function SuperAdminTermsConditions() {
     setDraftSections((prev) => prev.filter((section) => section.id !== id));
   };
 
-  const handleSave = () => {
-    setSections(draftSections);
-    localStorage.setItem(TERMS_STORAGE_KEY, JSON.stringify(draftSections));
-    setIsEditMode(false);
+  const handleSave = async () => {
+    setIsSaving(true);
+    
+    const response = await saveSuperAdminTerms(draftSections);
+    
+    if (response?.success) {
+      setSections(draftSections);
+      setIsEditMode(false);
+    } else {
+      alert(response?.message || "Failed to save terms to the database.");
+    }
+    
+    setIsSaving(false);
   };
 
   const handleOpenAddModal = () => {
@@ -198,8 +150,9 @@ export default function SuperAdminTermsConditions() {
                       type="button"
                       className="superadmin-terms-btn edit-btn"
                       onClick={handleEditClick}
+                      disabled={isLoading}
                     >
-                      Edit Terms
+                      {isLoading ? "Loading..." : "Edit Terms"}
                     </button>
                   ) : (
                     <>
@@ -207,6 +160,7 @@ export default function SuperAdminTermsConditions() {
                         type="button"
                         className="superadmin-terms-btn secondary-btn"
                         onClick={handleOpenAddModal}
+                        disabled={isSaving}
                       >
                         Add Section
                       </button>
@@ -215,6 +169,7 @@ export default function SuperAdminTermsConditions() {
                         type="button"
                         className="superadmin-terms-btn cancel-btn"
                         onClick={handleCancelEdit}
+                        disabled={isSaving}
                       >
                         Cancel
                       </button>
@@ -223,66 +178,73 @@ export default function SuperAdminTermsConditions() {
                         type="button"
                         className="superadmin-terms-btn save-btn"
                         onClick={handleSave}
+                        disabled={isSaving}
                       >
-                        Save Changes
+                        {isSaving ? "Saving..." : "Save Changes"}
                       </button>
                     </>
                   )}
                 </div>
               </div>
 
-              {renderSections.map((section, index) => (
-                <div className="superadmin-terms-section" key={section.id}>
-                  {isEditMode ? (
-                    <>
-                      <div className="superadmin-terms-edit-top">
-                        <input
-                          type="text"
-                          value={`${index + 1}. ${section.title}`}
+              {isLoading ? (
+                <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>
+                  Loading terms from database...
+                </div>
+              ) : (
+                renderSections.map((section, index) => (
+                  <div className="superadmin-terms-section" key={section.id}>
+                    {isEditMode ? (
+                      <>
+                        <div className="superadmin-terms-edit-top">
+                          <input
+                            type="text"
+                            value={`${index + 1}. ${section.title}`}
+                            onChange={(e) =>
+                              handleSectionChange(
+                                section.id,
+                                "title",
+                                stripLeadingNumber(e.target.value)
+                              )
+                            }
+                            className="superadmin-terms-input"
+                            placeholder="Enter section title"
+                          />
+
+                          <button
+                            type="button"
+                            className="superadmin-terms-remove-btn"
+                            onClick={() => handleRemoveSection(section.id)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+
+                        <textarea
+                          value={section.content}
                           onChange={(e) =>
                             handleSectionChange(
                               section.id,
-                              "title",
-                              stripLeadingNumber(e.target.value)
+                              "content",
+                              e.target.value
                             )
                           }
-                          className="superadmin-terms-input"
-                          placeholder="Enter section title"
+                          className="superadmin-terms-textarea"
+                          rows={5}
+                          placeholder="Enter section content"
                         />
-
-                        <button
-                          type="button"
-                          className="superadmin-terms-remove-btn"
-                          onClick={() => handleRemoveSection(section.id)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-
-                      <textarea
-                        value={section.content}
-                        onChange={(e) =>
-                          handleSectionChange(
-                            section.id,
-                            "content",
-                            e.target.value
-                          )
-                        }
-                        className="superadmin-terms-textarea"
-                        rows={5}
-                        placeholder="Enter section content"
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <h3>
-                        {index + 1}. {section.title}
-                      </h3>
-                      <p>{section.content}</p>
-                    </>
-                  )}
-                </div>
-              ))}
+                      </>
+                    ) : (
+                      <>
+                        <h3>
+                          {index + 1}. {section.title}
+                        </h3>
+                        <p>{section.content}</p>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
