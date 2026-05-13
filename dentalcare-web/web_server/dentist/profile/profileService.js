@@ -24,7 +24,7 @@ export const getDentistProfileDetails = async (dentistProfileId) => {
   const [profileResult, scheduleResult] = await Promise.all([
     supabaseAdmin
       .from("dentist_list")
-      .select("id, name, email, phone_number, specialization, license_number")
+      .select("id, name, email, phone_number, specialization, license_number, birthdate, about, experience_years")
       .eq("id", dentistProfileId)
       .single(),
     supabaseAdmin
@@ -59,6 +59,9 @@ export const getDentistProfileDetails = async (dentistProfileId) => {
       phone: profileResult.data.phone_number || "",
       specialization: profileResult.data.specialization || "",
       licenseNumber: profileResult.data.license_number || "",
+      birthdate: profileResult.data.birthdate || "",
+      about: profileResult.data.about || "",
+      experience_years: profileResult.data.experience_years || "",
       schedules,
       notifications: [],
     },
@@ -74,6 +77,10 @@ export const updateDentistProfileDetails = async (dentistProfileId, payload = {}
   if (typeof payload.phone === "string") updates.phone_number = payload.phone.trim();
   if (typeof payload.specialization === "string") updates.specialization = payload.specialization.trim();
   if (typeof payload.licenseNumber === "string") updates.license_number = payload.licenseNumber.trim();
+  
+  if (payload.birthdate !== undefined) updates.birthdate = payload.birthdate || null;
+  if (typeof payload.about === "string") updates.about = payload.about.trim();
+  if (payload.experience_years !== undefined) updates.experience_years = payload.experience_years ? String(payload.experience_years) : null;
 
   if (!Object.keys(updates).length && !hasSchedulePayload) {
     return { success: false, statusCode: 400, message: "No profile changes provided" };

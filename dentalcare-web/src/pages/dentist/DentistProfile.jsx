@@ -101,16 +101,24 @@ export default function DentistProfile() {
     let mounted = true;
 
     const applyProfileData = (data = {}) => {
+      // Map DB 'birthdate' (timestamptz) to YYYY-MM-DD for the HTML date input
+      let formattedDate = "";
+      if (data.birthdate) {
+        formattedDate = data.birthdate.split("T")[0];
+      } else if (data.birthday) {
+        formattedDate = data.birthday.split("T")[0];
+      }
+
       setProfileForm({
         fullName: data.fullName || "",
         email: data.email || "",
         phone: data.phone || "",
-        age: data.birthday ? calculateAge(data.birthday) : data.age || "",
-        birthday: data.birthday || "",
+        age: formattedDate ? calculateAge(formattedDate) : data.age || "",
+        birthday: formattedDate, // Connected to DB 'birthdate'
         specialization: data.specialization || "",
         licenseNumber: data.licenseNumber || "",
-        about: data.about || "",
-        experience: data.experience || "",
+        about: data.about || "", // Connected to DB 'about'
+        experience: data.experience_years || data.experience || "", // Connected to DB 'experience_years'
         schedules: buildScheduleState(data.schedules || []),
       });
 
@@ -173,15 +181,16 @@ export default function DentistProfile() {
     setIsSaving(true);
     setSaveMessage("");
 
+    // Map local state to your exact Supabase column names
     const result = await updateDentistProfile({
       fullName: profileForm.fullName,
       phone: profileForm.phone,
-      birthday: profileForm.birthday,
+      birthdate: profileForm.birthday,          // Matches your DB 'birthdate' column
       age: profileForm.age,
       specialization: profileForm.specialization,
       licenseNumber: profileForm.licenseNumber,
-      about: profileForm.about,
-      experience: profileForm.experience,
+      about: profileForm.about,                 // Matches your DB 'about' column
+      experience_years: profileForm.experience, // Matches your DB 'experience_years' column
     });
 
     if (!result?.success) {

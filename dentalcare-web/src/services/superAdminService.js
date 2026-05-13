@@ -108,3 +108,14 @@ export const getSuperAdminServices = async () => {
 export const getSuperAdminFaqs = async () => {
   return await fetchJson("/super_admin/faqs", { method: "GET" });
 };
+
+export const getSuperAdminTerms = async () => {
+  return await fetchJson("/super_admin/terms", { method: "GET" });
+};
+
+export const saveSuperAdminTerms = async (terms) => {
+  return await fetchJson("/super_admin/terms", {
+    method: "PUT",
+    body: JSON.stringify({ terms }),
+  });
+};

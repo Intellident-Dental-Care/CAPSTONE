@@ -15,13 +15,13 @@ import dentistScheduleRoutes from "./dentist/schedule/scheduleRoutes.js";
 import dentistProfileRoutes from "./dentist/profile/profileRoutes.js";
 import dentistPatientsRoutes from "./dentist/patients/patientsRoutes.js";
 
-
 import superAdminDashboardRoutes from "./super_admin/dashboard/dashboardRoutes.js";
 import superAdminAdminsRoutes from "./super_admin/admins/adminsRoutes.js";
 import superAdminDentistsRoutes from "./super_admin/dentists/dentistsRoutes.js";
 import superAdminPatientsRoutes from "./super_admin/patients/patientsRoutes.js";
 import superAdminServicesRoutes from "./super_admin/services/servicesRoutes.js";
 import superAdminFaqsRoutes from "./super_admin/faqs/faqsRoutes.js";
+import superAdminTermsRoutes from "./super_admin/terms/termsRoutes.js";
 
 import { getLocalIpAddress, getServerDiscoveryUrls } from "./shared/getServerUrl.js";
 import { verifyEmailTransport } from "./nodemailer/emailOtpService.js";
@@ -72,6 +72,7 @@ app.use("/api/super_admin/dentists", superAdminDentistsRoutes);
 app.use("/api/super_admin/patients", superAdminPatientsRoutes);
 app.use("/api/super_admin/services", superAdminServicesRoutes);
 app.use("/api/super_admin/faqs", superAdminFaqsRoutes);
+app.use("/api/super_admin/terms", superAdminTermsRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error("Unhandled server error:", err);
