@@ -160,7 +160,22 @@ export default function Notification() {
             </View>
           ) : notificationData.length === 0 ? (
             <View style={styles.emptyWrap}>
-              <Text style={styles.emptyText}>No notifications yet.</Text>
+              <View style={styles.emptyIcon}>
+                <Ionicons
+                  name="notifications-off-outline"
+                  size={34}
+                  color={colors.primary}
+                />
+              </View>
+
+              <Text style={styles.emptyTitle}>
+                No Notifications Yet
+              </Text>
+
+              <Text style={styles.emptyText}>
+                Updates about appointments, queue delays,
+                and reminders will appear here.
+              </Text>
             </View>
           ) : notificationData.map((item) => (
             <Pressable key={item.id} style={styles.card}>
@@ -196,13 +211,13 @@ export default function Notification() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#F8F8F8",
+    backgroundColor: "#FAFAFA",
   },
 
   screen: {
     flex: 1,
-    backgroundColor: "#F8F8F8",
-    paddingTop: 46,
+    backgroundColor: "#FAFAFA",
+    paddingTop: 8,
     paddingHorizontal: 18,
   },
 
@@ -210,39 +225,64 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    marginTop: 4,
   },
 
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#FFF1F6",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   title: {
-    marginTop: 10,
+    marginTop: 14,
     marginBottom: 18,
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: "900",
     color: colors.primary,
   },
 
   scrollContent: {
-    paddingBottom: 30,
+    paddingBottom: 100,
   },
 
   emptyWrap: {
+    marginTop: 120,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 28,
-    gap: 8,
+  },
+
+  emptyIcon: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    backgroundColor: "#FFF1F6",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
+  },
+
+  emptyTitle: {
+    marginTop: 18,
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#333",
   },
 
   emptyText: {
+    marginTop: 6,
     fontSize: 12,
-    color: "#8a8a93",
-    fontWeight: "700",
+    color: "#8A8A93",
+    fontWeight: "600",
+    textAlign: "center",
+    lineHeight: 18,
+    paddingHorizontal: 35,
   },
 
   card: {

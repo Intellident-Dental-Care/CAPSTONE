@@ -101,38 +101,45 @@ function DentistCard({ item, liked, onToggleLike, onBook }) {
         {item.photo ? (
           <Image source={item.photo} style={styles.photoImg} />
         ) : (
-          <Ionicons name="person" size={28} color={colors.primary} />
+          <Ionicons name="person" size={34} color={colors.primary} />
         )}
       </View>
 
       <View style={styles.info}>
         <View style={styles.topRow}>
-          <Text style={styles.name} numberOfLines={1}>
-            {item.name}
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.name} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <Text style={styles.role}>{item.specialty}</Text>
+          </View>
 
           <Pressable onPress={onToggleLike} style={styles.heartBtn}>
             <Ionicons
               name={liked ? "heart" : "heart-outline"}
-              size={18}
+              size={22}
               color={colors.primary}
             />
           </Pressable>
         </View>
 
-        <Text style={styles.role}>{item.specialty}</Text>
-        <Text style={styles.small} numberOfLines={1}>
-          {item.specialties}
-        </Text>
-        <Text style={styles.small} numberOfLines={2}>
-          {item.availability}
-        </Text>
-
-        <View style={styles.bookRow}>
-          <Pressable style={styles.bookBtn} onPress={onBook}>
-            <Text style={styles.bookText}>BOOK NOW</Text>
-          </Pressable>
+        <View style={styles.detailBox}>
+          <Ionicons name="location-outline" size={13} color={colors.primary} />
+          <Text style={styles.small} numberOfLines={1}>
+            {item.specialties}
+          </Text>
         </View>
+
+        <View style={styles.detailBox}>
+          <Ionicons name="time-outline" size={13} color={colors.primary} />
+          <Text style={styles.small} numberOfLines={2}>
+            {item.availability}
+          </Text>
+        </View>
+
+        <Pressable style={styles.bookBtn} onPress={onBook}>
+          <Text style={styles.bookText}>BOOK NOW</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -478,46 +485,58 @@ export default function Dentists() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#fff", paddingTop: 46 },
+  screen: {
+    flex: 1,
+    backgroundColor: "#FAFAFA",
+    paddingTop: 8,
+  },
 
   fixedTop: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    paddingBottom: 6,
+    backgroundColor: "#FAFAFA",
+    paddingHorizontal: 18,
+    paddingBottom: 8,
   },
 
   header: {
-    height: 54,
+    height: 48,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
 
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#FFF1F6",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   headerTitle: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "900",
     color: colors.primary,
   },
 
   searchWrap: {
-    height: 42,
-    borderRadius: 18,
+    height: 46,
+    borderRadius: 23,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.08)",
-    paddingHorizontal: 14,
+    borderColor: "#F1C6D6",
+    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff",
-    marginTop: 8,
+    backgroundColor: "#FFFFFF",
+    marginTop: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
 
   searchInput: {
@@ -528,23 +547,26 @@ const styles = StyleSheet.create({
   },
 
   pillsRow: {
-    paddingTop: 12,
+    paddingTop: 14,
     paddingBottom: 12,
     gap: 10,
   },
 
   pill: {
-    width: 160,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#FFE9F1",
+    height: 34,
+    minWidth: 120,
+    borderRadius: 17,
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 10,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   pillActive: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
 
   pillText: {
@@ -555,98 +577,120 @@ const styles = StyleSheet.create({
 
   listContent: {
     paddingTop: 8,
-    paddingBottom: 30,
-    paddingHorizontal: 16,
+    paddingBottom: 24,
+    paddingHorizontal: 18,
   },
 
   sectionTitle: {
-    marginTop: 6,
-    marginBottom: 6,
-    fontSize: 12,
+    marginTop: 8,
+    marginBottom: 10,
+    fontSize: 15,
     fontWeight: "900",
-    color: colors.primary,
+    color: "#333",
   },
 
   cardWrap: {
-    marginBottom: 12,
+    marginBottom: 14,
   },
 
   card: {
-    height: 120,
-    backgroundColor: "#FFD6E6",
-    borderRadius: 14,
-    overflow: "hidden",
+    minHeight: 150,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
     flexDirection: "row",
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#F5F5F5",
     shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
 
   photo: {
-    width: 92,
-    height: "100%",
-    backgroundColor: "#8B8B8B",
+    width: 82,
+    borderRadius: 18,
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
+    marginRight: 12,
   },
 
   photoImg: {
     width: "100%",
     height: "100%",
+    borderRadius: 18,
     resizeMode: "cover",
   },
 
   info: {
     flex: 1,
-    padding: 12,
+    paddingVertical: 2,
   },
 
   topRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
   },
 
   heartBtn: {
-    paddingLeft: 10,
-    paddingVertical: 4,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#FFF1F6",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   name: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "900",
     color: colors.primary,
-    flex: 1,
-    paddingRight: 10,
+    paddingRight: 8,
   },
 
   role: {
-    marginTop: 2,
-    fontSize: 10,
-    color: "#666",
-    fontWeight: "700",
+    marginTop: 3,
+    fontSize: 11,
+    color: "#555",
+    fontWeight: "800",
+  },
+
+  detailBox: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
   },
 
   small: {
-    marginTop: 2,
-    fontSize: 9,
+    flex: 1,
+    fontSize: 9.5,
     color: "#777",
-  },
-
-  bookRow: {
-    marginTop: 8,
-    flexDirection: "row",
-    justifyContent: "flex-end",
+    lineHeight: 14,
+    fontWeight: "600",
   },
 
   bookBtn: {
-    height: 22,
-    paddingHorizontal: 16,
-    borderRadius: 11,
-    backgroundColor: "#6B6B6B",
+    alignSelf: "flex-end",
+    marginTop: 10,
+    height: 32,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: colors.primary,
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
 
   bookText: {
@@ -656,7 +700,7 @@ const styles = StyleSheet.create({
   },
 
   emptyText: {
-    marginTop: 20,
+    marginTop: 30,
     textAlign: "center",
     color: colors.textGray,
     fontWeight: "700",
@@ -673,13 +717,13 @@ const styles = StyleSheet.create({
   modalCard: {
     width: "100%",
     backgroundColor: "#fff",
-    borderRadius: 20,
+    borderRadius: 22,
     padding: 20,
   },
 
   modalTitle: {
     fontSize: 18,
-    fontWeight: "800",
+    fontWeight: "900",
     color: colors.primary,
     textAlign: "center",
     marginBottom: 8,
@@ -690,20 +734,23 @@ const styles = StyleSheet.create({
     color: colors.textGray,
     textAlign: "center",
     marginBottom: 16,
+    lineHeight: 18,
   },
 
   optionButton: {
-    backgroundColor: "#FFE9F1",
+    backgroundColor: "#FFF1F6",
     paddingVertical: 14,
     paddingHorizontal: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     marginBottom: 10,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   optionText: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "800",
     color: colors.primary,
     textAlign: "center",
   },
@@ -717,6 +764,6 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: 13,
     color: colors.textGray,
-    fontWeight: "600",
+    fontWeight: "700",
   },
 });

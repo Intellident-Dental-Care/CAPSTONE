@@ -46,7 +46,7 @@ export default function ProfileSwitcherModal({
       onRequestClose={handleClose}
     >
       <Pressable style={styles.overlay} onPress={handleClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+        <View style={styles.card}>
           <Text style={styles.title}>Choose Profile</Text>
 
           <FlatList
@@ -102,29 +102,42 @@ export default function ProfileSwitcherModal({
                 style={styles.input}
               />
 
-              <Pressable style={styles.saveBtn} onPress={handleAdd}>
+              <Pressable
+                style={styles.saveBtn}
+                onPress={handleAdd}
+                disabled={!newProfileName.trim()}
+              >
                 <Text style={styles.saveText}>Save Profile</Text>
               </Pressable>
             </View>
           )}
 
           <Pressable
-            style={styles.actionBtn}
+            style={[
+              styles.actionBtn,
+              showAddInput ? styles.cancelAddBtn : styles.addBtn,
+            ]}
             onPress={() => setShowAddInput((prev) => !prev)}
           >
-            <Text style={styles.addText}>
+            <Text style={showAddInput ? styles.cancelAddText : styles.addText}>
               {showAddInput ? "Cancel Add Profile" : "Add Profile"}
             </Text>
           </Pressable>
 
-          <Pressable style={styles.actionBtn} onPress={onLogout}>
-            <Text style={styles.logoutText}>Logout</Text>
-          </Pressable>
+          <Pressable
+              style={[styles.actionBtn, styles.logoutBtn]}
+              onPress={() => {
+                handleClose();
+                onLogout?.();
+              }}
+            >
+              <Text style={styles.logoutText}>Logout</Text>
+            </Pressable>
 
-          <Pressable style={styles.actionBtn} onPress={handleClose}>
+          <Pressable style={[styles.actionBtn, styles.closeBtn]} onPress={handleClose}>
             <Text style={styles.cancelText}>Cancel</Text>
           </Pressable>
-        </Pressable>
+        </View>
       </Pressable>
     </Modal>
   );
@@ -142,13 +155,13 @@ const styles = StyleSheet.create({
   card: {
     width: "100%",
     backgroundColor: "#fff",
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 18,
   },
 
   title: {
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 20,
+    fontWeight: "900",
     color: colors.primary,
     marginBottom: 14,
     textAlign: "center",
@@ -157,15 +170,18 @@ const styles = StyleSheet.create({
   profileRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F1F1",
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: "#FFF9FB",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
+    marginBottom: 10,
   },
 
   profileIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "#FFE9F1",
     alignItems: "center",
     justifyContent: "center",
@@ -192,57 +208,87 @@ const styles = StyleSheet.create({
   },
 
   addWrap: {
-    marginTop: 14,
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: "#FFF9FB",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
+
+  addBtn: {
+    backgroundColor: colors.primary,
+  },
+
 
   input: {
     height: 42,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#F8D4E0",
     borderRadius: 12,
     paddingHorizontal: 12,
     fontSize: 13,
     color: "#333",
+    backgroundColor: "#fff",
   },
 
   saveBtn: {
     marginTop: 10,
-    backgroundColor: colors.primary,
-    paddingVertical: 10,
+    backgroundColor: "#2FA55A",
+    paddingVertical: 11,
     borderRadius: 12,
     alignItems: "center",
+  },
+
+  cancelAddBtn: {
+    backgroundColor: "#F59E0B",
+  },
+
+  logoutBtn: {
+    backgroundColor: "#FFE8E8",
+    borderWidth: 1,
+    borderColor: "#FFCACA",
+  },
+
+  closeBtn: {
+    backgroundColor: "#F3F4F6",
   },
 
   saveText: {
     color: "#fff",
-    fontWeight: "700",
+    fontWeight: "800",
     fontSize: 14,
   },
 
   actionBtn: {
-    marginTop: 14,
+    marginTop: 10,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: "#F7F7F7",
+    paddingVertical: 12,
+    borderRadius: 14,
   },
 
   addText: {
     fontSize: 14,
-    fontWeight: "700",
-    color: colors.primary,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+
+  cancelAddText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#FFFFFF",
   },
 
   logoutText: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#E53935",
   },
 
   cancelText: {
     fontSize: 14,
-    fontWeight: "700",
-    color: colors.primary,
+    fontWeight: "800",
+    color: "#666",
   },
 });

@@ -9,8 +9,11 @@ import {
   ActivityIndicator,
   Modal,
   Alert,
-  SafeAreaView,
 } from "react-native";
+
+import {
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
 import {
@@ -70,11 +73,9 @@ function getLocalISODate() {
 
 export default function Home() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
-  // Seed from cache so revisits don't flash "User" while loading
   const [fullName, setFullName] = useState(profileIndexCache.fullName || "User");
-  
-  // These were missing, so I added placeholder states to prevent crashes
   const [loadingAppointment, setLoadingAppointment] = useState(false);
   const [upcomingAppointment, setUpcomingAppointment] = useState(null);
   const [loadingQueue, setLoadingQueue] = useState(false);
@@ -183,7 +184,6 @@ export default function Home() {
     }
   }, [loadUpcomingForProfile]);
 
-  // Re-read the active profile name every time the screen comes into focus
   useFocusEffect(
     useCallback(() => {
       (async () => {
@@ -319,11 +319,19 @@ export default function Home() {
     : 0;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <View style={styles.screen}>
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scroll,
+            {
+              paddingBottom: 90,
+            },
+          ]}
+        >
           <View style={styles.headerRow}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.hello}>Hello,</Text>
               <Text style={styles.name}>{fullName}</Text>
             </View>
@@ -335,7 +343,7 @@ export default function Home() {
               >
                 <Ionicons
                   name="notifications-outline"
-                  size={18}
+                  size={22}
                   color={colors.primary}
                 />
               </Pressable>
@@ -344,7 +352,7 @@ export default function Home() {
                 style={styles.avatarCircle}
                 onPress={() => setProfileModalVisible(true)}
               >
-                <Ionicons name="person" size={18} color={colors.primary} />
+                <Ionicons name="person" size={22} color={colors.primary} />
               </Pressable>
 
               <ProfileSwitcherModal
@@ -361,11 +369,11 @@ export default function Home() {
 
           <View style={styles.searchWrap}>
             <TextInput
-              placeholder="Search"
-              placeholderTextColor={colors.textGray}
+              placeholder="Search dentist, branch, service..."
+              placeholderTextColor="#B7B7B7"
               style={styles.searchInput}
             />
-            <Ionicons name="search" size={16} color={colors.primary} />
+            <Ionicons name="search" size={22} color={colors.primary} />
           </View>
 
           <View style={styles.quickRow}>
@@ -373,7 +381,7 @@ export default function Home() {
               icon={
                 <Ionicons
                   name="medical-outline"
-                  size={22}
+                  size={24}
                   color={colors.primary}
                 />
               }
@@ -385,7 +393,7 @@ export default function Home() {
               icon={
                 <Ionicons
                   name="location-outline"
-                  size={18}
+                  size={23}
                   color={colors.primary}
                 />
               }
@@ -397,7 +405,7 @@ export default function Home() {
               icon={
                 <MaterialCommunityIcons
                   name="tooth-outline"
-                  size={18}
+                  size={23}
                   color={colors.primary}
                 />
               }
@@ -409,7 +417,7 @@ export default function Home() {
               icon={
                 <Ionicons
                   name="calendar-outline"
-                  size={20}
+                  size={23}
                   color={colors.primary}
                 />
               }
@@ -421,7 +429,7 @@ export default function Home() {
               icon={
                 <Ionicons
                   name="medkit-outline"
-                  size={18}
+                  size={23}
                   color={colors.primary}
                 />
               }
@@ -430,91 +438,102 @@ export default function Home() {
             />
           </View>
 
-        {isQueueDay ? (
-        <View style={styles.queueCard}>
-          <View style={styles.queueTopRow}>
-            <Text style={styles.queueTitle}>Current Queue</Text>
+          {isQueueDay ? (
+            <View style={styles.queueCard}>
+              <View style={styles.queueTopRow}>
+                <View>
+                  <Text style={styles.queueTitle}>Current Queue</Text>
+                  <Text style={styles.queueSmallText}>Live appointment status</Text>
+                </View>
 
-            <Pressable
-              style={[styles.refreshBtn, (loadingQueue || loadingAppointment) && { opacity: 0.7 }]}
-              onPress={handleRefreshQueue}
-              disabled={loadingQueue || loadingAppointment}
-            >
-              {(loadingQueue || loadingAppointment) ? (
-                <ActivityIndicator size="small" color={colors.white} />
-              ) : (
-                <Ionicons name="refresh" size={12} color={colors.white} />
-              )}
-              <Text style={styles.refreshText}>Refresh Now</Text>
-            </Pressable>
-          </View>
-
-          <Text style={styles.queueNumber}>
-            {isQueueDay && queueData?.queueNumber ? `#${queueData.queueNumber}` : "--"}
-          </Text>
-          <Text style={styles.queueSub}>
-            {!upcomingAppointment
-              ? "No active queue right now"
-              : !isQueueDay
-                ? "Live queue appears on your appointment day"
-                : queueData?.queueNumber
-                  ? "Your position in queue"
-                  : "No active queue right now"}
-          </Text>
-
-          <View style={styles.queueProgressTrack}>
-            <View
-              style={[
-                styles.queueProgressFill,
-                { width: `${queueProgress}%` },
-              ]}
-            />
-          </View>
-
-          <Text style={styles.queueWait}>
-            {isQueueDay && queueData?.queueNumber
-              ? formatQueueWait(queueData.estimatedWaitMinutes)
-              : !upcomingAppointment
-                ? "Book an appointment to get a live queue number"
-                : !isQueueDay
-                  ? "Queue updates will start on your appointment date"
-                  : "No queue data available yet"}
-          </Text>
-        </View>
-        ) : null}
-
-        <Text style={styles.sectionTitle}>Upcoming Appointment</Text>
-
-        {loadingAppointment ? (
-          <View style={[styles.upcomingCard, { alignItems: 'center', justifyContent: 'center', minHeight: 80 }]}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={[styles.docSub, { marginTop: 8 }]}>Loading appointment...</Text>
-          </View>
-        ) : upcomingAppointment ? (
-          <View style={styles.upcomingCard}>
-            <View style={styles.upTopRow}>
-              <View style={styles.docAvatar}>
-                <Ionicons name="person" size={18} color={colors.primary} />
+                <Pressable
+                  style={[styles.refreshBtn, (loadingQueue || loadingAppointment) && { opacity: 0.7 }]}
+                  onPress={handleRefreshQueue}
+                  disabled={loadingQueue || loadingAppointment}
+                >
+                  {(loadingQueue || loadingAppointment) ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : (
+                    <Ionicons name="refresh" size={13} color={colors.white} />
+                  )}
+                  <Text style={styles.refreshText}>Refresh</Text>
+                </Pressable>
               </View>
 
+              <Text style={styles.queueNumber}>
+                {isQueueDay && queueData?.queueNumber ? `#${queueData.queueNumber}` : "--"}
+              </Text>
+              <Text style={styles.queueSub}>
+                {!upcomingAppointment
+                  ? "No active queue right now"
+                  : !isQueueDay
+                    ? "Live queue appears on your appointment day"
+                    : queueData?.queueNumber
+                      ? "Your position in queue"
+                      : "No active queue right now"}
+              </Text>
+
+              <View style={styles.queueProgressTrack}>
+                <View
+                  style={[
+                    styles.queueProgressFill,
+                    { width: `${queueProgress}%` },
+                  ]}
+                />
+              </View>
+
+              <Text style={styles.queueWait}>
+                {isQueueDay && queueData?.queueNumber
+                  ? formatQueueWait(queueData.estimatedWaitMinutes)
+                  : !upcomingAppointment
+                    ? "Book an appointment to get a live queue number"
+                    : !isQueueDay
+                      ? "Queue updates will start on your appointment date"
+                      : "No queue data available yet"}
+              </Text>
+            </View>
+          ) : null}
+
+          <Text style={styles.sectionTitle}>Upcoming Appointment</Text>
+
+          {loadingAppointment ? (
+            <View style={[styles.upcomingCard, styles.centerContent, { minHeight: 100 }]}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.docSub, { marginTop: 8 }]}>Loading appointment...</Text>
+            </View>
+          ) : upcomingAppointment ? (
+            <View style={styles.upcomingCard}>
+              <View style={styles.upTopRow}>
+                <View style={styles.docAvatar}>
+                  <Ionicons name="person" size={22} color={colors.primary} />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.docName}>{upcomingAppointment.doctorName}</Text>
+                  <Text style={styles.docSub}>{upcomingAppointment.branch} • {upcomingAppointment.specialization}</Text>
+                </View>
+              </View>
+
+              <View style={styles.dateRow}>
+                <View style={styles.dateChip}>
+                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                  <Text style={styles.dateText}>{formatAppointmentDate(upcomingAppointment.date)}</Text>
+                </View>
+                <View style={styles.dateChip}>
+                  <Ionicons name="time-outline" size={16} color={colors.primary} />
+                  <Text style={styles.dateText}>{formatAppointmentTime(upcomingAppointment.time)}</Text>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.emptyAppointmentCard}>
+              <Ionicons name="calendar-outline" size={26} color={colors.primary} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.docName}>{upcomingAppointment.doctorName}</Text>
-                <Text style={styles.docSub}>{upcomingAppointment.branch} - {upcomingAppointment.specialization}</Text>
+                <Text style={styles.emptyTitle}>No upcoming appointment</Text>
+                <Text style={styles.emptySub}>Book an appointment to see your schedule here.</Text>
               </View>
             </View>
-
-            <View style={styles.dateRow}>
-              <View style={styles.dateChip}>
-                <Ionicons name="calendar-outline" size={14} color={colors.white} />
-                <Text style={styles.dateText}>{formatAppointmentDate(upcomingAppointment.date)}</Text>
-              </View>
-              <View style={styles.dateChip}>
-                <Ionicons name="time-outline" size={14} color={colors.white} />
-                <Text style={styles.dateText}>{formatAppointmentTime(upcomingAppointment.time)}</Text>
-              </View>
-            </View>
-          </View>
-        ) : null}
+          )}
 
           <View style={styles.rowBetween}>
             <Text style={styles.sectionTitle}>My Recent Visit</Text>
@@ -526,12 +545,13 @@ export default function Home() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 12 }}
+            contentContainerStyle={styles.recentScroll}
           >
+
             <RecentCard
               title="Dr. Mendoza"
-              clinic="GC Dental Care - Dentist"
-              service="SERVICE: Teeth Cleaning"
+              clinic="GC Dental Care • Dentist"
+              service="Teeth Cleaning"
               onBookNow={openFlowModal}
               onDetails={() =>
                 openDetailModal({
@@ -567,8 +587,8 @@ export default function Home() {
 
             <RecentCard
               title="Dr. Guillermo"
-              clinic="GC Dental Care - Dentist"
-              service="SERVICE: Dental Implant"
+              clinic="GC Dental Care • Dentist"
+              service="Dental Implant"
               onBookNow={openFlowModal}
               onDetails={() =>
                 openDetailModal({
@@ -600,8 +620,8 @@ export default function Home() {
 
             <RecentCard
               title="Dr. Amparo"
-              clinic="GC Dental Care - Dentist"
-              service="SERVICE: Braces"
+              clinic="GC Dental Care • Dentist"
+              service="Braces"
               onBookNow={openFlowModal}
               onDetails={() =>
                 openDetailModal({
@@ -632,14 +652,14 @@ export default function Home() {
             />
           </ScrollView>
 
-          <Text style={[styles.sectionTitle, { marginTop: 18 }]}>
+          <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
             Treatment Plan
           </Text>
 
           <TreatmentItem
             title="Teeth Whitening"
-            sub="Scheduled for January 20, 2026 - 10:00 AM"
-            status="STATUS: Confirmed"
+            sub="Scheduled for January 20, 2026 • 10:00 AM"
+            status="Confirmed"
             rightA="VIEW DETAILS"
             rightB="RESCHEDULE"
             onViewDetails={() =>
@@ -673,8 +693,8 @@ export default function Home() {
 
           <TreatmentItem
             title="Routine Cleaning"
-            sub="Due in 3 Months - April 2026"
-            status="STATUS: Suggested Booking"
+            sub="Due in 3 Months • April 2026"
+            status="Suggested Booking"
             rightA="VIEW DETAILS"
             rightB="BOOK NOW"
             onViewDetails={() =>
@@ -708,8 +728,8 @@ export default function Home() {
 
           <TreatmentItem
             title="Routine Cleaning"
-            sub="Due in 8 Months - July 2026"
-            status="STATUS: Suggested Booking"
+            sub="Due in 8 Months • July 2026"
+            status="Suggested Booking"
             rightA="VIEW DETAILS"
             rightB="BOOK NOW"
             onViewDetails={() =>
@@ -740,19 +760,17 @@ export default function Home() {
             }
             onPrimaryAction={openFlowModal}
           />
-
-          <View style={{ height: 90 }} />
         </ScrollView>
 
         <View style={styles.bottomBar}>
           <View style={styles.slot}>
-            <NavItem icon="home-outline" label="Home" active />
+            <NavItem icon="home" label="Home" active />
           </View>
 
           <View style={styles.slot}>
             <NavItem
               icon="document-text-outline"
-              label="Pre-Assessment"
+              label="Assessment"
               onPress={() => router.push("/pre-assessment")}
             />
           </View>
@@ -761,7 +779,7 @@ export default function Home() {
 
           <View style={styles.slot}>
             <NavItem
-              icon="heart-outline"
+              icon="time-outline"
               label="History"
               onPress={() => router.push("/history")}
             />
@@ -777,22 +795,22 @@ export default function Home() {
         </View>
 
         <Pressable style={styles.fab} onPress={openFlowModal}>
-          <Ionicons name="add" size={26} color={colors.white} />
+          <Ionicons name="add" size={24} color="#FFFFFF" />
         </Pressable>
 
-      <Modal
-        visible={flowModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeFlowModal}
-      >
-        <Pressable style={styles.modalOverlay} onPress={closeFlowModal}>
-          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>What would you like to do?</Text>
-            <Text style={styles.modalSubtitle}>
-              Choose if you want to do pre-assessment first or proceed to
-              booking.
-            </Text>
+        <Modal
+          visible={flowModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={closeFlowModal}
+        >
+          <Pressable style={styles.modalOverlay} onPress={closeFlowModal}>
+            <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+              <Text style={styles.modalTitle}>What would you like to do?</Text>
+              <Text style={styles.modalSubtitle}>
+                Choose if you want to do pre-assessment first or proceed to
+                booking.
+              </Text>
 
               <Pressable
                 style={styles.optionButton}
@@ -995,7 +1013,7 @@ export default function Home() {
           </View>
         </Modal>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -1013,22 +1031,24 @@ function RecentCard({ title, clinic, service, onBookNow, onDetails }) {
     <View style={styles.recentCard}>
       <View style={styles.recentTop}>
         <View style={styles.recentAvatar}>
-          <Ionicons name="person" size={18} color={colors.primary} />
+          <Ionicons name="person" size={20} color={colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.recentTitle}>{title}</Text>
-          <Text style={styles.recentClinic}>{clinic}</Text>
+          <Text style={styles.recentTitle}>{service}</Text>
+          <Text style={styles.recentClinic}>{title}</Text>
         </View>
       </View>
 
-      <Text style={styles.recentService}>{service}</Text>
+      {/* <View style={styles.servicePill}>
+        <Text style={styles.recentService}>{service}</Text>
+      </View> */}
 
       <View style={styles.recentBtnRow}>
-        <Pressable style={styles.grayBtn} onPress={onBookNow}>
-          <Text style={styles.grayBtnText}>BOOK NOW</Text>
+        <Pressable style={styles.softBtn} onPress={onBookNow}>
+          <Text style={styles.softBtnText}>BOOK NOW</Text>
         </Pressable>
-        <Pressable style={styles.grayBtn} onPress={onDetails}>
-          <Text style={styles.grayBtnText}>DETAILS</Text>
+        <Pressable style={styles.outlineBtn} onPress={onDetails}>
+          <Text style={styles.outlineBtnText}>DETAILS</Text>
         </Pressable>
       </View>
     </View>
@@ -1046,19 +1066,31 @@ function TreatmentItem({
 }) {
   return (
     <View style={styles.treatCard}>
-      <Text style={styles.treatTitle}>{title}</Text>
-      <Text style={styles.treatSub}>{sub}</Text>
-      <Text style={styles.treatStatus}>{status}</Text>
+      <View style={styles.treatTopRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.treatTitle}>{title}</Text>
+          <Text style={styles.treatSub}>{sub}</Text>
+        </View>
+
+        <View style={styles.treatStatusBadge}>
+          <Text style={styles.treatStatus}>{status}</Text>
+        </View>
+      </View>
 
       <View style={styles.treatActions}>
         <Pressable style={styles.smallChip} onPress={onViewDetails}>
           <Text style={styles.smallChipText}>{rightA}</Text>
         </Pressable>
         <Pressable
-          style={[styles.smallChip, { backgroundColor: colors.primary }]}
+          style={[styles.smallChip, styles.primaryChip]}
           onPress={onPrimaryAction}
         >
-          <Text style={[styles.smallChipText, { color: colors.white }]}>
+          <Text
+            style={[
+              styles.smallChipText,
+              styles.primaryChipText,
+            ]}
+          >
             {rightB}
           </Text>
         </Pressable>
@@ -1072,13 +1104,13 @@ function NavItem({ icon, label, active, onPress }) {
     <Pressable style={styles.navItem} onPress={onPress}>
       <Ionicons
         name={icon}
-        size={20}
-        color={active ? colors.primary : colors.textGray}
+        size={21}
+        color={active ? colors.primary : "#9A9A9A"}
       />
       <Text
         style={[
           styles.navLabel,
-          { color: active ? colors.primary : colors.textGray },
+          { color: active ? colors.primary : "#9A9A9A" },
         ]}
       >
         {label}
@@ -1090,17 +1122,17 @@ function NavItem({ icon, label, active, onPress }) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#FAFAFA",
   },
 
   screen: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#FAFAFA",
   },
 
   scroll: {
     paddingHorizontal: 18,
-    paddingTop: 20,
+    paddingTop: 6,
   },
 
   headerRow: {
@@ -1109,40 +1141,114 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  hello: { fontSize: 16, fontWeight: "800", color: colors.primary },
-  name: { fontSize: 18, fontWeight: "900", color: colors.textGray },
+  hello: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.primary,
+  },
 
-  headerRight: { flexDirection: "row", alignItems: "center", gap: 10 },
+  name: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#3D3D3D",
+  },
+
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
 
   iconCircle: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: "#FFE9F1",
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   avatarCircle: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: "#FFE9F1",
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   searchWrap: {
     marginTop: 14,
     height: 40,
     borderRadius: 20,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: "#F1C6D6",
     paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
+
+  outlineBtn: {
+  flex: 1,
+  height: 30,
+  borderRadius: 10,
+  backgroundColor: "#FFF1F6",
+  alignItems: "center",
+  justifyContent: "center",
+  borderWidth: 1,
+  borderColor: "#FFD6E5",
+},
+
+outlineBtnText: {
+  fontSize: 8.5,
+  color: colors.primary,
+  fontWeight: "900",
+},
+
+sectionTitle: {
+  marginTop: 14,
+  fontSize: 13,
+  fontWeight: "900",
+  color: "#2F2F2F",
+},
+
+rowBetween: {
+  marginTop: 12,
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+},
+
+upcomingCard: {
+  marginTop: 8,
+  borderRadius: 18,
+  backgroundColor: "#FFF4F8",
+  padding: 14,
+
+  borderWidth: 1,
+  borderColor: "#FFD9E8",
+
+  shadowColor: "#000",
+  shadowOpacity: 0.04,
+  shadowRadius: 5,
+  shadowOffset: {
+    width: 0,
+    height: 2,
+  },
+
+  elevation: 2,
+},
 
   searchInput: {
     flex: 1,
@@ -1157,33 +1263,40 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
 
-  quickBtn: { width: "18%", alignItems: "center" },
+  quickBtn: {
+    width: "18%",
+    alignItems: "center",
+  },
 
   quickIcon: {
     width: 46,
     height: 46,
-    borderRadius: 12,
-    backgroundColor: "#FFE9F1",
+    borderRadius: 14,
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
     shadowColor: "#000",
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.06,
     shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
 
   quickLabel: {
     marginTop: 6,
     fontSize: 9,
-    color: colors.textGray,
+    color: "#666",
     textAlign: "center",
+    fontWeight: "600",
   },
 
   sectionTitle: {
     marginTop: 16,
     fontSize: 13,
-    fontWeight: "800",
-    color: "#777",
+    fontWeight: "900",
+    color: "#444",
   },
 
   queueCard: {
@@ -1191,9 +1304,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: colors.primary,
     padding: 14,
-    shadowColor: "#000",
+    shadowColor: colors.primary,
     shadowOpacity: 0.18,
     shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
 
@@ -1263,11 +1377,43 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
+  emptyAppointmentCard: {
+    marginTop: 10,
+    borderRadius: 18,
+    backgroundColor: "#FFF1F6",
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  emptyTitle: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#333",
+  },
+
+  emptySub: {
+    marginTop: 3,
+    fontSize: 10,
+    color: "#777",
+    fontWeight: "600",
+  },
+
   upcomingCard: {
     marginTop: 10,
     borderRadius: 18,
-    backgroundColor: "#FFD6E6",
+    backgroundColor: "#FFF1F6",
     padding: 14,
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
 
   upTopRow: {
@@ -1280,9 +1426,11 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   docName: {
@@ -1294,31 +1442,32 @@ const styles = StyleSheet.create({
   docSub: {
     marginTop: 2,
     fontSize: 10,
-    color: "#888",
+    color: "#777",
+    fontWeight: "600",
   },
 
-  dateRowSimple: {
+  dateRow: {
     marginTop: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 10,
+    gap: 8,
   },
 
   dateChip: {
     flex: 1,
     height: 30,
     borderRadius: 10,
-    backgroundColor: "#6E6E6E",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 6,
+    borderWidth: 1,
+    borderColor: "#F1D7E1",
   },
 
-  dateTextChip: {
+  dateText: {
     fontSize: 9,
-    color: colors.white,
-    fontWeight: "700",
+    color: "#444",
+    fontWeight: "800",
   },
 
   rowBetween: {
@@ -1330,21 +1479,36 @@ const styles = StyleSheet.create({
 
   seeAll: {
     fontSize: 10,
-    color: colors.textGray,
+    color: colors.primary,
     marginTop: 18,
+    fontWeight: "800",
   },
 
-  recentCard: {
-    marginTop: 10,
-    width: 170,
-    borderRadius: 16,
-    backgroundColor: "#8B8B8B",
-    padding: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 4,
+ recentScroll: {
+  paddingRight: 18,
+  paddingBottom: 12,
+  gap: 14,
+},
+
+recentCard: {
+  marginTop: 10,
+  marginBottom: 6,
+  width: 178,
+  borderRadius: 18,
+  backgroundColor: "#FFFFFF",
+  padding: 13,
+  borderWidth: 1,
+  borderColor: "#F5F5F5",
+  shadowColor: "#000",
+  shadowOpacity: 0.05,
+  shadowRadius: 5,
+  shadowOffset: {
+    width: 0,
+    height: 2,
   },
+  elevation: 2,
+},
+
 
   recentTop: {
     flexDirection: "row",
@@ -1356,31 +1520,35 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
-  recentTitle: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: colors.primary,
-  },
+ recentTitle: {
+  fontSize: 12,
+  fontWeight: "900",
+  color: colors.primary,
+},
 
-  recentClinic: {
-    marginTop: 2,
-    fontSize: 9,
-    color: "#EDEDED",
-  },
+recentClinic: {
+  marginTop: 3,
+  fontSize: 9,
+  color: "#777",
+  fontWeight: "700",
+},
 
   recentService: {
     marginTop: 10,
     fontSize: 9,
-    color: "#EDEDED",
+    color: colors.primary,
+    fontWeight: "800",
   },
 
   recentBtnRow: {
-    marginTop: 10,
+    marginTop: 14,
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 10,
@@ -1390,23 +1558,35 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 28,
     borderRadius: 10,
-    backgroundColor: "#6B6B6B",
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
   },
 
   grayBtnText: {
     fontSize: 9,
-    color: "#fff",
-    fontWeight: "800",
+    color: colors.primary,
+    fontWeight: "900",
   },
 
   treatCard: {
-    marginTop: 10,
-    borderRadius: 16,
-    backgroundColor: "#BFBFBF",
-    padding: 14,
+  marginTop: 10,
+  borderRadius: 16,
+  backgroundColor: "#FFFFFF",
+  padding: 14,
+  borderWidth: 1,
+  borderColor: "#F5F5F5",
+
+  shadowColor: "#000",
+  shadowOpacity: 0.03,
+  shadowRadius: 4,
+  shadowOffset: {
+    width: 0,
+    height: 1,
   },
+
+  elevation: 1,
+},
 
   treatTitle: {
     fontSize: 12,
@@ -1417,14 +1597,15 @@ const styles = StyleSheet.create({
   treatSub: {
     marginTop: 2,
     fontSize: 9,
-    color: "#5F5F5F",
+    color: "#666",
+    fontWeight: "600",
   },
 
   treatStatus: {
     marginTop: 4,
     fontSize: 9,
-    color: "#5F5F5F",
-    fontWeight: "700",
+    color: colors.primary,
+    fontWeight: "800",
   },
 
   treatActions: {
@@ -1435,18 +1616,29 @@ const styles = StyleSheet.create({
   },
 
   smallChip: {
-    height: 22,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: "#E7E7E7",
+    height: 30,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   smallChipText: {
-    fontSize: 8,
+    fontSize: 9,
     color: "#666",
     fontWeight: "800",
+  },
+
+  primaryChip: {
+    backgroundColor: colors.primary,
+    borderWidth: 0,
+  },
+
+  primaryChipText: {
+    color: "#FFFFFF",
   },
 
   bottomBar: {
@@ -1454,23 +1646,28 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 60,
-    backgroundColor: "#FFE9F1",
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
+    height: 62,
+    backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 15,
+    justifyContent: "space-between",
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 4,
+    borderTopWidth: 1,
+    borderTopColor: "#EEEEEE",
+    elevation: 0,
+    shadowOpacity: 0,
   },
 
-  slot: {
-    width: "20%",
+ slot: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
   },
 
   centerSlot: {
-    width: "20%",
+    width: 60,
   },
 
   navItem: {
@@ -1478,26 +1675,49 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+  
   navLabel: {
-    marginTop: 3,
-    fontSize: 9,
+    marginTop: 1,
+    fontSize: 8,
     fontWeight: "700",
   },
 
-  fab: {
+ softBtn: {
+  flex: 1,
+  height: 30,
+  borderRadius: 10,
+  backgroundColor: colors.primary,
+  alignItems: "center",
+  justifyContent: "center",
+
+  shadowColor: colors.primary,
+  shadowOpacity: 0.08,
+  shadowRadius: 3,
+  shadowOffset: {
+    width: 0,
+    height: 1,
+  },
+
+  elevation: 1,
+},
+
+  softBtnText: {
+    fontSize: 8.5,
+    color: "#FFFFFF",
+    fontWeight: "900",
+  },
+
+ fab: {
     position: "absolute",
-    bottom: 38,
     alignSelf: "center",
+    bottom: 34,
     width: 54,
     height: 54,
     borderRadius: 27,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 6,
+    elevation: 5,
   },
 
   modalOverlay: {
@@ -1531,12 +1751,14 @@ const styles = StyleSheet.create({
   },
 
   optionButton: {
-    backgroundColor: "#FFE9F1",
+    backgroundColor: "#FFF1F6",
     paddingVertical: 14,
     paddingHorizontal: 14,
     borderRadius: 12,
     marginBottom: 10,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   optionText: {
@@ -1556,291 +1778,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textGray,
     fontWeight: "600",
-  },
-
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.34)",
-    justifyContent: "flex-end",
-  },
-
-  detailModal: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    maxHeight: "92%",
-  },
-
-  modalHandle: {
-    alignSelf: "center",
-    width: 44,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: "#D9D9D9",
-    marginBottom: 10,
-  },
-
-  modalHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 14,
-  },
-
-  modalDetailTitle: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: "#2F2F2F",
-  },
-
-  modalSubTitle: {
-    marginTop: 3,
-    color: "#7A7A7A",
-    fontSize: 12.5,
-  },
-
-  closeCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#F6F6F6",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E6E6E6",
-  },
-
-  detailCardBox: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: "#ECECEC",
-    marginBottom: 14,
-  },
-
-  detailTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 8,
-  },
-
-  detailProcedure: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#232323",
-    paddingRight: 8,
-  },
-
-  detailTreatment: {
-    marginTop: 4,
-    color: "#6D6D6D",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  statusBadgeText: {
-    fontSize: 11.5,
-    fontWeight: "800",
-  },
-
-  detailInfoGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginTop: 14,
-  },
-
-  detailInfoItem: {
-    width: "48%",
-    backgroundColor: "#F7F7F7",
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 10,
-  },
-
-  label: {
-    fontSize: 11.5,
-    color: "#888888",
-    marginBottom: 4,
-    fontWeight: "700",
-  },
-
-  value: {
-    fontSize: 13.5,
-    color: "#333333",
-    fontWeight: "800",
-  },
-
-  aiCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: "#ECECEC",
-  },
-
-  aiTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-
-  aiIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
-  },
-
-  aiTitle: {
-    fontSize: 17,
-    fontWeight: "900",
-    color: "#2F2F2F",
-  },
-
-  aiSubtitle: {
-    fontSize: 12,
-    color: "#7A7A7A",
-    marginTop: 2,
-  },
-
-  toothPlaceholderCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F7F7F7",
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#EBEBEB",
-    marginBottom: 14,
-  },
-
-  toothCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: "#E8E8E8",
-  },
-
-  toothPlaceholderLabel: {
-    fontSize: 11.5,
-    color: "#7F7F7F",
-    fontWeight: "700",
-  },
-
-  toothPlaceholderValue: {
-    marginTop: 3,
-    fontSize: 16,
-    color: "#333333",
-    fontWeight: "900",
-  },
-
-  toothPlaceholderHint: {
-    marginTop: 4,
-    fontSize: 11.5,
-    color: "#9A9A9A",
-  },
-
-  assessmentBox: {
-    backgroundColor: "#F7F7F7",
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 14,
-  },
-
-  assessmentLabel: {
-    color: "#444444",
-    fontWeight: "800",
-    fontSize: 12.5,
-    marginBottom: 6,
-  },
-
-  assessmentText: {
-    color: "#5C5C5C",
-    fontSize: 13,
-    lineHeight: 19,
-  },
-
-  aiSectionTitle: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#333333",
-    marginBottom: 10,
-  },
-
-  qaBox: {
-    backgroundColor: "#F7F7F7",
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 14,
-  },
-
-  qaItem: {
-    paddingBottom: 10,
-    marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E7E7E7",
-  },
-
-  qText: {
-    fontSize: 12.5,
-    fontWeight: "800",
-    color: "#3F3F3F",
-    marginBottom: 4,
-  },
-
-  aText: {
-    fontSize: 12.5,
-    color: "#696969",
-    lineHeight: 18,
-  },
-
-  suggestedCard: {
-    backgroundColor: "#F6F6F6",
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#EAEAEA",
-  },
-
-  suggestedLabel: {
-    fontSize: 12,
-    color: "#7C7C7C",
-    fontWeight: "700",
-  },
-
-  suggestedValue: {
-    marginTop: 4,
-    fontSize: 16,
-    fontWeight: "900",
-    color: "#2F2F2F",
-  },
-
-  suggestedPrice: {
-    marginTop: 4,
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#2F7D4D",
   },
 });

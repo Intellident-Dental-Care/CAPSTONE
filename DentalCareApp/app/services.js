@@ -7,7 +7,6 @@ import {
   Pressable,
   TextInput,
   FlatList,
-  Image,
   ScrollView,
   ActivityIndicator,
 } from "react-native";
@@ -16,12 +15,8 @@ import { useRouter } from "expo-router";
 import { colors } from "./theme/colors";
 import { supabase } from "../server/supabaseService";
 
-// ✅ images based on your folder structure
-const IMAGES = [
-  require("../assets/landing1.jpg"),
-  require("../assets/landing2.jpg"),
-  require("../assets/landing3.jpg"),
-];
+const DEFAULT_DESCRIPTION =
+  "This dental service helps improve your oral health and supports proper treatment planning based on your needs.";
 
 export default function Services() {
   const router = useRouter();
@@ -36,22 +31,24 @@ export default function Services() {
     (async () => {
       try {
         const { data, error } = await supabase
-          .from('dental_services')
-          .select('id, name, category, subcategory, price_display')
-          .eq('is_active', true)
-          .order('display_order', { ascending: true });
+          .from("dental_services")
+          .select("id, name, category, subcategory, price_display")
+          .eq("is_active", true)
+          .order("display_order", { ascending: true });
+
         if (error) throw error;
+
         setServices(
-          (data || []).map((s, i) => ({
+          (data || []).map((s) => ({
             id: s.id,
-            category: s.category,
+            category: s.category || "General",
             name: s.name,
-            desc: s.price_display || s.category,
-            image: IMAGES[i % IMAGES.length],
+            price: s.price_display || "Price not available",
+            description: DEFAULT_DESCRIPTION,
           }))
         );
       } catch (err) {
-        console.error('Error fetching services:', err);
+        console.error("Error fetching services:", err);
       } finally {
         setLoading(false);
       }
@@ -60,44 +57,69 @@ export default function Services() {
 
   const categories = useMemo(() => {
     const cats = [...new Set(services.map((s) => s.category))];
-    return ['All', ...cats];
+    return ["All", ...cats];
   }, [services]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+
     return services.filter((s) => {
-      const categoryOk = activeCategory === "All" ? true : s.category === activeCategory;
+      const categoryOk =
+        activeCategory === "All" ? true : s.category === activeCategory;
+
       if (!q) return categoryOk;
 
-      const text = `${s.name} ${s.desc} ${s.category}`.toLowerCase();
+      const text = `${s.name} ${s.category} ${s.price} ${s.description}`.toLowerCase();
       return categoryOk && text.includes(q);
     });
   }, [query, activeCategory, services]);
 
-  const favorites = useMemo(() => filtered.filter((x) => !!liked[x.id]), [filtered, liked]);
-  const nonFavorites = useMemo(() => filtered.filter((x) => !liked[x.id]), [filtered, liked]);
+  const favorites = useMemo(
+    () => filtered.filter((x) => !!liked[x.id]),
+    [filtered, liked]
+  );
+
+  const nonFavorites = useMemo(
+    () => filtered.filter((x) => !liked[x.id]),
+    [filtered, liked]
+  );
 
   const listData = useMemo(() => {
     const out = [];
+
     if (favorites.length > 0) {
       out.push({ type: "title", id: "t-fav", label: "Favorites" });
-      favorites.forEach((x) => out.push({ type: "card", id: `fav-${x.id}`, item: x }));
+      favorites.forEach((x) =>
+        out.push({ type: "card", id: `fav-${x.id}`, item: x })
+      );
     }
+
     out.push({ type: "title", id: "t-all", label: "All Services" });
-    nonFavorites.forEach((x) => out.push({ type: "card", id: `all-${x.id}`, item: x }));
+
+    nonFavorites.forEach((x) =>
+      out.push({ type: "card", id: `all-${x.id}`, item: x })
+    );
+
     return out;
   }, [favorites, nonFavorites]);
 
   const onBookNow = (service) => {
     router.push({
       pathname: "/booking",
-      params: { service: service.name, category: service.category },
+      params: {
+        service: service.name,
+        category: service.category,
+      },
     });
   };
 
   const renderRow = ({ item, index }) => {
     if (item.type === "title") {
-      return <Text style={[styles.sectionTitle, index === 0 && { marginTop: 0 }]}>{item.label}</Text>;
+      return (
+        <Text style={[styles.sectionTitle, index === 0 && { marginTop: 0 }]}>
+          {item.label}
+        </Text>
+      );
     }
 
     const svc = item.item;
@@ -105,38 +127,46 @@ export default function Services() {
 
     return (
       <View style={styles.card}>
-        
-        <Image
-          source={svc.image}
-          style={styles.cardImg}
-          resizeMode="cover"
-          pointerEvents="none"
-        />
+        <View style={styles.cardTop}>
+          <View style={styles.serviceIcon}>
+            <Ionicons name="medical-outline" size={24} color={colors.primary} />
+          </View>
 
-        <View style={styles.cardBody}>
-        
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardName} numberOfLines={2}>
+              {svc.name}
+            </Text>
+
+            <Text style={styles.cardCategory} numberOfLines={1}>
+              {svc.category}
+            </Text>
+          </View>
+
           <Pressable
             style={styles.heartBtn}
             hitSlop={12}
-            onPress={() => setLiked((p) => ({ ...p, [svc.id]: !p[svc.id] }))}
+            onPress={() =>
+              setLiked((p) => ({
+                ...p,
+                [svc.id]: !p[svc.id],
+              }))
+            }
           >
             <Ionicons
               name={isLiked ? "heart" : "heart-outline"}
-              size={18}
+              size={20}
               color={colors.primary}
             />
           </Pressable>
+        </View>
 
-          <Text style={styles.cardName} numberOfLines={1}>
-            {svc.name}
-          </Text>
-          <Text style={styles.cardSub} numberOfLines={1}>
-            {svc.category}
-          </Text>
+        <Text style={styles.description}>{svc.description}</Text>
 
-          <Text style={styles.cardDesc} numberOfLines={2}>
-            {svc.desc}
-          </Text>
+        <View style={styles.cardBottom}>
+          <View>
+            <Text style={styles.priceLabel}>Starting Price</Text>
+            <Text style={styles.priceText}>{svc.price}</Text>
+          </View>
 
           <Pressable style={styles.bookBtn} onPress={() => onBookNow(svc)}>
             <Text style={styles.bookText}>BOOK NOW</Text>
@@ -148,37 +178,48 @@ export default function Services() {
 
   return (
     <View style={styles.screen}>
-    
       <View style={styles.fixedTop}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={22} color={colors.primary} />
           </Pressable>
+
           <Text style={styles.headerTitle}>Services</Text>
-          <View style={{ width: 40 }} />
+
+          <View style={{ width: 38 }} />
         </View>
 
         <View style={styles.searchWrap}>
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search"
-            placeholderTextColor="#aaa"
+            placeholder="Search services"
+            placeholderTextColor="#B7B7B7"
             style={styles.searchInput}
           />
-          <Ionicons name="search-outline" size={18} color={colors.primary} />
+
+          <Ionicons name="search-outline" size={20} color={colors.primary} />
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipsRow}
+        >
           {categories.map((cat) => {
             const active = cat === activeCategory;
+
             return (
               <Pressable
                 key={cat}
                 onPress={() => setActiveCategory(cat)}
                 style={[styles.chip, active && styles.chipActive]}
               >
-                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.chipText, active && styles.chipTextActive]}>
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={[styles.chipText, active && styles.chipTextActive]}
+                >
                   {cat}
                 </Text>
               </Pressable>
@@ -187,7 +228,6 @@ export default function Services() {
         </ScrollView>
       </View>
 
-  
       <FlatList
         style={{ flex: 1 }}
         data={listData}
@@ -197,7 +237,11 @@ export default function Services() {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           loading ? (
-            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+            <ActivityIndicator
+              size="large"
+              color={colors.primary}
+              style={{ marginTop: 40 }}
+            />
           ) : (
             <Text style={styles.emptyText}>No services found.</Text>
           )
@@ -208,85 +252,225 @@ export default function Services() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#fff", paddingTop: 18, paddingHorizontal: 16 },
-  fixedTop: { backgroundColor: "#fff", paddingBottom: 6 },
+  screen: {
+    flex: 1,
+    backgroundColor: "#FAFAFA",
+    paddingTop: 8,
+  },
 
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10, marginTop: 18 },
-  backBtn: { width: 40, height: 40, borderRadius: 999, alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontSize: 18, fontWeight: "900", color: colors.primary },
+  fixedTop: {
+    backgroundColor: "#FAFAFA",
+    paddingHorizontal: 18,
+    paddingBottom: 8,
+  },
 
-  searchWrap: {
-    height: 42,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.08)",
-    paddingHorizontal: 14,
+  header: {
+    height: 48,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff",
-    marginTop: 8,
   },
-  searchInput: { flex: 1, marginRight: 8, fontSize: 13, color: "#333" },
 
-  chipsRow: { paddingTop: 12, paddingBottom: 6, gap: 10 },
-  chip: {
-    width: 140,
-    height: 32,
-    borderRadius: 18,
-    backgroundColor: "rgba(240, 120, 160, 0.15)",
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 10,
+    backgroundColor: "#FFF1F6",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
-  chipActive: { backgroundColor: colors.primary },
-  chipText: { fontSize: 11, fontWeight: "800", color: colors.primary },
-  chipTextActive: { color: "#fff" },
 
-  listContent: { paddingTop: 10, paddingBottom: 28, gap: 12 },
-
-  sectionTitle: {
-    marginTop: 6,
-    marginBottom: 6,
-    fontSize: 12,
+  headerTitle: {
+    fontSize: 22,
     fontWeight: "900",
     color: colors.primary,
   },
 
-  card: {
-    borderRadius: 18,
-    overflow: "hidden",
-    flexDirection: "row",
-    backgroundColor: "rgba(240, 120, 160, 0.18)",
+  searchWrap: {
+    height: 46,
+    borderRadius: 23,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.06)",
+    borderColor: "#F1C6D6",
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    marginTop: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
 
-  cardImg: { width: 96, height: "100%", backgroundColor: "rgba(0,0,0,0.06)" },
+  searchInput: {
+    flex: 1,
+    marginRight: 8,
+    fontSize: 13,
+    color: "#333",
+  },
 
-  cardBody: { flex: 1, padding: 12, position: "relative", minHeight: 110 },
+  chipsRow: {
+    paddingTop: 14,
+    paddingBottom: 10,
+    gap: 10,
+  },
 
-
-  heartBtn: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    width: 34,
+  chip: {
+    minWidth: 110,
+    maxWidth: 190,
     height: 34,
-    borderRadius: 999,
+    borderRadius: 17,
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.65)",
-    zIndex: 999,
-    elevation: 10,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
-  cardName: { fontSize: 13, fontWeight: "900", color: "#B14B66", paddingRight: 40 },
-  cardSub: { marginTop: 2, fontSize: 11, fontWeight: "800", color: "#666", paddingRight: 40 },
-  cardDesc: { marginTop: 6, fontSize: 11, color: "#777", lineHeight: 16, paddingRight: 40 },
+  chipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
 
-  bookBtn: { alignSelf: "flex-end", marginTop: 10, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 16, backgroundColor: "rgba(0,0,0,0.65)" },
-  bookText: { fontSize: 10, fontWeight: "900", color: "#fff", letterSpacing: 0.6 },
+  chipText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.primary,
+  },
 
-  emptyText: { marginTop: 18, textAlign: "center", color: "#888", fontWeight: "700" },
+  chipTextActive: {
+    color: "#FFFFFF",
+  },
+
+  listContent: {
+    paddingTop: 8,
+    paddingBottom: 24,
+    paddingHorizontal: 18,
+  },
+
+  sectionTitle: {
+    marginTop: 8,
+    marginBottom: 10,
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#333",
+  },
+
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#F5F5F5",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+
+  cardTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+
+  serviceIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: "#FFF1F6",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
+  },
+
+  heartBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF1F6",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
+  },
+
+  cardName: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: colors.primary,
+    lineHeight: 20,
+  },
+
+  cardCategory: {
+    marginTop: 3,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#777",
+  },
+
+  description: {
+    marginTop: 12,
+    fontSize: 11.5,
+    color: "#777",
+    lineHeight: 17,
+    fontWeight: "600",
+  },
+
+  cardBottom: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+
+  priceLabel: {
+    fontSize: 10,
+    color: "#999",
+    fontWeight: "700",
+  },
+
+  priceText: {
+    marginTop: 3,
+    fontSize: 14,
+    color: "#2F2F2F",
+    fontWeight: "900",
+  },
+
+  bookBtn: {
+    height: 34,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.primary,
+    shadowOpacity: 0.14,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+
+  bookText: {
+    fontSize: 9,
+    fontWeight: "900",
+    color: "#FFFFFF",
+    letterSpacing: 0.4,
+  },
+
+  emptyText: {
+    marginTop: 30,
+    textAlign: "center",
+    color: "#888",
+    fontWeight: "700",
+  },
 });

@@ -1,13 +1,20 @@
 import React, { useMemo, useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { WebView } from "react-native-webview";
 import { colors } from "../theme/colors";
 import { usePreAssessment } from "./_layout";
-import { supabase } from "../../server/supabaseService"; 
+import { supabase } from "../../server/supabaseService";
 import { getServerUrl } from "../../server/getClientSideUrl";
-import { getRecommendedServiceCriteria } from "../../server/AIRecommendation/serviceMapper"; 
+import { getRecommendedServiceCriteria } from "../../server/AIRecommendation/serviceMapper";
 
 const QUESTIONS = [
   "Do you feel tooth pain when biting or chewing?",
@@ -25,11 +32,12 @@ const QUESTIONS = [
 export default function AISummary() {
   const router = useRouter();
   const { state, dispatch } = usePreAssessment();
-  
+
   const [analyzing, setAnalyzing] = useState(true);
   const [detectedProblem, setDetectedProblem] = useState("Unknown");
   const [suggestedService, setSuggestedService] = useState("Analyzing...");
   const [suggestedPrice, setSuggestedPrice] = useState("...");
+  const [showAnswerSummary, setShowAnswerSummary] = useState(false);
 
   useEffect(() => {
     runAnalysis();
@@ -37,8 +45,9 @@ export default function AISummary() {
 
   const runAnalysis = async () => {
     try {
-      // 1. SAFELY EXTRACT THE FIRST IMAGE FROM THE ARRAY
-      const imageToAnalyze = Array.isArray(state.photoUri) ? state.photoUri[0] : state.photoUri;
+      const imageToAnalyze = Array.isArray(state.photoUri)
+        ? state.photoUri[0]
+        : state.photoUri;
 
       if (!imageToAnalyze) throw new Error("No photo provided");
 
@@ -46,25 +55,31 @@ export default function AISummary() {
       const AI_API_URL = baseNodeUrl.replace(/:[0-9]+/, ":8000") + "/analyze";
 
       const formData = new FormData();
-      // 2. SEND ONLY THE EXTRACTED IMAGE TO THE AI
-      formData.append("file", { uri: imageToAnalyze, name: "tooth.jpg", type: "image/jpeg" });
+      formData.append("file", {
+        uri: imageToAnalyze,
+        name: "tooth.jpg",
+        type: "image/jpeg",
+      });
 
-      const aiResponse = await fetch(AI_API_URL, { method: "POST", headers: { "Content-Type": "multipart/form-data" }, body: formData });
+      const aiResponse = await fetch(AI_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "multipart/form-data" },
+        body: formData,
+      });
+
       const aiData = await aiResponse.json();
       const problem = aiData.detected_problem || "Normal";
-      
+
       setDetectedProblem(problem);
 
-      // Get the database search criteria based on the AI problem
       const criteria = getRecommendedServiceCriteria(problem);
 
-      // Dynamically query Supabase based on the router's instructions
       const { data } = await supabase
-        .from('dental_services')
-        .select('*')
-        .eq('is_active', true) // Only grab active services
+        .from("dental_services")
+        .select("*")
+        .eq("is_active", true)
         .ilike(criteria.field, `%${criteria.value}%`)
-        .order('price_min', { ascending: true }) // Recommends the most affordable starting option first
+        .order("price_min", { ascending: true })
         .limit(1)
         .single();
 
@@ -77,9 +92,7 @@ export default function AISummary() {
         setSuggestedPrice("Price varies");
       }
     } catch (error) {
-      // Prints the exact reason for the crash in your VS Code Terminal
       console.error("AI Analysis Error: ", error);
-
       setDetectedProblem("Analysis Error");
       setSuggestedService("Unable to determine service");
       setSuggestedPrice("-");
@@ -89,17 +102,20 @@ export default function AISummary() {
   };
 
   const qaList = useMemo(() => {
-    return QUESTIONS.map((qText, i) => {
-      const ans = state.answers?.[i] || "-";
-      return { qText, ans };
-    });
+    return QUESTIONS.map((qText, i) => ({
+      qText,
+      ans: state.answers?.[i] || "-",
+    }));
   }, [state.answers]);
 
   if (analyzing) {
     return (
-      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+      <View style={[styles.container, styles.loadingWrap]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 20, color: colors.primary, fontWeight: "bold" }}>IntelliDent AI is analyzing your scan...</Text>
+        <Text style={styles.loadingTitle}>IntelliDent AI is analyzing...</Text>
+        <Text style={styles.loadingSub}>
+          Please wait while we review your uploaded tooth photo.
+        </Text>
       </View>
     );
   }
@@ -111,73 +127,122 @@ export default function AISummary() {
           <Ionicons name="chevron-back" size={20} color={colors.primary} />
         </Pressable>
 
-        <Text style={styles.topTitle}>Pre Assessment</Text>
+        <Text style={styles.topTitle}>AI Assessment</Text>
+
         <View style={styles.headerSpacer} />
       </View>
 
-      <Text style={styles.h1}>AI ASSESSMENT</Text>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <Text style={styles.pageTitle}>Suggested Treatment</Text>
+        <Text style={styles.pageSub}>
+          Based on your uploaded photo and pre-assessment answers.
+        </Text>
 
-      <View style={styles.teethBox}>
-        <WebView
-          source={{ uri: "https://intellident-3d-viewer.vercel.app/?mode=protected" }}
-          style={styles.toothImage}
-          scrollEnabled={false}
-          injectedJavaScript={`setTimeout(function() { window.postMessage({ type: 'SELECT_TOOTH', tooth: '${state.tooth}' }, '*'); }, 1000); true;`}
-          containerStyle={{ backgroundColor: 'transparent' }}
-          cacheEnabled={true}
-          domStorageEnabled={true}
-        />
-      </View>
+        <View style={styles.resultCard}>
+          <View style={styles.resultIcon}>
+            <Ionicons name="sparkles-outline" size={24} color="#fff" />
+          </View>
 
-      <Text style={styles.tooth}>Tooth: {state.tooth}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.resultLabel}>Recommended Service</Text>
+            <Text style={styles.resultTitle}>{suggestedService}</Text>
+            <Text style={styles.resultPrice}>{suggestedPrice}</Text>
+          </View>
+        </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.section}>Summary of Pre Assessment</Text>
+        <View style={styles.diagnosisCard}>
+          <View style={styles.diagnosisTop}>
+            <Ionicons name="analytics-outline" size={20} color={colors.primary} />
+            <Text style={styles.diagnosisLabel}>AI Diagnosis</Text>
+          </View>
 
-        <View style={styles.summaryBox}>
-          {qaList.map((x, i) => (
-            <View key={i} style={styles.qaBlock}>
-              <Text style={styles.qLine}>
-                <Text style={styles.qLabel}>Question: </Text>
-                {x.qText}
-              </Text>
-              <Text style={styles.aLine}>
-                <Text style={styles.aLabel}>    Answer: </Text>
-                {x.ans}
+          <Text style={styles.diagnosisText}>
+            Condition Found: {detectedProblem.toUpperCase()}
+          </Text>
+        </View>
+
+        <View style={styles.toothCard}>
+          <WebView
+            source={{
+              uri: "https://intellident-3d-viewer.vercel.app/?mode=protected",
+            }}
+            style={styles.toothViewer}
+            scrollEnabled={false}
+            injectedJavaScript={`setTimeout(function() { window.postMessage({ type: 'SELECT_TOOTH', tooth: '${state.tooth}' }, '*'); }, 1000); true;`}
+            containerStyle={{ backgroundColor: "transparent" }}
+            cacheEnabled
+            domStorageEnabled
+          />
+
+          <View style={styles.toothInfo}>
+            <Text style={styles.toothLabel}>Selected Tooth</Text>
+            <Text style={styles.toothValue}>{state.tooth}</Text>
+          </View>
+        </View>
+
+        <Pressable
+          style={styles.summaryToggle}
+          onPress={() => setShowAnswerSummary((prev) => !prev)}
+        >
+          <View style={styles.summaryToggleLeft}>
+            <Ionicons
+              name="document-text-outline"
+              size={19}
+              color={colors.primary}
+            />
+            <Text style={styles.summaryToggleText}>
+              {showAnswerSummary ? "Hide Answer Summary" : "View Answer Summary"}
+            </Text>
+          </View>
+
+          <Ionicons
+            name={showAnswerSummary ? "chevron-up" : "chevron-down"}
+            size={20}
+            color={colors.primary}
+          />
+        </Pressable>
+
+        {showAnswerSummary && (
+          <View style={styles.summaryBox}>
+            {qaList.map((x, i) => (
+              <View key={i} style={styles.qaBlock}>
+                <Text style={styles.qLine}>
+                  Q{i + 1}: {x.qText}
+                </Text>
+                <Text style={styles.aLine}>A: {x.ans}</Text>
+              </View>
+            ))}
+
+            <View style={styles.descriptionBox}>
+              <Text style={styles.descriptionLabel}>Patient Description</Text>
+              <Text style={styles.descriptionText}>
+                {state.description?.trim() ? state.description.trim() : "-"}
               </Text>
             </View>
-          ))}
-          <View style={{ height: 12 }} />
-          <Text style={styles.qLine}>
-            <Text style={styles.qLabel}>Question: </Text>
-            Kindly describe any symptoms or discomfort you are currently experiencing.
-          </Text>
-          <Text style={styles.aLine}>
-            <Text style={styles.aLabel}>    Answer: </Text>
-            {state.description?.trim() ? state.description.trim() : "-"}
-          </Text>
-        </View>
-
-        <Text style={[styles.section, { marginTop: 18 }]}>AI Diagnosis</Text>
-
-        <View style={styles.treatBox}>
-          <Text style={styles.treatTitle}>Condition Found: {detectedProblem.toUpperCase()}</Text>
-        </View>
-
-        <Text style={[styles.section, { marginTop: 18 }]}>Suggested Treatment and Price</Text>
-
-        <View style={styles.treatBox}>
-          <Text style={styles.treatTitle}>{suggestedService}</Text>
-          <Text style={styles.treatSub}>{suggestedPrice}</Text>
-        </View>
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
         <Pressable style={styles.btnOutline} onPress={() => router.replace("/home")}>
-          <Text style={styles.btnOutlineText}>Back to Home</Text>
+          <Text style={styles.btnOutlineText}>Back Home</Text>
         </Pressable>
 
-        <Pressable style={styles.btnFilled} onPress={() => router.push({ pathname: "/booking", params: { service: suggestedService, preassessmentId: state.preassessmentId } })}>
+        <Pressable
+          style={styles.btnFilled}
+          onPress={() =>
+            router.push({
+              pathname: "/booking",
+              params: {
+                service: suggestedService,
+                preassessmentId: state.preassessmentId,
+              },
+            })
+          }
+        >
           <Text style={styles.btnFilledText}>Book Now</Text>
         </Pressable>
       </View>
@@ -188,147 +253,298 @@ export default function AISummary() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: 46,
+    backgroundColor: "#FAFAFA",
+    paddingTop: 8,
+    paddingHorizontal: 18,
+  },
+
+  loadingWrap: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  loadingTitle: {
+    marginTop: 20,
+    color: colors.primary,
+    fontWeight: "900",
+    fontSize: 15,
+  },
+
+  loadingSub: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#888",
+    textAlign: "center",
+    lineHeight: 18,
     paddingHorizontal: 30,
   },
+
   headerRow: {
+    height: 48,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 6,
   },
+
   backIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#FFF1F6",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
-  headerSpacer: {
-    width: 36,
-  },
+
   topTitle: {
-    fontSize: 12,
-    color: colors.textGray,
-    fontWeight: "600",
-    textAlign: "center",
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: "900",
   },
-  h1: {
-    marginTop: 10,
-    fontSize: 25,
+
+  headerSpacer: {
+    width: 38,
+  },
+
+  scrollContent: {
+    paddingTop: 12,
+    paddingBottom: 110,
+  },
+
+  pageTitle: {
+    fontSize: 28,
     fontWeight: "900",
     color: colors.primary,
   },
-  teethBox: {
-    marginTop: 14,
-    height: 180,
+
+  pageSub: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#777",
+    lineHeight: 18,
+    fontWeight: "600",
+  },
+
+  resultCard: {
+    marginTop: 18,
+    backgroundColor: colors.primary,
+    borderRadius: 24,
+    padding: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+
+  resultIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 20,
-    overflow: 'hidden'
   },
-  toothImage: {
-    width: 300,
-    height: 200,
-  },
-  tooth: {
-    marginTop: 8,
-    marginLeft: 20,
-    fontSize: 12,
-    color: colors.textGray,
+
+  resultLabel: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.75)",
     fontWeight: "700",
   },
-  scroll: {
-    marginTop: 16,
-    flex: 1,
+
+  resultTitle: {
+    marginTop: 4,
+    fontSize: 17,
+    color: "#fff",
+    fontWeight: "900",
   },
-  scrollContent: {
-    paddingBottom: 24,
-  },
-  section: {
-    fontSize: 13,
+
+  resultPrice: {
+    marginTop: 4,
+    fontSize: 14,
+    color: "#fff",
     fontWeight: "800",
-    color: colors.primary,
-    marginBottom: 10,
   },
-  summaryBox: {
-    backgroundColor: "#F6F6F6",
-    borderRadius: 18,
+
+  diagnosisCard: {
+    marginTop: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
     padding: 14,
+    borderWidth: 1,
+    borderColor: "#F5F5F5",
   },
-  qaBlock: {
-    marginBottom: 12,
+
+  diagnosisTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
-  qLine: {
-    fontSize: 11,
+
+  diagnosisLabel: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: colors.primary,
+  },
+
+  diagnosisText: {
+    marginTop: 8,
+    fontSize: 13,
     color: "#444",
-    lineHeight: 17,
+    fontWeight: "800",
   },
+
+  toothCard: {
+    marginTop: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#F5F5F5",
+    overflow: "hidden",
+  },
+
+  toothViewer: {
+    height: 190,
+    backgroundColor: "transparent",
+  },
+
+  toothInfo: {
+    padding: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#F5F5F5",
+  },
+
+  toothLabel: {
+    fontSize: 11,
+    color: "#999",
+    fontWeight: "700",
+  },
+
+  toothValue: {
+    marginTop: 3,
+    fontSize: 15,
+    color: "#333",
+    fontWeight: "900",
+  },
+
+  summaryToggle: {
+    marginTop: 14,
+    height: 50,
+    borderRadius: 18,
+    backgroundColor: "#FFF1F6",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  summaryToggleLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  summaryToggleText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: "900",
+  },
+
+  summaryBox: {
+    marginTop: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#F2F2F2",
+  },
+
+  qaBlock: {
+    paddingBottom: 12,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+
+  qLine: {
+    fontSize: 12,
+    color: "#333",
+    fontWeight: "800",
+    lineHeight: 18,
+  },
+
   aLine: {
     marginTop: 4,
-    fontSize: 11,
-    color: "#666",
-    lineHeight: 17,
+    fontSize: 12,
+    color: "#777",
+    fontWeight: "700",
+    lineHeight: 18,
   },
-  qLabel: {
-    fontWeight: "800",
-    color: colors.primary,
+
+  descriptionBox: {
+    backgroundColor: "#FAFAFA",
+    borderRadius: 16,
+    padding: 12,
   },
-  aLabel: {
-    fontWeight: "800",
-    color: colors.primary,
-  },
-  treatBox: {
-    backgroundColor: "#FFE9F1",
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 10,
-  },
-  treatTitle: {
-    fontSize: 15,
+
+  descriptionLabel: {
+    fontSize: 12,
     fontWeight: "900",
     color: colors.primary,
   },
-  treatSub: {
-    marginTop: 4,
+
+  descriptionText: {
+    marginTop: 5,
     fontSize: 12,
     color: "#666",
-    fontWeight: "700",
+    lineHeight: 18,
+    fontWeight: "600",
   },
+
   footer: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    bottom: 24,
     flexDirection: "row",
-    justifyContent: "space-between",
     gap: 12,
-    paddingTop: 12,
-    paddingBottom: 16,
   },
+
   btnOutline: {
     flex: 1,
-    height: 46,
-    borderRadius: 23,
+    height: 48,
+    borderRadius: 24,
     borderWidth: 1.5,
     borderColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
   },
+
   btnOutlineText: {
     color: colors.primary,
-    fontSize: 12,
-    fontWeight: "800",
+    fontSize: 13,
+    fontWeight: "900",
   },
+
   btnFilled: {
     flex: 1,
-    height: 46,
-    borderRadius: 23,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
+
   btnFilledText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "800",
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
   },
 });

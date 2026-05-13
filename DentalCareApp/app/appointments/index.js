@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Pressable,
   Modal,
@@ -19,7 +18,6 @@ import {
   APPOINTMENT_CACHE_TTL_MS,
 } from "../_storage/profileCache";
 
-// Standard pre-assessment questions
 const QUESTIONS = [
   "Do you feel tooth pain when biting or chewing?",
   "Do you experience sensitivity to cold drinks?",
@@ -35,7 +33,7 @@ const QUESTIONS = [
 
 function isUuid(value) {
   if (!value) return false;
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(
     String(value)
   );
 }
@@ -106,10 +104,11 @@ export default function AppointmentsScreen() {
       if (cached) setAppointments(cached.data);
       if (!isStale) return;
 
-      // 1. Fetch bookings and pre-assessment data
       let dbQuery = supabase
         .from("bookings")
-        .select("*, dentist_list(name, specialization), patient_preassessment(tooth_selected, description, answers)")
+        .select(
+          "*, dentist_list(name, specialization), patient_preassessment(tooth_selected, description, answers)"
+        )
         .order("appointment_date", { ascending: false });
 
       if (profileId) {
@@ -131,18 +130,20 @@ export default function AppointmentsScreen() {
       const { data, error } = await dbQuery;
       if (error) throw error;
 
-      // 2. Fetch prices from dental_services table based on the unique services booked
-      const serviceNames = [...new Set((data || []).map(b => b.service).filter(Boolean))];
+      const serviceNames = [
+        ...new Set((data || []).map((b) => b.service).filter(Boolean)),
+      ];
+
       let servicesMap = {};
-      
+
       if (serviceNames.length > 0) {
         const { data: servicesData, error: servicesError } = await supabase
           .from("dental_services")
           .select("name, price_min")
           .in("name", serviceNames);
-          
+
         if (!servicesError && servicesData) {
-          servicesData.forEach(s => {
+          servicesData.forEach((s) => {
             servicesMap[s.name] = s.price_min;
           });
         }
@@ -157,43 +158,57 @@ export default function AppointmentsScreen() {
 
       const mapped = (data || []).map((b) => {
         const rawDate = b.appointment_date;
-        
-        let pa = b.patient_preassessment || {};
-        if (Array.isArray(pa)) pa = pa[0] || {}; // Handle array return from Supabase join
 
-        // Format the Pre-Assessment QA List (Handles JSON object strings)
+        let pa = b.patient_preassessment || {};
+        if (Array.isArray(pa)) pa = pa[0] || {};
+
         let qaList = [];
         if (pa.answers) {
           let parsedAnswers = pa.answers;
+
           if (typeof parsedAnswers === "string") {
             try {
               parsedAnswers = JSON.parse(parsedAnswers);
             } catch (e) {}
           }
-          
-          if (parsedAnswers && typeof parsedAnswers === "object" && Object.keys(parsedAnswers).length > 0) {
+
+          if (
+            parsedAnswers &&
+            typeof parsedAnswers === "object" &&
+            Object.keys(parsedAnswers).length > 0
+          ) {
             qaList = QUESTIONS.map((q, idx) => ({
               question: q,
-              answer: parsedAnswers[idx] || parsedAnswers[String(idx)] || "Not answered",
+              answer:
+                parsedAnswers[idx] ||
+                parsedAnswers[String(idx)] ||
+                "Not answered",
             }));
           }
         }
 
-        // Apply price from fetched map
         const priceMin = servicesMap[b.service];
-        const formattedPrice = priceMin != null ? `Starting Price: ₱${priceMin.toLocaleString()}` : "Starting Price: N/A";
+        const formattedPrice =
+          priceMin != null
+            ? `Starting Price: ₱${priceMin.toLocaleString()}`
+            : "Starting Price: N/A";
 
-        // Fallbacks
-        const fallbackTooth = pa.tooth_selected || b.tooth_area || b.tooth || "Not specified";
-        const fallbackDesc = pa.description || b.description || "No description provided.";
-        const fallbackQaList = qaList.length > 0 ? qaList : normalizeQaList(b.qa_list || b.questionnaire);
+        const fallbackTooth =
+          pa.tooth_selected || b.tooth_area || b.tooth || "Not specified";
+        const fallbackDesc =
+          pa.description || b.description || "No description provided.";
+        const fallbackQaList =
+          qaList.length > 0
+            ? qaList
+            : normalizeQaList(b.qa_list || b.questionnaire);
 
         return {
           id: String(b.id),
           doctor: b.dentist_list?.name || "Unknown Dentist",
           title: b.service || "Dental Appointment",
           type: "Treatment",
-          status: statusMap[String(b.status || "").toLowerCase()] || "Upcoming",
+          status:
+            statusMap[String(b.status || "").toLowerCase()] || "Upcoming",
           date: formatDisplayDate(rawDate),
           time: fmt12h(b.appointment_time),
           tooth: fallbackTooth,
@@ -206,7 +221,11 @@ export default function AppointmentsScreen() {
         };
       });
 
-      appointmentsListCache[cacheKey] = { data: mapped, fetchedAt: Date.now() };
+      appointmentsListCache[cacheKey] = {
+        data: mapped,
+        fetchedAt: Date.now(),
+      };
+
       setAppointments(mapped);
     } catch (err) {
       console.error("Error fetching appointments:", err);
@@ -221,6 +240,31 @@ export default function AppointmentsScreen() {
   const handleCloseDetails = () => {
     setDetailsVisible(false);
     setSelectedAppointment(null);
+  };
+
+  const handleCancelAppointment = async () => {
+    try {
+      if (!selectedAppointment?.id) return;
+
+      const { error } = await supabase
+        .from("bookings")
+        .update({ status: "cancelled" })
+        .eq("id", selectedAppointment.id);
+
+      if (error) throw error;
+
+      setAppointments((prev) =>
+        prev.map((item) =>
+          item.id === selectedAppointment.id
+            ? { ...item, status: "Cancelled" }
+            : item
+        )
+      );
+
+      handleCloseDetails();
+    } catch (err) {
+      console.error("Cancel appointment error:", err);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -270,8 +314,10 @@ export default function AppointmentsScreen() {
     return Object.entries(groups);
   };
 
+  const groups = groupedAppointments();
+
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <View style={styles.screen}>
         <View style={styles.topBar}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
@@ -305,176 +351,172 @@ export default function AppointmentsScreen() {
         </Text>
 
         <View style={styles.tabs}>
-          <Pressable
-            style={[styles.tabBtn, filter === "All" && styles.activeTab]}
-            onPress={() => setFilter("All")}
-          >
-            <Text
-              style={[styles.tabText, filter === "All" && styles.activeTabText]}
+          {["All", "Upcoming", "Completed", "Cancelled"].map((item) => (
+            <Pressable
+              key={item}
+              style={[styles.tabBtn, filter === item && styles.activeTab]}
+              onPress={() => setFilter(item)}
             >
-              All
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.tabBtn, filter === "Upcoming" && styles.activeTab]}
-            onPress={() => setFilter("Upcoming")}
-          >
-            <View style={styles.tabWithDot}>
-              <View style={[styles.dot, { backgroundColor: "#D89B00" }]} />
-              <Text
-                style={[
-                  styles.tabText,
-                  filter === "Upcoming" && styles.activeTabText,
-                ]}
-              >
-                Upcoming
-              </Text>
-            </View>
-          </Pressable>
-
-          <Pressable
-            style={[styles.tabBtn, filter === "Completed" && styles.activeTab]}
-            onPress={() => setFilter("Completed")}
-          >
-            <View style={styles.tabWithDot}>
-              <View style={[styles.dot, { backgroundColor: "#2FA55A" }]} />
-              <Text
-                style={[
-                  styles.tabText,
-                  filter === "Completed" && styles.activeTabText,
-                ]}
-              >
-                Completed
-              </Text>
-            </View>
-          </Pressable>
-
-          <Pressable
-            style={[styles.tabBtn, filter === "Cancelled" && styles.activeTab]}
-            onPress={() => setFilter("Cancelled")}
-          >
-            <View style={styles.tabWithDot}>
-              <View style={[styles.dot, { backgroundColor: "#E24C4B" }]} />
-              <Text
-                style={[
-                  styles.tabText,
-                  filter === "Cancelled" && styles.activeTabText,
-                ]}
-              >
-                Cancelled
-              </Text>
-            </View>
-          </Pressable>
+              <View style={styles.tabWithDot}>
+                {item !== "All" && (
+                  <View
+                    style={[
+                      styles.dot,
+                      {
+                        backgroundColor:
+                          item === "Upcoming"
+                            ? "#D89B00"
+                            : item === "Completed"
+                            ? "#2FA55A"
+                            : "#E24C4B",
+                      },
+                    ]}
+                  />
+                )}
+                <Text
+                  style={[
+                    styles.tabText,
+                    filter === item && styles.activeTabText,
+                  ]}
+                >
+                  {item}
+                </Text>
+              </View>
+            </Pressable>
+          ))}
         </View>
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            groups.length === 0 && styles.emptyContainer,
+          ]}
         >
-          {groupedAppointments().map(([month, items]) => (
-            <View key={month} style={styles.section}>
-              <Text style={styles.monthText}>{month}</Text>
+          {groups.length === 0 ? (
+            <View style={styles.emptyWrap}>
+              <Ionicons name="calendar-outline" size={58} color="#E2E2E2" />
 
-              {items.map((item, index) => {
-                const statusColor = getStatusColor(item.status);
-                const statusBg = getStatusBg(item.status);
+              <Text style={styles.emptyTitle}>No appointments found</Text>
 
-                return (
-                  <Pressable
-                    key={`${item.id}-${index}`}
-                    style={styles.card}
-                    onPress={() => handleOpenDetails(item)}
-                  >
-                    <View style={styles.cardGlow} />
-
-                    <View style={styles.cardTop}>
-                      <View style={styles.dateRow}>
-                        <Ionicons
-                          name="calendar-outline"
-                          size={13}
-                          color="#8D8D8D"
-                        />
-                        <Text style={styles.dateText}>{item.date}</Text>
-                        <View style={styles.dateDot} />
-                        <Ionicons
-                          name="time-outline"
-                          size={13}
-                          color="#8D8D8D"
-                        />
-                        <Text style={styles.dateText}>{item.time}</Text>
-                      </View>
-
-                      <View
-                        style={[
-                          styles.typeBadge,
-                          { backgroundColor: statusBg },
-                        ]}
-                      >
-                        <Ionicons
-                          name={getStatusIcon(item.status)}
-                          size={12}
-                          color={statusColor}
-                        />
-                        <Text
-                          style={[styles.typeBadgeText, { color: statusColor }]}
-                        >
-                          {item.status}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.cardBody}>
-                      <View style={styles.leftIconWrap}>
-                        <Ionicons
-                          name="calendar-clear-outline"
-                          size={22}
-                          color={colors.primary}
-                        />
-                      </View>
-
-                      <View style={styles.cardMainContent}>
-                        <Text style={styles.serviceTitle}>{item.title}</Text>
-                        <Text style={styles.cardSubtitle}>{item.procedure}</Text>
-                      </View>
-
-                      <View style={styles.arrowWrap}>
-                        <Ionicons
-                          name="chevron-forward"
-                          size={18}
-                          color={colors.primary}
-                        />
-                      </View>
-                    </View>
-
-                    <View style={styles.cardFooter}>
-                      <View style={styles.metaPill}>
-                        <Ionicons
-                          name="medical-outline"
-                          size={12}
-                          color="#8D8D8D"
-                        />
-                        <Text style={styles.metaPillText}>
-                          {item.tooth || "Tooth Record"}
-                        </Text>
-                      </View>
-
-                      <View style={styles.metaPill}>
-                        <Ionicons
-                          name="person-outline"
-                          size={12}
-                          color="#8D8D8D"
-                        />
-                        <Text style={styles.metaPillText} numberOfLines={1}>
-                          {item.doctor}
-                        </Text>
-                      </View>
-                    </View>
-                  </Pressable>
-                );
-              })}
+              <Text style={styles.emptySubtext}>
+                {filter === "All"
+                  ? "You don’t have any appointments yet."
+                  : `No ${filter.toLowerCase()} appointments available.`}
+              </Text>
             </View>
-          ))}
+          ) : (
+            groups.map(([month, items]) => (
+              <View key={month} style={styles.section}>
+                <Text style={styles.monthText}>{month}</Text>
+
+                {items.map((item, index) => {
+                  const statusColor = getStatusColor(item.status);
+                  const statusBg = getStatusBg(item.status);
+
+                  return (
+                    <Pressable
+                      key={`${item.id}-${index}`}
+                      style={styles.card}
+                      onPress={() => handleOpenDetails(item)}
+                    >
+                      <View style={styles.cardGlow} />
+
+                      <View style={styles.cardTop}>
+                        <View style={styles.dateRow}>
+                          <Ionicons
+                            name="calendar-outline"
+                            size={13}
+                            color="#8D8D8D"
+                          />
+                          <Text style={styles.dateText}>{item.date}</Text>
+                          <View style={styles.dateDot} />
+                          <Ionicons
+                            name="time-outline"
+                            size={13}
+                            color="#8D8D8D"
+                          />
+                          <Text style={styles.dateText}>{item.time}</Text>
+                        </View>
+
+                        <View
+                          style={[
+                            styles.typeBadge,
+                            { backgroundColor: statusBg },
+                          ]}
+                        >
+                          <Ionicons
+                            name={getStatusIcon(item.status)}
+                            size={12}
+                            color={statusColor}
+                          />
+                          <Text
+                            style={[
+                              styles.typeBadgeText,
+                              { color: statusColor },
+                            ]}
+                          >
+                            {item.status}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.cardBody}>
+                        <View style={styles.leftIconWrap}>
+                          <Ionicons
+                            name="calendar-clear-outline"
+                            size={22}
+                            color={colors.primary}
+                          />
+                        </View>
+
+                        <View style={styles.cardMainContent}>
+                          <Text style={styles.serviceTitle}>
+                            {item.title}
+                          </Text>
+                          <Text style={styles.cardSubtitle}>
+                            {item.procedure}
+                          </Text>
+                        </View>
+
+                        <View style={styles.arrowWrap}>
+                          <Ionicons
+                            name="chevron-forward"
+                            size={18}
+                            color={colors.primary}
+                          />
+                        </View>
+                      </View>
+
+                      <View style={styles.cardFooter}>
+                        <View style={styles.metaPill}>
+                          <Ionicons
+                            name="medical-outline"
+                            size={12}
+                            color="#8D8D8D"
+                          />
+                          <Text style={styles.metaPillText}>
+                            {item.tooth || "Tooth Record"}
+                          </Text>
+                        </View>
+
+                        <View style={styles.metaPill}>
+                          <Ionicons
+                            name="person-outline"
+                            size={12}
+                            color="#8D8D8D"
+                          />
+                          <Text style={styles.metaPillText} numberOfLines={1}>
+                            {item.doctor}
+                          </Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ))
+          )}
         </ScrollView>
 
         <Modal
@@ -531,7 +573,9 @@ export default function AppointmentsScreen() {
                           style={[
                             styles.statusBadgeText,
                             {
-                              color: getStatusColor(selectedAppointment.status),
+                              color: getStatusColor(
+                                selectedAppointment.status
+                              ),
                             },
                           ]}
                         >
@@ -616,10 +660,25 @@ export default function AppointmentsScreen() {
                     </View>
                   </View>
 
-                  <View style={styles.assessmentBox}>
+                  <View style={styles.suggestedCard}>
+                      <Text style={styles.suggestedLabel}>
+                        Suggested Treatment
+                      </Text>
+
+                      <Text style={styles.suggestedValue}>
+                        {selectedAppointment?.suggestedTreatment}
+                      </Text>
+
+                      <Text style={styles.suggestedPrice}>
+                        {selectedAppointment?.suggestedPrice}
+                      </Text>
+                    </View>
+
+                    <View style={styles.assessmentBox}>
                     <Text style={styles.assessmentLabel}>
                       Patient Description
                     </Text>
+
                     <Text style={styles.assessmentText}>
                       {selectedAppointment?.description}
                     </Text>
@@ -628,29 +687,42 @@ export default function AppointmentsScreen() {
                   <Text style={styles.sectionTitle}>Questionnaire</Text>
                   <View style={styles.qaBox}>
                     {selectedAppointment?.qaList?.length ? (
-                      selectedAppointment.qaList.map((q, i) => (
-                        <View key={i} style={styles.qaItem}>
-                          <Text style={styles.qText}>Q: {q.question}</Text>
-                          <Text style={styles.aText}>A: {q.answer}</Text>
-                        </View>
-                      ))
+                      selectedAppointment.qaList.map((q, i) => {
+                        const answerText =
+                          typeof q.answer === "object"
+                            ? q.answer?.answer || JSON.stringify(q.answer)
+                            : q.answer;
+
+                        return (
+                          <View key={i} style={styles.qaItem}>
+                            <Text style={styles.qText}>
+                              Q: {q.question || `Question ${i + 1}`}
+                            </Text>
+
+                            <Text style={styles.aText}>
+                              A: {answerText || "No answer"}
+                            </Text>
+                          </View>
+                        );
+                      })
                     ) : (
                       <Text style={styles.aText}>No questionnaire data.</Text>
                     )}
                   </View>
-
-                  <View style={styles.suggestedCard}>
-                    <Text style={styles.suggestedLabel}>
-                      Suggested Treatment
-                    </Text>
-                    <Text style={styles.suggestedValue}>
-                      {selectedAppointment?.suggestedTreatment}
-                    </Text>
-                    <Text style={styles.suggestedPrice}>
-                      {selectedAppointment?.suggestedPrice}
-                    </Text>
-                  </View>
                 </View>
+
+                {selectedAppointment?.status === "Upcoming" && (
+                  <Pressable
+                    style={styles.cancelAppointmentBtn}
+                    onPress={handleCancelAppointment}
+                  >
+                    <Ionicons name="close-circle-outline" size={18} color="#fff" />
+
+                    <Text style={styles.cancelAppointmentText}>
+                      Cancel Appointment
+                    </Text>
+                  </Pressable>
+                )}
 
                 <View style={{ height: 18 }} />
               </ScrollView>
@@ -658,20 +730,20 @@ export default function AppointmentsScreen() {
           </View>
         </Modal>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#F8F8F8",
+    backgroundColor: "#FAFAFA",
   },
 
   screen: {
     flex: 1,
-    backgroundColor: "#F8F8F8",
-    paddingTop: 46,
+    backgroundColor: "#FAFAFA",
+    paddingTop: 8,
     paddingHorizontal: 18,
   },
 
@@ -682,11 +754,14 @@ const styles = StyleSheet.create({
   },
 
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#FFF1F6",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   topRight: {
@@ -696,26 +771,30 @@ const styles = StyleSheet.create({
   },
 
   notifPill: {
-    width: 44,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#EEE",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   avatarSmall: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#FFE9F1",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   title: {
-    marginTop: 10,
-    fontSize: 26,
+    marginTop: 14,
+    fontSize: 28,
     fontWeight: "900",
     color: colors.primary,
   },
@@ -730,17 +809,23 @@ const styles = StyleSheet.create({
   tabs: {
     marginTop: 18,
     flexDirection: "row",
-    backgroundColor: "#D9D9D9",
-    borderRadius: 10,
-    padding: 4,
-    elevation: 2,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 5,
     gap: 4,
+    borderWidth: 1,
+    borderColor: "#F5F5F5",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
 
   tabBtn: {
     flex: 1,
-    minHeight: 34,
-    borderRadius: 8,
+    minHeight: 36,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
@@ -753,12 +838,12 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 10,
     color: "#8A8A8A",
-    fontWeight: "500",
+    fontWeight: "600",
   },
 
   activeTabText: {
     color: "#fff",
-    fontWeight: "700",
+    fontWeight: "800",
   },
 
   tabWithDot: {
@@ -775,7 +860,34 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     paddingTop: 14,
-    paddingBottom: 30,
+    paddingBottom: 24,
+  },
+
+  emptyContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingBottom: 120,
+  },
+
+  emptyWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  emptyTitle: {
+    marginTop: 14,
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#4A4A4A",
+  },
+
+  emptySubtext: {
+    marginTop: 6,
+    fontSize: 13,
+    color: "#9A9A9A",
+    textAlign: "center",
+    lineHeight: 20,
   },
 
   section: {
@@ -793,17 +905,17 @@ const styles = StyleSheet.create({
   card: {
     position: "relative",
     backgroundColor: "#FFFFFF",
-    borderRadius: 22,
+    borderRadius: 20,
     padding: 14,
     marginBottom: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#F1E9EE",
+    borderColor: "#F5F5F5",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
 
   cardGlow: {
@@ -882,9 +994,10 @@ const styles = StyleSheet.create({
   },
 
   serviceTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "900",
     color: colors.primary,
+    lineHeight: 20,
   },
 
   cardSubtitle: {
@@ -905,7 +1018,7 @@ const styles = StyleSheet.create({
   },
 
   cardFooter: {
-    marginTop: 14,
+    marginTop: 12,
     flexDirection: "row",
     gap: 8,
   },
@@ -915,10 +1028,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#F8F8F8",
+    backgroundColor: "#FAFAFA",
     borderRadius: 14,
     paddingHorizontal: 10,
-    paddingVertical: 9,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#F1F1F1",
   },
 
   metaPillText: {
@@ -1192,8 +1307,9 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderColor: "#EAEAEA",
+    marginBottom: 14,
   },
-
+  
   suggestedLabel: {
     fontSize: 12,
     color: "#7C7C7C",
@@ -1214,39 +1330,20 @@ const styles = StyleSheet.create({
     color: "#2F7D4D",
   },
 
-  sectionCard: {
-    backgroundColor: "#FFFFFF",
+  cancelAppointmentBtn: {
+    marginTop: 18,
+    height: 48,
     borderRadius: 16,
-    padding: 14,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#ECECEC",
+    backgroundColor: "#E24C4B",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
 
-  sectionText: {
+  cancelAppointmentText: {
+    color: "#fff",
     fontSize: 14,
-    lineHeight: 21,
-    color: "#444444",
-    fontWeight: "600",
-  },
-
-  photosRow: {
-    paddingTop: 4,
-    paddingRight: 4,
-  },
-
-  photoItem: {
-    width: 120,
-    height: 120,
-    borderRadius: 16,
-    marginRight: 10,
-    backgroundColor: "#EAEAEA",
-  },
-
-  emptyText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#8F8F8F",
-    fontWeight: "600",
+    fontWeight: "800",
   },
 });

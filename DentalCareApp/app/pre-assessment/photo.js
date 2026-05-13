@@ -112,7 +112,7 @@ export default function Photo() {
 
         <Pressable 
           style={[styles.btnFilled, currentUris.length === 0 && { opacity: 0.5 }]} 
-          onPress={() => currentUris.length > 0 && router.push("/pre-assessment/ai-summary")}
+          onPress={() => currentUris.length > 0 && router.push("/pre-assessment/questions")}
         >
           <Text style={styles.btnFilledText}>Next</Text>
         </Pressable>
@@ -124,7 +124,12 @@ export default function Photo() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", paddingTop: 46, paddingHorizontal: 18 },
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingTop: 16,
+    paddingHorizontal: 18,
+  },
   backIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   
   headerRow: {
@@ -148,7 +153,15 @@ const styles = StyleSheet.create({
   progressRow: { marginTop: 18, marginBottom: 10, height: 3, backgroundColor: "#EAD7E0", borderRadius: 3, overflow: "hidden" },
   progressLine: { height: 3, backgroundColor: colors.primary },
 
-  question: { marginTop: 22, marginBottom: 10, fontSize: 40, fontWeight: "900", color: colors.primary, width: "90%" },
+  question: {
+    marginTop: 28,
+    marginBottom: 20,
+    fontSize: 30,
+    fontWeight: "900",
+    color: colors.primary,
+    width: "95%",
+    lineHeight: 38,
+  },
   small: { marginTop: 10, fontSize: 11, color: colors.textGray, width: "85%", lineHeight: 16 },
 
   uploadBox: {
@@ -177,11 +190,24 @@ const styles = StyleSheet.create({
   },
   cameraText: { color: "#fff", fontSize: 10, fontWeight: "800" },
 
-  bottomRow: { position: "absolute", left: 18, right: 18, bottom: 65, flexDirection: "row", gap: 12 },
+  bottomRow: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    bottom: 45,
+    flexDirection: "row",
+    gap: 12,
+  },
   btnOutline: { flex: 1, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.primary, alignItems: "center", justifyContent: "center" },
   btnOutlineText: { color: colors.primary, fontWeight: "800", fontSize: 12 },
   btnFilled: { flex: 1, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
   btnFilledText: { color: "#fff", fontWeight: "800", fontSize: 12 },
 
-  footerText: { position: "absolute", bottom: 35, alignSelf: "center", fontSize: 10, color: colors.textGray },
+  footerText: {
+    position: "absolute",
+    bottom: 20,
+    alignSelf: "center",
+    fontSize: 10,
+    color: colors.textGray,
+  },
 });

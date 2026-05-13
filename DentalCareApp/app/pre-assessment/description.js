@@ -45,7 +45,7 @@ export default function Description() {
       }
       
       // Proceed to the photo screen
-      router.push("/pre-assessment/photo");
+      router.push("/pre-assessment/confirmation");
     } catch (err) {
       console.error("Network error saving description:", err);
       router.push("/pre-assessment/photo");
@@ -130,7 +130,12 @@ export default function Description() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", paddingTop: 46, paddingHorizontal: 18 },
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingTop: 16,
+    paddingHorizontal: 18,
+  },
   backIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
 
   headerRow: {
@@ -155,11 +160,19 @@ const styles = StyleSheet.create({
   progressRow: { marginTop: 18, marginBottom: 10, height: 3, backgroundColor: "#EAD7E0", borderRadius: 3, overflow: "hidden" },
   progressLine: { height: 3, backgroundColor: colors.primary },
 
-  question: { marginTop: 22, marginBottom: 10, fontSize: 40, fontWeight: "900", color: colors.primary, width: "90%" },
+  question: {
+    marginTop: 28,
+    marginBottom: 20,
+    fontSize: 30,
+    fontWeight: "900",
+    color: colors.primary,
+    width: "95%",
+    lineHeight: 38,
+  },
 
   box: {
-    marginTop: 16,
-    height: 260,
+    marginTop: 14,
+    height: 210,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.primary,
@@ -172,10 +185,10 @@ const styles = StyleSheet.create({
 
   warn: { marginTop: 10, marginLeft: 15, fontSize: 10, color: colors.primary },
 
-  hintContainer: { 
-    marginTop: 12, 
-    marginHorizontal: 10, 
-    paddingHorizontal: 12, 
+  hintContainer: {
+    marginTop: 10,
+    marginHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     backgroundColor: "#f5f5f5",
     borderRadius: 8,
@@ -194,11 +207,24 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  bottomRow: { position: "absolute", left: 18, right: 18, bottom: 65, flexDirection: "row", gap: 12 },
+  bottomRow: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    bottom: 45,
+    flexDirection: "row",
+    gap: 12,
+  },
   btnOutline: { flex: 1, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.primary, alignItems: "center", justifyContent: "center" },
   btnOutlineText: { color: colors.primary, fontWeight: "800", fontSize: 12 },
   btnFilled: { flex: 1, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
   btnFilledText: { color: "#fff", fontWeight: "800", fontSize: 12 },
 
-  footerText: { position: "absolute", bottom: 35, alignSelf: "center", fontSize: 10, color: colors.textGray },
+  footerText: {
+    position: "absolute",
+    bottom: 20,
+    alignSelf: "center",
+    fontSize: 10,
+    color: colors.textGray,
+  },
 });

@@ -54,7 +54,7 @@ export default function Model() {
 
       <Text style={styles.toothText}>Tooth: {state.tooth}</Text>
 
-      <Pressable style={styles.nextBtn} onPress={() => router.push("/pre-assessment/questions")}>
+      <Pressable style={styles.nextBtn} onPress={() => router.push("/pre-assessment/photo")}>
         <Text style={styles.nextText}>Next</Text>
       </Pressable>
     </View>
@@ -69,14 +69,11 @@ const styles = StyleSheet.create({
   h2: { marginTop: 10, textAlign: "center", fontSize: 11, color: colors.textGray, lineHeight: 16 },
 
   modelBox: {
-    height: 300,
-    width: "90%",
-    borderRadius: 40,
-    overflow: "hidden", // Ensures the webview respects the border radius
-    alignContent: "center",
-    marginTop: 60,
-    marginBottom: 10,
-    marginHorizontal: 20,
+    height: 330,
+    width: "100%",
+    borderRadius: 24,
+    overflow: "hidden",
+    marginTop: 35,
     backgroundColor: "transparent",
   },
   webview: {
@@ -84,15 +81,22 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
 
-  toothText: { position: "absolute", left: 50, bottom: 65, fontSize: 12, color: colors.textGray },
+  toothText: {
+    position: "absolute",
+    left: 32,
+    bottom: 82,
+    fontSize: 12,
+    color: colors.textGray,
+    fontWeight: "700",
+  },
 
   nextBtn: {
     position: "absolute",
     right: 24,
-    bottom: 50,
-    width: 110,
-    height: 40,
-    borderRadius: 20,
+    bottom: 65,
+    width: 120,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",

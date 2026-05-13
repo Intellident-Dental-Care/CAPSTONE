@@ -170,7 +170,7 @@ export default function Tooth3D() {
         )}
       </View>
 
-      <View style={{ height: 24 }} />
+      <View style={{ height: 8 }} />
     </ScrollView>
   );
 }
@@ -178,116 +178,158 @@ export default function Tooth3D() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: "#fff",
-    paddingTop: 18,
+    backgroundColor: "#FAFAFA",
+    paddingTop: 8,
     paddingHorizontal: 18,
-    paddingBottom: 24,
+    paddingBottom: 90,
   },
+
   header: {
+    height: 48,
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 13,
   },
+
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 999,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#FFF1F6",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
+
   title: {
-    marginTop: 6,
-    fontSize: 22,
+    marginTop: 4,
+    fontSize: 24,
     fontWeight: "900",
     color: colors.primary,
     textAlign: "center",
   },
+
   subTitle: {
     marginTop: 8,
     fontSize: 12,
-    color: "#9aa0a6",
+    color: "#8A8A93",
     textAlign: "center",
     lineHeight: 18,
-    paddingHorizontal: 10,
+    paddingHorizontal: 18,
+    fontWeight: "600",
   },
+
   webviewContainer: {
     width: "100%",
-    height: 320, 
-    marginTop: 18,
-    borderRadius: 12,
+    height: 390,
+    marginTop: 10,
+    borderRadius: 22,
     overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#F5F5F5",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    elevation: 2,
   },
+
   webview: {
     flex: 1,
     backgroundColor: "transparent",
   },
+
   section: {
-    marginTop: 20,
-    fontSize: 12,
+    marginTop: 22,
+    fontSize: 14,
     fontWeight: "900",
-    color: colors.textGray ?? "#666",
-    textTransform: "uppercase",
+    color: "#333",
   },
+
   summaryBox: {
     marginTop: 10,
-    borderRadius: 14,
-    backgroundColor: "#F6F6F6",
-    padding: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#F5F5F5",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    elevation: 2,
   },
+
   timeRow: {
     flexDirection: "row",
     gap: 10,
     paddingVertical: 10,
   },
+
   timeRail: {
     width: 16,
     alignItems: "center",
   },
+
   timeDot: {
-    width: 8,
-    height: 8,
+    width: 9,
+    height: 9,
     borderRadius: 99,
     backgroundColor: colors.primary,
     marginTop: 4,
   },
+
   timeLine: {
     width: 2,
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.10)",
+    backgroundColor: "#F8D4E0",
     marginTop: 6,
     borderRadius: 99,
   },
+
   timeContent: {
     flex: 1,
   },
+
   timeDate: {
     fontSize: 11,
-    color: "#777",
+    color: "#555",
     fontWeight: "900",
     lineHeight: 16,
   },
+
   timeTitle: {
     color: colors.primary,
     fontWeight: "900",
   },
+
   timeDetails: {
     marginTop: 4,
     fontSize: 11,
-    color: "#999",
+    color: "#777",
     lineHeight: 16,
+    fontWeight: "600",
   },
+
   timeDoctor: {
     marginTop: 4,
     fontSize: 10,
-    color: "#888",
+    color: "#999",
     fontWeight: "700",
   },
+
   emptyText: {
     textAlign: "center",
-    color: "#999",
-    paddingVertical: 20,
+    color: "#8A8A93",
+    paddingVertical: 28,
     fontSize: 12,
-  }
+    fontWeight: "700",
+  },
 });
