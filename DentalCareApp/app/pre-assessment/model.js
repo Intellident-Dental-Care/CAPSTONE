@@ -62,11 +62,29 @@ export default function Model() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", paddingTop: 46, paddingHorizontal: 18 },
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingTop: 18,
+    paddingHorizontal: 18,
+  },
   backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
 
-  h1: { marginTop: 12, textAlign: "center", fontSize: 20, fontWeight: "900", color: colors.primary },
-  h2: { marginTop: 10, textAlign: "center", fontSize: 11, color: colors.textGray, lineHeight: 16 },
+  h1: {
+    marginTop: 8,
+    textAlign: "center",
+    fontSize: 28,
+    fontWeight: "900",
+    color: colors.primary,
+  },
+  h2: {
+    marginTop: 10,
+    textAlign: "center",
+    fontSize: 13,
+    color: colors.textGray,
+    lineHeight: 22,
+    paddingHorizontal: 20,
+  },
 
   modelBox: {
     height: 330,
@@ -83,9 +101,9 @@ const styles = StyleSheet.create({
 
   toothText: {
     position: "absolute",
-    left: 32,
-    bottom: 82,
-    fontSize: 12,
+    left: 28,
+    bottom: 78,
+    fontSize: 13,
     color: colors.textGray,
     fontWeight: "700",
   },
@@ -93,10 +111,10 @@ const styles = StyleSheet.create({
   nextBtn: {
     position: "absolute",
     right: 24,
-    bottom: 65,
+    bottom: 48,
     width: 120,
-    height: 44,
-    borderRadius: 22,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",

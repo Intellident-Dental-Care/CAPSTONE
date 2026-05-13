@@ -1,5 +1,12 @@
-import React, { useMemo, useState, useEffect } from "react";
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
@@ -19,13 +26,13 @@ function isUuid(value) {
 export default function Questions() {
   const router = useRouter();
   const { state, dispatch } = usePreAssessment();
+
   const [idx, setIdx] = useState(0);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // Fetch questions from Supabase
   useEffect(() => {
     fetchQuestions();
   }, []);
@@ -34,27 +41,23 @@ export default function Questions() {
     try {
       setLoading(true);
       setError(null);
+
       const { data, error } = await supabase
-        .from('questionnaire')
-        .select('*')
-        .eq('is_active', true)
-        .order('question_order');
+        .from("questionnaire")
+        .select("*")
+        .eq("is_active", true)
+        .order("question_order");
 
       if (error) throw error;
 
-      // Transform data to match existing format
-      const transformedQuestions = data.map(item => ({
+      const transformedQuestions = (data || []).map((item) => ({
         q: item.question_text,
-        options: item.options
+        options: item.options || [],
       }));
 
       setQuestions(transformedQuestions);
-      
-      // Initialize answers array with empty strings for each question
-      const initialAnswers = new Array(transformedQuestions.length).fill("");
-      dispatch({ type: "INIT_ANSWERS", payload: initialAnswers });
     } catch (err) {
-      console.error('Error fetching questions:', err);
+      console.error("Error fetching questions:", err);
       setError(err.message);
       setQuestions([]);
     } finally {
@@ -62,7 +65,6 @@ export default function Questions() {
     }
   };
 
-  // Show loading state
   if (loading) {
     return (
       <View style={[styles.container, styles.centeredContainer]}>
@@ -72,14 +74,14 @@ export default function Questions() {
     );
   }
 
-  // Show error state or continue with empty questions array
   if (questions.length === 0) {
     return (
       <View style={[styles.container, styles.centeredContainer]}>
         <Text style={styles.errorText}>
           {error ? `Error: ${error}` : "No questions available"}
         </Text>
-        <Pressable style={styles.btnFilled} onPress={fetchQuestions}>
+
+        <Pressable style={styles.btnFilledSingle} onPress={fetchQuestions}>
           <Text style={styles.btnFilledText}>Retry</Text>
         </Pressable>
       </View>
@@ -87,27 +89,24 @@ export default function Questions() {
   }
 
   const current = questions[idx];
-  const selected = state.answers[idx] || "";
-
+  const selected = state.answers?.[idx] || "";
   const canNext = selected.length > 0;
 
   const next = async () => {
     if (!canNext || saving) return;
-    
+
     if (idx === questions.length - 1) {
-      // Prevent duplicate saves
-      if (saving) return;
       setSaving(true);
-      
+
       try {
-        // SECURITY: Validate all answers before submission
-        const answersArray = Object.values(state.answers).map((answer, qIndex) => ({
+        const answersArray = questions.map((_, qIndex) => ({
           questionId: qIndex + 1,
-          answer: answer,
-          answerType: 'option'
+          answer: state.answers?.[qIndex] || "",
+          answerType: "option",
         }));
 
         const validation = validatePreAssessmentSubmission(answersArray);
+
         if (!validation.isValid) {
           Alert.alert("Validation Error", validation.errors[0]);
           setSaving(false);
@@ -116,56 +115,66 @@ export default function Questions() {
 
         const user = await getCurrentUser();
         const activeProfile = await getCurrentActiveProfileForSession();
+
         if (!user) {
           Alert.alert("Error", "No logged-in user found. Please sign in again.");
+          setSaving(false);
           return;
         }
 
         const profileId = isUuid(activeProfile?.id) ? activeProfile.id : null;
 
         const { data, error } = await supabase
-          .from('patient_preassessment')
-          .insert([{
-            user_id: user.id,
-            profile_id: profileId,
-            answers: validation.sanitized,
-            description: null,
-            tooth_selected: state.tooth === "3rd Molar" ? null : state.tooth
-          }])
+          .from("patient_preassessment")
+          .insert([
+            {
+              user_id: user.id,
+              profile_id: profileId,
+              answers: validation.sanitized,
+              description: null,
+              tooth_selected:
+                state.tooth === "Not specified" ? null : state.tooth,
+            },
+          ])
           .select()
           .single();
 
         if (error) {
-          console.error('Error saving preassessment:', error);
-          Alert.alert("Error", error.message || "Failed to save pre-assessment. Please try again.");
+          console.error("Error saving preassessment:", error);
+          Alert.alert(
+            "Error",
+            error.message || "Failed to save pre-assessment. Please try again."
+          );
+          setSaving(false);
           return;
         }
 
         dispatch({ type: "SET_PREASSESSMENT_ID", payload: data.id });
+        router.push("/pre-assessment/description");
       } catch (err) {
-        console.error('Error saving preassessment:', err);
+        console.error("Error saving preassessment:", err);
         Alert.alert("Error", "Failed to save pre-assessment. Please try again.");
-        return;
       } finally {
         setSaving(false);
       }
-      
-      router.push("/pre-assessment/description");
     } else {
-      setIdx((p) => p + 1);
+      setIdx((prev) => prev + 1);
     }
   };
 
   const back = () => {
-    if (idx === 0) router.back();
-    else setIdx((p) => p - 1);
+    if (idx === 0) {
+      router.back();
+    } else {
+      setIdx((prev) => prev - 1);
+    }
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Pressable style={styles.backIcon} onPress={back}>
-            <Ionicons name="chevron-back" size={20} color={colors.primary} />
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
         </Pressable>
 
         <Text style={styles.topTitle}>Pre Assessment Questions</Text>
@@ -173,42 +182,62 @@ export default function Questions() {
         <View style={styles.headerSpacer} />
       </View>
 
-
       <View style={styles.progressRow}>
-        <View style={[styles.progressLine, { width: `${((idx + 1) / questions.length) * 100}%` }]} />
+        <View
+          style={[
+            styles.progressLine,
+            { width: `${((idx + 1) / questions.length) * 100}%` },
+          ]}
+        />
       </View>
 
       <Text style={styles.question}>{current.q}</Text>
 
-      <View style={{ height: 14 }} />
+      <View style={styles.optionsWrap}>
+        {current.options.map((opt) => {
+          const active = opt === selected;
 
-      {current.options.map((opt) => {
-        const active = opt === selected;
-        return (
-          <Pressable
-            key={opt}
-            style={[styles.optionRow, active && styles.optionActive]}
-            onPress={() => dispatch({ type: "SET_ANSWER", payload: { qIndex: idx, answer: opt } })}
-          >
-            <View style={[styles.check, active && styles.checkActive]}>
-              {active ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
-            </View>
-            <Text style={styles.optionText}>{opt}</Text>
-          </Pressable>
-        );
-      })}
+          return (
+            <Pressable
+              key={opt}
+              style={[styles.optionRow, active && styles.optionActive]}
+              onPress={() =>
+                dispatch({
+                  type: "SET_ANSWER",
+                  payload: {
+                    qIndex: idx,
+                    answer: opt,
+                  },
+                })
+              }
+            >
+              <View style={[styles.check, active && styles.checkActive]}>
+                {active ? (
+                  <Ionicons name="checkmark" size={15} color="#fff" />
+                ) : null}
+              </View>
 
-      {!canNext && <Text style={styles.warn}>Please select an answer to continue.</Text>}
+              <Text style={[styles.optionText, active && styles.optionTextActive]}>
+                {opt}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {!canNext && (
+        <Text style={styles.warn}>Please select an answer to continue.</Text>
+      )}
 
       <View style={styles.bottomRow}>
         <Pressable style={styles.btnOutline} onPress={back}>
           <Text style={styles.btnOutlineText}>Back</Text>
         </Pressable>
 
-        <Pressable 
-          style={[styles.btnFilled, (!canNext || saving) && { opacity: 0.5 }]} 
+        <Pressable
+          style={[styles.btnFilled, (!canNext || saving) && styles.disabledBtn]}
           onPress={next}
-          disabled={saving}
+          disabled={!canNext || saving}
         >
           <Text style={styles.btnFilledText}>
             {saving ? "Saving..." : "Next"}
@@ -226,22 +255,22 @@ export default function Questions() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     paddingTop: 16,
     paddingHorizontal: 18,
   },
-  
+
   headerRow: {
+    height: 46,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 6,
   },
 
   backIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -249,44 +278,89 @@ const styles = StyleSheet.create({
   topTitle: {
     fontSize: 12,
     color: colors.textGray,
-    fontWeight: "600",
+    fontWeight: "800",
     textAlign: "center",
   },
 
   headerSpacer: {
-    width: 36, 
+    width: 38,
   },
 
-  progressRow: { marginTop: 18, marginBottom: 10, height: 3, backgroundColor: "#EAD7E0", borderRadius: 3, overflow: "hidden" },
-  progressLine: { height: 3, backgroundColor: colors.primary },
+  progressRow: {
+    marginTop: 18,
+    height: 5,
+    backgroundColor: "#EED6E1",
+    borderRadius: 99,
+    overflow: "hidden",
+  },
+
+  progressLine: {
+    height: 5,
+    backgroundColor: colors.primary,
+    borderRadius: 99,
+  },
 
   question: {
-    marginTop: 28,
-    marginBottom: 20,
-    fontSize: 30,
+    marginTop: 48,
+    marginBottom: 42,
+    fontSize: 34,
     fontWeight: "900",
     color: colors.primary,
+    lineHeight: 42,
     width: "95%",
-    lineHeight: 38,
+  },
+
+  optionsWrap: {
+    paddingHorizontal: 12,
   },
 
   optionRow: {
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: "#eee",
+    minHeight: 58,
+    borderRadius: 16,
+    backgroundColor: "#EEEEEE",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 15,
-    marginHorizontal: 10,
-    gap: 10,
+    paddingHorizontal: 18,
+    marginBottom: 16,
+    gap: 14,
   },
-  optionActive: { backgroundColor: "#EDEDED" },
-  check: { width: 18, height: 18, borderRadius: 5, backgroundColor: colors.primary, opacity: 0.25, alignItems: "center", justifyContent: "center" },
-  checkActive: { opacity: 1 },
-  optionText: { fontSize: 12, color: "#666", fontWeight: "700" },
 
-  warn: { marginLeft: 15, fontSize: 10, color: colors.primary },
+  optionActive: {
+    backgroundColor: "#FFF1F6",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
+  },
+
+  check: {
+    width: 21,
+    height: 21,
+    borderRadius: 7,
+    backgroundColor: "#F5C1D2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  checkActive: {
+    backgroundColor: colors.primary,
+  },
+
+  optionText: {
+    fontSize: 13,
+    color: "#555",
+    fontWeight: "800",
+  },
+
+  optionTextActive: {
+    color: colors.primary,
+  },
+
+  warn: {
+    marginTop: 2,
+    marginLeft: 30,
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: "600",
+  },
 
   bottomRow: {
     position: "absolute",
@@ -296,20 +370,76 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
   },
-  btnOutline: { flex: 1, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.primary, alignItems: "center", justifyContent: "center" },
-  btnOutlineText: { color: colors.primary, fontWeight: "800", fontSize: 12 },
-  btnFilled: { flex: 1, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
-  btnFilledText: { color: "#fff", fontWeight: "800", fontSize: 12 },
+
+  btnOutline: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+  },
+
+  btnOutlineText: {
+    color: colors.primary,
+    fontWeight: "900",
+    fontSize: 13,
+  },
+
+  btnFilled: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  btnFilledSingle: {
+    width: 160,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  disabledBtn: {
+    opacity: 0.45,
+  },
+
+  btnFilledText: {
+    color: "#FFFFFF",
+    fontWeight: "900",
+    fontSize: 13,
+  },
 
   footerText: {
     position: "absolute",
     bottom: 20,
     alignSelf: "center",
-    fontSize: 10,
+    fontSize: 11,
+    color: colors.textGray,
+    fontWeight: "600",
+  },
+
+  centeredContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
     color: colors.textGray,
   },
 
-  centeredContainer: { alignItems: 'center', justifyContent: 'center' },
-  loadingText: { marginTop: 10, fontSize: 14, color: colors.textGray },
-  errorText: { fontSize: 16, color: colors.primary, marginBottom: 20 },
+  errorText: {
+    fontSize: 16,
+    color: colors.primary,
+    marginBottom: 20,
+    textAlign: "center",
+  },
 });

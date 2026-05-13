@@ -32,8 +32,20 @@ export default function PreAssessLanding() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", paddingTop: 46, paddingHorizontal: 18 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingTop: 18,
+    paddingHorizontal: 18,
+  },
+  backBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 6,
+  },
 
   cardImage: { marginTop: 10, marginHorizontal: 13 },
   assessmentImage: {
@@ -50,13 +62,14 @@ const styles = StyleSheet.create({
   proceedBtn: {
     position: "absolute",
     right: 24,
-    bottom: 55,
-    width: 110,
-    height: 40,
-    borderRadius: 20,
+    bottom: 35,
+    width: 120,
+    height: 46,
+    borderRadius: 24,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
+    elevation: 4,
   },
   proceedText: { color: "#fff", fontWeight: "800", fontSize: 12 },
 });
