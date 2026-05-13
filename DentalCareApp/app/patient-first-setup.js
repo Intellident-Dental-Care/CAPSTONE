@@ -2,14 +2,16 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
+ StyleSheet,
   Pressable,
   TextInput,
   ScrollView,
   Alert,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { colors } from "./theme/colors";
 import {
   getSession,
@@ -37,6 +39,21 @@ function calculateAge(dobValue) {
   }
 
   return age >= 0 ? String(age) : "";
+}
+
+function formatDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeMobile(value) {
+  return String(value || "")
+    .replace(/[^0-9]/g, "")
+    .replace(/^63/, "")
+    .slice(0, 10);
 }
 
 function YesNoRow({ value, onChange }) {
@@ -78,6 +95,8 @@ export default function PatientFirstSetup() {
   const [dob, setDob] = useState("");
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const age = useMemo(() => calculateAge(dob), [dob]);
 
@@ -171,7 +190,7 @@ export default function PatientFirstSetup() {
       if (existingPatientProfile) {
         setFullName(existingPatientProfile.fullName || activeProfile?.name || "");
         setDob(existingPatientProfile.dob || "");
-        setMobile(existingPatientProfile.mobile || "");
+        setMobile(normalizeMobile(existingPatientProfile.mobile || ""));
         setEmail(existingPatientProfile.email || session?.email || "");
 
         const medical = existingPatientProfile.medicalHistory || {};
@@ -348,13 +367,46 @@ export default function PatientFirstSetup() {
         />
 
         <Text style={styles.label}>Date of Birth</Text>
-        <TextInput
-          value={dob}
-          onChangeText={setDob}
-          style={styles.input}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.textGray}
-        />
+
+            <Pressable
+              style={styles.dateInput}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text
+                style={[
+                  styles.dateText,
+                  !dob && { color: colors.textGray },
+                ]}
+              >
+                {dob || "Select date of birth"}
+              </Text>
+
+              <Ionicons
+                name="calendar-outline"
+                size={18}
+                color={colors.primary}
+              />
+            </Pressable>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={dob ? new Date(`${dob}T00:00:00`) : new Date(2000, 0, 1)}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "calendar"}
+                maximumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  if (Platform.OS !== "ios") {
+                    setShowDatePicker(false);
+                  }
+
+                  if (event?.type === "dismissed") return;
+
+                  if (selectedDate) {
+                    setDob(formatDate(selectedDate));
+                  }
+                }}
+              />
+            )}
 
         <Text style={styles.label}>Age</Text>
         <TextInput
@@ -368,14 +420,22 @@ export default function PatientFirstSetup() {
         <Text style={styles.sectionTitle}>Contact Detail</Text>
 
         <Text style={styles.label}>Mobile Number</Text>
-        <TextInput
-          value={mobile}
-          onChangeText={setMobile}
-          style={styles.input}
-          placeholder="+63 9xx xxx xxxx"
-          placeholderTextColor={colors.textGray}
-          keyboardType="phone-pad"
-        />
+
+          <View style={styles.mobileWrap}>
+            <View style={styles.countryCode}>
+              <Text style={styles.countryCodeText}>+63</Text>
+            </View>
+
+            <TextInput
+              value={mobile}
+              onChangeText={(text) => setMobile(normalizeMobile(text))}
+              style={styles.mobileInput}
+              placeholder="9XX XXX XXXX"
+              placeholderTextColor={colors.textGray}
+              keyboardType="phone-pad"
+              maxLength={10}
+            />
+          </View>
 
         <Text style={styles.label}>Email Address</Text>
         <TextInput
@@ -555,13 +615,14 @@ export default function PatientFirstSetup() {
           placeholder="Others"
           placeholderTextColor={colors.textGray}
         />
+      </ScrollView>
 
+      <View style={styles.bottomBar}>
         <Pressable style={styles.saveBtn} onPress={onSave}>
           <Text style={styles.saveText}>Save and Continue</Text>
         </Pressable>
+      </View>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
     </View>
   );
 }
@@ -575,7 +636,7 @@ const styles = StyleSheet.create({
 
   scroll: {
     paddingHorizontal: 24,
-    paddingBottom: 30,
+    paddingBottom: 130,
   },
 
   header: {
@@ -637,6 +698,74 @@ const styles = StyleSheet.create({
     color: colors.textDark,
     backgroundColor: "#fff",
   },
+
+  dateInput: {
+  marginTop: 6,
+  height: 50,
+  borderRadius: 14,
+  borderWidth: 1,
+  borderColor: "#F3D7E1",
+  paddingHorizontal: 14,
+  backgroundColor: "#fff",
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+},
+
+dateText: {
+  fontSize: 13,
+  color: colors.textDark,
+  fontWeight: "600",
+},
+
+mobileWrap: {
+  marginTop: 6,
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 10,
+},
+
+countryCode: {
+  width: 74,
+  height: 50,
+  borderRadius: 14,
+  backgroundColor: "#FFF1F6",
+  borderWidth: 1,
+  borderColor: "#F3D7E1",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+countryCodeText: {
+  fontSize: 14,
+  fontWeight: "800",
+  color: colors.primary,
+},
+
+mobileInput: {
+  flex: 1,
+  height: 50,
+  borderRadius: 14,
+  borderWidth: 1,
+  borderColor: "#F3D7E1",
+  paddingHorizontal: 14,
+  fontSize: 13,
+  color: colors.textDark,
+  backgroundColor: "#fff",
+},
+
+bottomBar: {
+  position: "absolute",
+  bottom: 0,
+  left: 0,
+  right: 0,
+  paddingHorizontal: 24,
+  paddingTop: 12,
+  paddingBottom: 24,
+  backgroundColor: "#fff",
+  borderTopWidth: 1,
+  borderTopColor: "#F3F3F3",
+},
 
   disabledInput: {
     backgroundColor: "#f7f7f7",
@@ -714,8 +843,7 @@ const styles = StyleSheet.create({
   },
 
   saveBtn: {
-    marginTop: 30,
-    height: 48,
+    height: 54,
     borderRadius: 24,
     backgroundColor: colors.primary,
     alignItems: "center",

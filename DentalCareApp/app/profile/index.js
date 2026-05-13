@@ -219,7 +219,7 @@ export default function Profile() {
           >
             <Ionicons
               name="notifications-outline"
-              size={16}
+              size={18}
               color={colors.primary}
             />
           </Pressable>
@@ -237,7 +237,7 @@ export default function Profile() {
 
       <View style={styles.userRow}>
         <View style={styles.avatarBig}>
-          <Ionicons name="person" size={22} color={colors.primary} />
+          <Ionicons name="person" size={18} color={colors.primary} />
         </View>
 
         <View style={{ flex: 1 }}>
@@ -287,22 +287,26 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingTop: 46,
+    paddingTop: 8,
     paddingHorizontal: 18,
   },
 
   topBar: {
+    height: 48,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
 
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#FFF1F6",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   topRight: {
@@ -312,70 +316,79 @@ const styles = StyleSheet.create({
   },
 
   notifPill: {
-    width: 44,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#EEE",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   avatarSmall: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#FFE9F1",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   title: {
-    marginTop: 10,
-    fontSize: 26,
+    marginTop: 12,
+    fontSize: 28,
     fontWeight: "900",
     color: colors.primary,
   },
 
   userRow: {
-    marginTop: 16,
+    marginTop: 18,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
 
   avatarBig: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#EEE",
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   userName: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "900",
     color: colors.primary,
   },
 
   userEmail: {
-    marginTop: 2,
-    fontSize: 10,
+    marginTop: 3,
+    fontSize: 11,
     color: colors.textGray,
+    fontWeight: "600",
   },
 
   menu: {
-    marginTop: 26,
+    marginTop: 28,
   },
 
   row: {
-    height: 54,
-    borderRadius: 14,
+    height: 56,
+    borderRadius: 16,
     paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F3F3",
   },
 
   rowLeft: {
@@ -385,7 +398,8 @@ const styles = StyleSheet.create({
   },
 
   rowText: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textGray,
+    fontWeight: "700",
   },
 });

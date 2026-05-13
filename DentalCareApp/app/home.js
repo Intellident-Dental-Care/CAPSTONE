@@ -839,56 +839,47 @@ export default function Home() {
           transparent
           onRequestClose={closeDetailModal}
         >
-          <View style={styles.overlay}>
-            <View style={styles.detailModal}>
+          <View style={styles.detailsOverlay}>
+            <View style={styles.detailsSheet}>
               <View style={styles.modalHandle} />
 
               <View style={styles.modalHeaderRow}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.modalDetailTitle}>Appointment Details</Text>
                   <Text style={styles.modalSubTitle}>
                     Appointment information and AI assessment
                   </Text>
                 </View>
 
-                <Pressable
-                  style={styles.closeCircle}
-                  onPress={closeDetailModal}
-                >
+                <Pressable style={styles.closeCircle} onPress={closeDetailModal}>
                   <Ionicons name="close" size={20} color={colors.primary} />
                 </Pressable>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.detailsScroll}
+              >
                 <View style={styles.detailCardBox}>
                   <View style={styles.detailTopRow}>
-                    <Text style={styles.detailProcedure}>
-                      {selectedDetail?.title}
-                    </Text>
+                    <Text style={styles.detailProcedure}>{selectedDetail?.title}</Text>
 
                     {!!selectedDetail?.status && (
                       <View
                         style={[
                           styles.statusBadge,
-                          {
-                            backgroundColor: getStatusBg(
-                              selectedDetail.status
-                            ),
-                          },
+                          { backgroundColor: getStatusBg(selectedDetail.status) },
                         ]}
                       >
                         <Ionicons
                           name={getStatusIcon(selectedDetail.status)}
                           size={13}
                           color={getStatusColor(selectedDetail.status)}
-                          style={{ marginRight: 4 }}
                         />
                         <Text
                           style={[
                             styles.statusBadgeText,
-                            {
-                              color: getStatusColor(selectedDetail.status),
-                            },
+                            { color: getStatusColor(selectedDetail.status) },
                           ]}
                         >
                           {selectedDetail.status}
@@ -927,11 +918,7 @@ export default function Home() {
                 <View style={styles.aiCard}>
                   <View style={styles.aiTitleRow}>
                     <View style={styles.aiIconWrap}>
-                      <Ionicons
-                        name="sparkles-outline"
-                        size={18}
-                        color="#fff"
-                      />
+                      <Ionicons name="sparkles-outline" size={18} color="#fff" />
                     </View>
 
                     <View>
@@ -952,9 +939,7 @@ export default function Home() {
                     </View>
 
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.toothPlaceholderLabel}>
-                        Affected Tooth
-                      </Text>
+                      <Text style={styles.toothPlaceholderLabel}>Affected Tooth</Text>
                       <Text style={styles.toothPlaceholderValue}>
                         {selectedDetail?.tooth || "Not specified"}
                       </Text>
@@ -964,46 +949,48 @@ export default function Home() {
                     </View>
                   </View>
 
-                  <View style={styles.assessmentBox}>
-                    <Text style={styles.assessmentLabel}>
-                      Patient Description
+                  <View style={styles.suggestedCard}>
+                    <Text style={styles.suggestedLabel}>Suggested Treatment</Text>
+                    <Text style={styles.suggestedValue}>
+                      {selectedDetail?.suggestedTreatment || "-"}
                     </Text>
+                    <Text style={styles.suggestedPrice}>
+                      {selectedDetail?.suggestedPrice || "-"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.assessmentBox}>
+                    <Text style={styles.assessmentLabel}>Patient Description</Text>
                     <Text style={styles.assessmentText}>
-                      {selectedDetail?.description ||
-                        "No description provided."}
+                      {selectedDetail?.description || "No description provided."}
                     </Text>
                   </View>
 
                   <Text style={styles.aiSectionTitle}>Questionnaire</Text>
-                  <View style={styles.qaBox}>
-                    {selectedDetail?.qaList?.map((q, i) => (
-                      <View
-                        key={i}
-                        style={[
-                          styles.qaItem,
-                          i === selectedDetail.qaList.length - 1 && {
-                            borderBottomWidth: 0,
-                            marginBottom: 0,
-                            paddingBottom: 0,
-                          },
-                        ]}
-                      >
-                        <Text style={styles.qText}>Q: {q.question}</Text>
-                        <Text style={styles.aText}>A: {q.answer}</Text>
-                      </View>
-                    ))}
-                  </View>
 
-                  <View style={styles.suggestedCard}>
-                    <Text style={styles.suggestedLabel}>
-                      Suggested Treatment
-                    </Text>
-                    <Text style={styles.suggestedValue}>
-                      {selectedDetail?.suggestedTreatment}
-                    </Text>
-                    <Text style={styles.suggestedPrice}>
-                      {selectedDetail?.suggestedPrice}
-                    </Text>
+                  <View style={styles.qaBox}>
+                    {selectedDetail?.qaList?.length > 0 ? (
+                      selectedDetail.qaList.map((q, i) => (
+                        <View
+                          key={i}
+                          style={[
+                            styles.qaItem,
+                            i === selectedDetail.qaList.length - 1 && {
+                              borderBottomWidth: 0,
+                              marginBottom: 0,
+                              paddingBottom: 0,
+                            },
+                          ]}
+                        >
+                          <Text style={styles.qText}>Q: {q.question}</Text>
+                          <Text style={styles.aText}>A: {q.answer}</Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.emptyDetailText}>
+                        No questionnaire data.
+                      </Text>
+                    )}
                   </View>
                 </View>
 
@@ -1639,6 +1626,304 @@ recentClinic: {
 
   primaryChipText: {
     color: "#FFFFFF",
+  },
+
+  detailsOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "flex-end",
+  },
+
+  detailsSheet: {
+    maxHeight: "88%",
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 20,
+  },
+
+  detailsScroll: {
+    paddingBottom: 24,
+  },
+
+  modalHandle: {
+    alignSelf: "center",
+    width: 52,
+    height: 5,
+    borderRadius: 99,
+    backgroundColor: "#E5E5E5",
+    marginBottom: 14,
+  },
+
+  modalHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+
+  modalDetailTitle: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: colors.textDark || "#222",
+  },
+
+  modalSubTitle: {
+    marginTop: 3,
+    fontSize: 12,
+    color: colors.textGray || "#888",
+    fontWeight: "600",
+  },
+
+  closeCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#FFF1F6",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
+  },
+
+  detailCardBox: {
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#EFEFEF",
+    marginBottom: 14,
+  },
+
+  detailTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+
+  detailProcedure: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.primary,
+  },
+
+  detailTreatment: {
+    marginTop: 6,
+    fontSize: 13,
+    color: "#666",
+    fontWeight: "700",
+  },
+
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  detailInfoGrid: {
+    marginTop: 14,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+
+  detailInfoItem: {
+    width: "48%",
+    backgroundColor: "#F7F7F7",
+    borderRadius: 16,
+    padding: 12,
+  },
+
+  label: {
+    fontSize: 11,
+    color: "#888",
+    fontWeight: "700",
+    marginBottom: 5,
+  },
+
+  value: {
+    fontSize: 13,
+    color: "#222",
+    fontWeight: "900",
+  },
+
+  aiCard: {
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#EFEFEF",
+  },
+
+  aiTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 14,
+  },
+
+  aiIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  aiTitle: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: "#222",
+  },
+
+  aiSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    color: "#888",
+    fontWeight: "600",
+  },
+
+  toothPlaceholderCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: "#F8F8F8",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+  },
+
+  toothCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#EFEFEF",
+  },
+
+  toothPlaceholderLabel: {
+    fontSize: 12,
+    color: "#888",
+    fontWeight: "800",
+  },
+
+  toothPlaceholderValue: {
+    marginTop: 3,
+    fontSize: 15,
+    color: "#222",
+    fontWeight: "900",
+  },
+
+  toothPlaceholderHint: {
+    marginTop: 3,
+    fontSize: 11,
+    color: "#999",
+  },
+
+  suggestedCard: {
+    backgroundColor: "#F8F8F8",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+  },
+
+  suggestedLabel: {
+    fontSize: 12,
+    color: "#777",
+    fontWeight: "800",
+  },
+
+  suggestedValue: {
+    marginTop: 5,
+    fontSize: 16,
+    color: "#222",
+    fontWeight: "900",
+  },
+
+  suggestedPrice: {
+    marginTop: 5,
+    fontSize: 15,
+    color: "#2E8B57",
+    fontWeight: "900",
+  },
+
+  assessmentBox: {
+    backgroundColor: "#F8F8F8",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+  },
+
+  assessmentLabel: {
+    fontSize: 13,
+    color: "#222",
+    fontWeight: "900",
+    marginBottom: 6,
+  },
+
+  assessmentText: {
+    fontSize: 13,
+    color: "#666",
+    lineHeight: 19,
+    fontWeight: "600",
+  },
+
+  aiSectionTitle: {
+    fontSize: 14,
+    color: "#222",
+    fontWeight: "900",
+    marginBottom: 10,
+  },
+
+  qaBox: {
+    backgroundColor: "#F8F8F8",
+    borderRadius: 18,
+    padding: 14,
+  },
+
+  qaItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#E6E6E6",
+    paddingBottom: 10,
+    marginBottom: 10,
+  },
+
+  qText: {
+    fontSize: 12,
+    color: "#222",
+    fontWeight: "900",
+    lineHeight: 18,
+  },
+
+  aText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "700",
+  },
+
+  emptyDetailText: {
+    fontSize: 12,
+    color: "#888",
+    fontWeight: "700",
+    textAlign: "center",
+    paddingVertical: 12,
   },
 
   bottomBar: {

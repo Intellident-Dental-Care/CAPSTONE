@@ -1,3 +1,5 @@
+// app/bookiong/appoitnment.js
+
 import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
@@ -679,7 +681,7 @@ export default function BookingAppointment() {
       <View style={styles.tabLine} />
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 140 }}
+        contentContainerStyle={{ paddingBottom: 105 }}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.section}>Date</Text>
@@ -922,7 +924,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingTop: 46,
+    paddingTop: 16,
     paddingHorizontal: 18,
   },
 
@@ -930,7 +932,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 10,
   },
 
   headerRight: {
@@ -947,9 +949,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+
   doctorRow: {
-    marginTop: 10,
-    marginLeft: 23,
+    marginTop: 6,
+    marginLeft: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -977,17 +980,16 @@ const styles = StyleSheet.create({
   },
 
   statsRow: {
-    marginTop: 14,
+    marginTop: 12,
     flexDirection: "row",
     justifyContent: "space-around",
   },
 
   tabsRow: {
-    marginTop: 30,
+    marginTop: 22,
     flexDirection: "row",
     justifyContent: "space-between",
   },
-
   tab: {
     fontSize: 11,
     color: colors.textGray,
@@ -1005,7 +1007,7 @@ const styles = StyleSheet.create({
   },
 
   section: {
-    marginTop: 16,
+    marginTop: 14,
     marginBottom: 12,
     fontSize: 14,
     fontWeight: "900",
@@ -1039,17 +1041,18 @@ const styles = StyleSheet.create({
 
   timeTabs: {
     marginTop: 10,
-    height: 34,
-    borderRadius: 18,
-    backgroundColor: "#EDEDED",
+    height: 38,
+    borderRadius: 20,
+    backgroundColor: "#F3F3F3",
     flexDirection: "row",
-    overflow: "hidden",
+    padding: 3,
   },
 
   timeTab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 17,
   },
 
   timeTabActive: {
@@ -1066,45 +1069,48 @@ const styles = StyleSheet.create({
     marginTop: 16,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    justifyContent: "space-between",
   },
 
   timeBox: {
-    width: "47%",
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: "#EDEDED",
+    width: "48%",
+    minHeight: 46,
+    borderRadius: 14,
+    backgroundColor: "#F8F8F8",
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#EFEFEF",
   },
 
   timeBoxActive: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
 
   timeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "900",
-    color: "#777",
+    color: "#666",
   },
 
   timeBoxBooked: {
-    backgroundColor: "#F0F0F0",
+    backgroundColor: "#F3F3F3",
     borderWidth: 1,
-    borderColor: "#DDD",
+    borderColor: "#E1E1E1",
   },
 
-  timeTextBooked: {
-    color: "#A0A0A0",
-  },
+ timeTextBooked: {
+  color: "#AAAAAA",
+},
 
-  bookedLabel: {
-    marginTop: 2,
-    fontSize: 9,
-    fontWeight: "800",
-    color: "#B04B65",
-  },
-
+bookedLabel: {
+  marginTop: 2,
+  fontSize: 8.5,
+  fontWeight: "900",
+  color: "#B04B65",
+},
   bookedInfo: {
     marginTop: 10,
     fontSize: 10,
@@ -1119,25 +1125,27 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  bookBtn: {
-    position: "absolute",
-    bottom: 50,
-    alignSelf: "center",
-    width: 160,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
-  },
+
+bookBtn: {
+  position: "absolute",
+  bottom: 28,
+  alignSelf: "center",
+  width: 160,
+  height: 44,
+  borderRadius: 22,
+  backgroundColor: colors.primary,
+  alignItems: "center",
+  justifyContent: "center",
+  shadowColor: "#000",
+  shadowOpacity: 0.15,
+  shadowRadius: 10,
+  elevation: 4,
+},
+
 
   bookText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "900",
   },
 
@@ -1151,9 +1159,9 @@ const styles = StyleSheet.create({
 
   modalCard: {
     width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
+    padding: 22,
   },
 
   modalTitle: {
@@ -1172,10 +1180,12 @@ const styles = StyleSheet.create({
   },
 
   previewBox: {
-    backgroundColor: "#FFE9F1",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
+    backgroundColor: "#FFF7FA",
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   previewRow: {
@@ -1197,8 +1207,8 @@ const styles = StyleSheet.create({
 
   confirmBtn: {
     backgroundColor: colors.primary,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 15,
+    borderRadius: 16,
     alignItems: "center",
     marginBottom: 10,
   },

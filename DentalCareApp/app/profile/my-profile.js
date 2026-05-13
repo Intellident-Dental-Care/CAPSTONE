@@ -8,9 +8,11 @@ import {
   ScrollView,
   Image,
   Alert,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { colors } from "../theme/colors";
 import { supabase } from "../../server/supabaseService";
 import {
@@ -43,29 +45,38 @@ function calculateAge(dobValue) {
   return age >= 0 ? String(age) : "";
 }
 
+function formatDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeMobile(value) {
+  return String(value || "").replace(/[^0-9]/g, "").replace(/^63/, "").slice(0, 10);
+}
+
 export default function MyProfile() {
   const router = useRouter();
 
-  // Initialise from cache so revisits render real data with zero async work
   const [profileId, setProfileId] = useState(myProfileCache.profileId);
   const [accountEmail, setAccountEmail] = useState(myProfileCache.accountEmail);
   const [fullName, setFullName] = useState(myProfileCache.fullName);
   const [dob, setDob] = useState(myProfileCache.dob);
-  const [mobile, setMobile] = useState(myProfileCache.mobile);
+  const [mobile, setMobile] = useState(normalizeMobile(myProfileCache.mobile));
   const [email, setEmail] = useState(myProfileCache.email);
   const [loading, setLoading] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const age = useMemo(() => calculateAge(dob), [dob]);
 
   useEffect(() => {
-    // Skip fetch if cache is already populated (revisit or back-navigation)
     if (myProfileCache.loaded) return;
 
     (async () => {
       const session = await getSession();
       const activeProfile = await getCurrentActiveProfileForSession();
 
-      // email is nested inside session.user
       const sessionEmail = (session?.user?.email || "").trim().toLowerCase();
 
       if (!sessionEmail || !activeProfile?.id) return;
@@ -79,32 +90,33 @@ export default function MyProfile() {
       let resolvedDob = "";
       let resolvedMobile = "";
 
-      // Fetch account-level profile fields from Supabase users table
       try {
-        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+        const {
+          data: { user: supabaseUser },
+        } = await supabase.auth.getUser();
+
         if (supabaseUser?.id) {
           const { data: userRow } = await supabase
             .from("users")
             .select("full_name, email, dob, mobile")
             .eq("id", supabaseUser.id)
             .single();
+
           if (userRow) {
             resolvedName = userRow.full_name || activeProfile.name || "";
             resolvedEmail = userRow.email || sessionEmail;
             resolvedDob = userRow.dob || "";
-            resolvedMobile = userRow.mobile || "";
+            resolvedMobile = normalizeMobile(userRow.mobile || "");
           }
         }
-      } catch (_) {
-        // Supabase unavailable — fall back to local data
-      }
+      } catch (_) {}
 
-      // Load dob/mobile from local patient profile
       const patientProfile = await getPatientProfileByProfileId(activeProfile.id);
+
       if (patientProfile) {
         if (!resolvedName) resolvedName = patientProfile.fullName || activeProfile.name || "";
         if (!resolvedDob) resolvedDob = patientProfile.dob || "";
-        if (!resolvedMobile) resolvedMobile = patientProfile.mobile || "";
+        if (!resolvedMobile) resolvedMobile = normalizeMobile(patientProfile.mobile || "");
         if (!resolvedEmail || resolvedEmail === sessionEmail) {
           resolvedEmail = patientProfile.email || sessionEmail;
         }
@@ -117,7 +129,6 @@ export default function MyProfile() {
       setMobile(resolvedMobile);
       setEmail(resolvedEmail);
 
-      // Populate cache so the next visit is instant
       Object.assign(myProfileCache, {
         loaded: true,
         profileId: activeProfile.id,
@@ -142,14 +153,16 @@ export default function MyProfile() {
     }
 
     if (!dob.trim()) {
-      Alert.alert("Required", "Please enter your date of birth.");
+      Alert.alert("Required", "Please select your date of birth.");
       return;
     }
 
-    if (!mobile.trim()) {
-      Alert.alert("Required", "Please enter your mobile number.");
+    if (!mobile.trim() || mobile.length !== 10 || !mobile.startsWith("9")) {
+      Alert.alert("Invalid Mobile Number", "Please enter a valid Philippine mobile number after +63.");
       return;
     }
+
+    const fullMobile = `63${mobile}`;
 
     try {
       setLoading(true);
@@ -161,7 +174,7 @@ export default function MyProfile() {
         fullName,
         dob,
         age,
-        mobile,
+        mobile: fullMobile,
         email,
         medicalHistory,
       });
@@ -179,7 +192,10 @@ export default function MyProfile() {
         });
       }
 
-      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+      const {
+        data: { user: supabaseUser },
+      } = await supabase.auth.getUser();
+
       if (!supabaseUser?.id) {
         setLoading(false);
         Alert.alert("Error", "No authenticated user found.");
@@ -191,7 +207,7 @@ export default function MyProfile() {
         .update({
           full_name: fullName,
           dob,
-          mobile,
+          mobile: fullMobile,
         })
         .eq("id", supabaseUser.id);
 
@@ -201,8 +217,12 @@ export default function MyProfile() {
         return;
       }
 
-      // Keep the cache in sync so the next visit reflects saved values
-      Object.assign(myProfileCache, { fullName, dob, mobile, email });
+      Object.assign(myProfileCache, {
+        fullName,
+        dob,
+        mobile: fullMobile,
+        email,
+      });
 
       setLoading(false);
       Alert.alert("Success", "Profile updated successfully.");
@@ -214,10 +234,7 @@ export default function MyProfile() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.fixedTop}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={22} color={colors.primary} />
@@ -225,7 +242,7 @@ export default function MyProfile() {
 
           <Text style={styles.headerTitle}>My Profile</Text>
 
-          <View style={{ width: 36 }} />
+          <View style={{ width: 40 }} />
         </View>
 
         <View style={styles.avatarWrap}>
@@ -236,7 +253,12 @@ export default function MyProfile() {
             />
           </View>
         </View>
+      </View>
 
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.sectionTitle}>Basic Detail</Text>
 
         <Text style={styles.label}>Full Name</Text>
@@ -249,13 +271,26 @@ export default function MyProfile() {
         />
 
         <Text style={[styles.label, { marginTop: 14 }]}>Date of Birth</Text>
-        <TextInput
-          value={dob}
-          onChangeText={setDob}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.textGray}
-          style={styles.input}
-        />
+        <Pressable style={styles.dateInput} onPress={() => setShowDatePicker(true)}>
+          <Text style={[styles.dateText, !dob && { color: colors.textGray }]}>
+            {dob || "Select date of birth"}
+          </Text>
+          <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+        </Pressable>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={dob ? new Date(`${dob}T00:00:00`) : new Date(2000, 0, 1)}
+            mode="date"
+            display={Platform.OS === "ios" ? "spinner" : "calendar"}
+            maximumDate={new Date()}
+            onChange={(event, selectedDate) => {
+              if (Platform.OS !== "ios") setShowDatePicker(false);
+              if (event?.type === "dismissed") return;
+              if (selectedDate) setDob(formatDate(selectedDate));
+            }}
+          />
+        )}
 
         <Text style={[styles.label, { marginTop: 14 }]}>Age</Text>
         <TextInput
@@ -266,19 +301,24 @@ export default function MyProfile() {
           style={[styles.input, styles.disabledInput]}
         />
 
-        <Text style={[styles.sectionTitle, { marginTop: 22 }]}>
-          Contact Detail
-        </Text>
+        <Text style={[styles.sectionTitle, { marginTop: 22 }]}>Contact Detail</Text>
 
         <Text style={styles.label}>Mobile Number</Text>
-        <TextInput
-          value={mobile}
-          onChangeText={setMobile}
-          placeholder="+63 9xx xxx xxxx"
-          placeholderTextColor={colors.textGray}
-          style={styles.input}
-          keyboardType="phone-pad"
-        />
+        <View style={styles.mobileWrap}>
+          <View style={styles.countryCode}>
+            <Text style={styles.countryCodeText}>+63</Text>
+          </View>
+
+          <TextInput
+            value={mobile}
+            onChangeText={(text) => setMobile(normalizeMobile(text))}
+            placeholder="9XX XXX XXXX"
+            placeholderTextColor={colors.textGray}
+            style={styles.mobileInput}
+            keyboardType="phone-pad"
+            maxLength={10}
+          />
+        </View>
 
         <Text style={[styles.label, { marginTop: 14 }]}>Email Address</Text>
         <TextInput
@@ -291,9 +331,7 @@ export default function MyProfile() {
           autoCapitalize="none"
         />
 
-        <Text style={[styles.sectionTitle, { marginTop: 22 }]}>
-          Medical History
-        </Text>
+        <Text style={[styles.sectionTitle, { marginTop: 22 }]}>Medical History</Text>
 
         <Pressable
           style={styles.medicalCard}
@@ -304,7 +342,7 @@ export default function MyProfile() {
               <Ionicons name="medkit-outline" size={20} color={colors.primary} />
             </View>
 
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.medicalText}>View Medical History</Text>
               <Text style={styles.medicalSubText}>
                 See all answers from the patient form
@@ -312,11 +350,7 @@ export default function MyProfile() {
             </View>
           </View>
 
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color={colors.textGray}
-          />
+          <Ionicons name="chevron-forward" size={20} color={colors.textGray} />
         </Pressable>
 
         <Pressable
@@ -324,12 +358,8 @@ export default function MyProfile() {
           onPress={onSave}
           disabled={loading}
         >
-          <Text style={styles.saveText}>
-            {loading ? "Saving..." : "Save"}
-          </Text>
+          <Text style={styles.saveText}>{loading ? "Saving..." : "Save"}</Text>
         </Pressable>
-
-        <View style={{ height: 30 }} />
       </ScrollView>
     </View>
   );
@@ -338,48 +368,54 @@ export default function MyProfile() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: 46,
+    backgroundColor: "#FAFAFA",
+    paddingTop: 8,
   },
 
-  scroll: {
-    paddingHorizontal: 26,
-    paddingBottom: 30,
+  fixedTop: {
+    backgroundColor: "#FAFAFA",
+    paddingHorizontal: 20,
+    paddingBottom: 14,
   },
 
   header: {
-    height: 54,
+    height: 50,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
 
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#FFF1F6",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "900",
     color: colors.primary,
   },
 
   avatarWrap: {
-    marginTop: 8,
+    marginTop: 10,
     alignItems: "center",
     justifyContent: "center",
   },
 
   avatarCircle: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: "#DDD",
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    backgroundColor: "#FFF1F6",
     overflow: "hidden",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
   },
 
   avatarImg: {
@@ -388,50 +424,111 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
 
+  scroll: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+
   sectionTitle: {
-    marginTop: 20,
+    marginTop: 10,
+    marginBottom: 2,
     fontSize: 12,
     fontWeight: "900",
-    color: "#777",
+    color: "#999",
     textTransform: "uppercase",
   },
 
   label: {
-    marginTop: 12,
-    fontSize: 10,
+    marginTop: 14,
+    fontSize: 11,
     color: colors.textGray,
     fontWeight: "700",
   },
 
   input: {
-    marginTop: 6,
-    height: 44,
-    borderRadius: 8,
+    marginTop: 8,
+    height: 52,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.primary,
-    paddingHorizontal: 14,
-    fontSize: 12,
+    borderColor: "#F3D7E1",
+    paddingHorizontal: 16,
+    fontSize: 13,
     color: colors.textDark,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
+  },
+
+  dateInput: {
+    marginTop: 8,
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#F3D7E1",
+    paddingHorizontal: 16,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  dateText: {
+    fontSize: 13,
+    color: colors.textDark,
+    fontWeight: "600",
   },
 
   disabledInput: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#F8F8F8",
     color: colors.textGray,
   },
 
-  medicalCard: {
-    marginTop: 10,
-    minHeight: 68,
-    borderRadius: 14,
+  mobileWrap: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  countryCode: {
+    width: 72,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "#FFF1F6",
     borderWidth: 1,
-    borderColor: "#eeeeee",
+    borderColor: "#F3D7E1",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  countryCodeText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.primary,
+  },
+
+  mobileInput: {
+    flex: 1,
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#F3D7E1",
+    paddingHorizontal: 16,
+    fontSize: 13,
+    color: colors.textDark,
+    backgroundColor: "#FFFFFF",
+  },
+
+  medicalCard: {
+    marginTop: 12,
+    minHeight: 76,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#F3D7E1",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
+    paddingVertical: 14,
+    backgroundColor: "#FFFFFF",
   },
 
   medicalRow: {
@@ -442,43 +539,39 @@ const styles = StyleSheet.create({
   },
 
   medicalIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#f3f8ff",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: 14,
   },
 
   medicalText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "800",
     color: colors.textDark,
   },
 
   medicalSubText: {
-    marginTop: 3,
+    marginTop: 4,
     fontSize: 11,
     color: colors.textGray,
   },
 
   saveBtn: {
-    marginTop: 28,
-    height: 48,
-    borderRadius: 24,
+    marginTop: 30,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
   },
 
   saveText: {
     color: "#fff",
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "900",
   },
 });

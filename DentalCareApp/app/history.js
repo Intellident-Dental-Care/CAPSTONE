@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Pressable,
   Alert,
@@ -227,7 +226,7 @@ export default function History() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <View style={styles.screen}>
         <View style={styles.topBar}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
@@ -649,7 +648,7 @@ export default function History() {
           onLogout={handleLogout}
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -661,7 +660,7 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#F8F8F8",
-    paddingTop: 46,
+    paddingTop: 8,
     paddingHorizontal: 18,
   },
   topBar: {
@@ -670,11 +669,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#FFF1F6",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
   topRight: {
     flexDirection: "row",
@@ -682,21 +684,26 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   notifPill: {
-    width: 44,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#EEE",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
   avatarSmall: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#FFE9F1",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFF1F6",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
+
   title: {
     marginTop: 10,
     fontSize: 26,
@@ -748,7 +755,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 14,
-    paddingBottom: 30,
+    paddingBottom: 24,
   },
   section: {
     marginBottom: 18,

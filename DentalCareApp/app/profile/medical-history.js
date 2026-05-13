@@ -36,13 +36,7 @@ function YesNoRow({ label, value }) {
 
       <View style={styles.answerInline}>
         <Ionicons
-          name={
-            isYes
-              ? "checkmark-circle"
-              : isNo
-              ? "close-circle"
-              : "remove-circle"
-          }
+          name={isYes ? "checkmark-circle" : isNo ? "close-circle" : "remove-circle"}
           size={18}
           color={isYes ? "#2ecc71" : isNo ? "#e74c3c" : "#bdbdbd"}
         />
@@ -81,10 +75,21 @@ export default function MedicalHistory() {
     })();
   }, []);
 
+  const handleEdit = () => {
+    router.push({
+      pathname: "/patient-first-setup",
+      params: { mode: "edit" },
+    });
+  };
+
   if (!medical) {
     return (
       <View style={styles.emptyWrap}>
         <Text style={styles.emptyText}>No medical history found.</Text>
+
+        <Pressable style={styles.emptyEditBtn} onPress={handleEdit}>
+          <Text style={styles.emptyEditText}>Add Medical History</Text>
+        </Pressable>
       </View>
     );
   }
@@ -143,7 +148,9 @@ export default function MedicalHistory() {
 
         <Text style={styles.headerTitle}>Medical History</Text>
 
-        <View style={{ width: 36 }} />
+        <Pressable style={styles.editBtn} onPress={handleEdit}>
+          <Ionicons name="create-outline" size={18} color={colors.primary} />
+        </Pressable>
       </View>
 
       <ScrollView
@@ -154,26 +161,17 @@ export default function MedicalHistory() {
           <YesNoRow label="1. Are you in good health?" value={medical.goodHealth} />
           <YesNoRow label="2. Are you under medical treatment now?" value={medical.underTreatment} />
           <Row label="Condition being treated" value={medical.treatmentCondition} />
-          <YesNoRow
-            label="3. Serious illness or surgical operation?"
-            value={medical.seriousIllness}
-          />
+          <YesNoRow label="3. Serious illness or surgical operation?" value={medical.seriousIllness} />
           <Row label="Illness / operation details" value={medical.illnessOperation} />
           <YesNoRow label="4. Have you ever been hospitalized?" value={medical.hospitalized} />
           <Row label="Hospitalization details" value={medical.hospitalizedReason} />
         </SectionCard>
 
         <SectionCard title="Medication and Lifestyle">
-          <YesNoRow
-            label="5. Taking prescription / non-prescription medication?"
-            value={medical.takingMedication}
-          />
+          <YesNoRow label="5. Taking prescription / non-prescription medication?" value={medical.takingMedication} />
           <Row label="Medication details" value={medical.medicationDetails} />
           <YesNoRow label="6. Use tobacco products?" value={medical.useTobacco} />
-          <YesNoRow
-            label="7. Use alcohol, cocaine, or other dangerous drugs?"
-            value={medical.useAlcoholDrugs}
-          />
+          <YesNoRow label="7. Use alcohol, cocaine, or other dangerous drugs?" value={medical.useAlcoholDrugs} />
         </SectionCard>
 
         <SectionCard title="Allergies">
@@ -221,8 +219,6 @@ export default function MedicalHistory() {
 
           <Row label="Other conditions" value={medical.conditionOthers} />
         </SectionCard>
-
-        <View style={{ height: 30 }} />
       </ScrollView>
     </View>
   );
@@ -232,11 +228,11 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingTop: 50,
+    paddingTop: 8,
   },
 
   header: {
-    height: 54,
+    height: 52,
     paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
@@ -244,11 +240,25 @@ const styles = StyleSheet.create({
   },
 
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#FFF1F6",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
+  },
+
+  editBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF1F6",
+    borderWidth: 1,
+    borderColor: "#F8D4E0",
   },
 
   headerTitle: {
@@ -259,7 +269,7 @@ const styles = StyleSheet.create({
 
   scroll: {
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingBottom: 28,
   },
 
   card: {
@@ -335,10 +345,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fff",
+    paddingHorizontal: 24,
   },
 
   emptyText: {
     fontSize: 14,
     color: colors.textGray,
+    marginBottom: 16,
+  },
+
+  emptyEditBtn: {
+    height: 44,
+    paddingHorizontal: 22,
+    borderRadius: 22,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  emptyEditText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "900",
   },
 });

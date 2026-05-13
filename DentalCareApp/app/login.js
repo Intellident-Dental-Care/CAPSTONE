@@ -7,12 +7,11 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   Animated,
   Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Feather, AntDesign, FontAwesome, Ionicons } from "@expo/vector-icons";
+import { Feather, AntDesign, FontAwesome } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
 import AuthAlert from "./components/authAlert";
 import { supabase } from "../server/supabaseService";
@@ -25,13 +24,13 @@ import { handleFacebookLogin } from "../server/facebookLogin";
 import { cancelOverdueAppointments } from "../server/cancelOverdueAppointments";
 
 const { height: H } = Dimensions.get("window");
+const isSmallPhone = H < 760;
 
 export default function Login() {
   const router = useRouter();
 
   const [showPass, setShowPass] = useState(false);
   const [remember, setRemember] = useState(false);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -66,11 +65,11 @@ export default function Login() {
       Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 140 }),
       Animated.spring(logoAnim, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 140 }),
     ]).start();
-  }, [backdrop, translateY, logoAnim]);
+  }, []);
 
   const logoStyle = useMemo(() => {
     const scale = logoAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.72] });
-    const ty = logoAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -22] });
+    const ty = logoAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -10] });
     return { transform: [{ translateY: ty }, { scale }] };
   }, [logoAnim]);
 
@@ -93,15 +92,13 @@ export default function Login() {
   const handleLogin = async () => {
     setError("");
 
-    // SECURITY: Check if account is locked due to brute force attempts
     const { isLocked, remainingTimeMs } = bruteForceProtection.isLocked(email);
     if (isLocked) {
       const minutes = Math.ceil(remainingTimeMs / 60000);
-      setError(`Account temporarily locked due to multiple failed attempts. Try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`);
+      setError(`Account temporarily locked due to multiple failed attempts. Try again in ${minutes} minute${minutes !== 1 ? "s" : ""}.`);
       return;
     }
 
-    // SECURITY: Validate login inputs
     const validation = validateLoginInput({ email, password });
     if (!validation.isValid) {
       setError(validation.errors[0]);
@@ -112,70 +109,60 @@ export default function Login() {
 
     try {
       setLoading(true);
-    
-    // Sign in the user first using sanitized data
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password: cleanPassword,
-    });
 
-    if (error) {
-      // SECURITY: Record failed login attempt
-      const result = bruteForceProtection.recordFailedAttempt(cleanEmail);
-      setLoading(false);
-      
-      if (!result.success) {
-        setError(result.message);
-      } else {
-        setError(`Invalid email or password. ${result.message}`);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: cleanPassword,
+      });
+
+      if (error) {
+        const result = bruteForceProtection.recordFailedAttempt(cleanEmail);
+        setLoading(false);
+
+        if (!result.success) {
+          setError(result.message);
+        } else {
+          setError(`Invalid email or password. ${result.message}`);
+        }
+        return;
       }
-      return;
-    }
 
-    if (!data.user) {
+      if (!data.user) {
+        setLoading(false);
+        setError("Login failed. Please try again.");
+        return;
+      }
+
+      const { data: userProfile, error: profileError } = await supabase
+        .from("users")
+        .select("is_verified, full_name, onboarding_seen")
+        .eq("id", data.user.id)
+        .single();
+
       setLoading(false);
-      setError("Login failed. Please try again.");
-      return;
-    }
 
-    // Now fetch the user profile with the authenticated user
-    const { data: userProfile, error: profileError } = await supabase
-      .from("users")
-      .select("is_verified, full_name, onboarding_seen")
-      .eq("id", data.user.id)
-      .single();
+      if (profileError) {
+        setError("Failed to fetch user profile. Please try again.");
+        return;
+      }
 
-    setLoading(false);
+      if (!userProfile?.is_verified) {
+        setError("Please verify your email before logging in.");
+        return;
+      }
 
-    if (profileError) {
-      console.error("Profile fetch error:", profileError);
-      setError("Failed to fetch user profile. Please try again.");
-      return;
-    }
+      bruteForceProtection.recordSuccessfulLogin(cleanEmail);
 
-    if (!userProfile?.is_verified) {
-      setError("Please verify your email before logging in.");
-      return;
-    }
+      await storeSession({
+        user: data.user,
+        session: data.session,
+        fullName: userProfile.full_name || data.user.email,
+      });
 
-    // SECURITY: Clear failed attempts on successful login
-    bruteForceProtection.recordSuccessfulLogin(cleanEmail);
-
-    // Store session with user data including full name
-    await storeSession({
-      user: data.user,
-      session: data.session,
-      fullName: userProfile.full_name || data.user.email
-    });
-
-      // Run status cleanup right after login so overdue bookings are handled immediately.
       await cancelOverdueAppointments({ userId: data.user.id });
 
-      // Success - redirect based on onboarding status from DB
-      const firstTimeOnboarding = !userProfile.onboarding_seen;
-      navigateAfterLogin(firstTimeOnboarding, false);
+      navigateAfterLogin(!userProfile.onboarding_seen, false);
     } catch (err) {
-      console.error("Login error:", err);
       setLoading(false);
       setError("Something went wrong. Please try again.");
     }
@@ -183,66 +170,46 @@ export default function Login() {
 
   const handleSocialLogin = async (provider) => {
     try {
-      console.log(`=== STARTING ${provider.toUpperCase()} LOGIN ===`);
       setLoading(true);
       setError("");
-      
+
       let user;
-      
+
       switch (provider) {
-        case 'google':
-          setError("Opening Google login... Please complete authentication in browser.");
+        case "google":
+          setError("");
           user = await handleGoogleLogin();
           break;
-        case 'apple':
-          setError("Opening Apple login...");
+        case "apple":
           user = await handleAppleLogin();
           break;
-        case 'facebook':
-          setError("Opening Facebook login...");
+        case "facebook":
           user = await handleFacebookLogin();
           break;
         default:
-          throw new Error('Unsupported provider');
+          throw new Error("Unsupported provider");
       }
-      
+
       if (user) {
-        console.log(`🎉 ${provider} login completed!`);
-        
-        // Fetch user profile for social login users too
         const { data: userProfile } = await supabase
           .from("users")
           .select("full_name, onboarding_seen")
           .eq("id", user.id)
           .single();
-          
-        // Store session with full name
+
         await storeSession({
-          user: user,
+          user,
           session: await supabase.auth.getSession(),
-          fullName: userProfile?.full_name || user.user_metadata?.full_name || user.email
+          fullName: userProfile?.full_name || user.user_metadata?.full_name || user.email,
         });
 
         await cancelOverdueAppointments({ userId: user.id });
-        
-        setError("Login successful! Welcome to DentalCare!");
-        
-        // For Google login, check onboarding_seen from DB; always go to home for others
-        const firstTimeOnboarding = provider === 'google' ? !userProfile?.onboarding_seen : false;
+
+        const firstTimeOnboarding = provider === "google" ? !userProfile?.onboarding_seen : false;
         navigateAfterLogin(firstTimeOnboarding, false);
       }
     } catch (error) {
-      console.error(`${provider} login error:`, error);
-      
-      let errorMessage = `${provider.charAt(0).toUpperCase() + provider.slice(1)} login failed. Please try again.`;
-      
-      if (error.message.includes('cancelled')) {
-        errorMessage = `${provider.charAt(0).toUpperCase() + provider.slice(1)} login was cancelled.`;
-      } else if (error.message.includes('timeout')) {
-        errorMessage = 'Login timed out. Please complete authentication and try again.';
-      }
-      
-      setError(errorMessage);
+      setError(`${provider.charAt(0).toUpperCase() + provider.slice(1)} login failed. Please try again.`);
     } finally {
       setLoading(false);
     }
@@ -254,7 +221,12 @@ export default function Login() {
         <Animated.View
           style={[
             styles.backdrop,
-            { opacity: backdrop.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] }) },
+            {
+              opacity: backdrop.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0.35],
+              }),
+            },
           ]}
         />
       </Pressable>
@@ -264,30 +236,22 @@ export default function Login() {
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            bounces={false}
-          >
-            <View style={styles.top}>
-              <Pressable style={styles.backRow} onPress={close}>
-                <Feather name="chevron-left" size={18} color={colors.textGrayLight} />
-                <Text style={styles.backText}>Back</Text>
-              </Pressable>
+          <View style={styles.page}>
+            <Pressable style={styles.backRow} onPress={close}>
+              <Feather name="chevron-left" size={18} color={colors.primary} />
+              <Text style={styles.backText}>Back</Text>
+            </Pressable>
 
-              <Animated.Image
-                source={require("../assets/logo.png")}
-                style={[styles.logoSmall, logoStyle]}
-              />
-            </View>
+            <Animated.Image
+              source={require("../assets/logo.png")}
+              style={[styles.logoSmall, logoStyle]}
+            />
 
             <View style={styles.card}>
               <Text style={styles.h1}>Welcome Back</Text>
               <Text style={styles.h2}>
                 Ready to continue your dental journey?{"\n"}Your path is right here.
               </Text>
-
-              <View style={{ height: 18 }} />
 
               <TextInput
                 placeholder="Enter Email"
@@ -308,8 +272,13 @@ export default function Login() {
                   value={password}
                   onChangeText={setPassword}
                 />
+
                 <Pressable onPress={() => setShowPass((p) => !p)} style={styles.eyeBtn}>
-                  <Feather name={showPass ? "eye" : "eye-off"} size={18} color={colors.textGray} />
+                  <Feather
+                    name={showPass ? "eye" : "eye-off"}
+                    size={18}
+                    color={colors.textGray}
+                  />
                 </Pressable>
               </View>
 
@@ -317,7 +286,7 @@ export default function Login() {
 
               <View style={styles.rowBetween}>
                 <Pressable style={styles.rememberRow} onPress={() => setRemember((r) => !r)}>
-                  <View style={[styles.fakeCheck, remember ? styles.fakeCheckChecked : null]} />
+                  <View style={[styles.fakeCheck, remember && styles.fakeCheckChecked]} />
                   <Text style={styles.smallPink}>Remember me</Text>
                 </Pressable>
 
@@ -327,7 +296,9 @@ export default function Login() {
               </View>
 
               <Pressable style={styles.loginBtn} onPress={handleLogin} disabled={loading}>
-                <Text style={styles.loginText}>{loading ? "Logging in..." : "Log In"}</Text>
+                <Text style={styles.loginText}>
+                  {loading ? "Logging in..." : "Log In"}
+                </Text>
               </Pressable>
 
               <View style={styles.dividerRow}>
@@ -337,41 +308,40 @@ export default function Login() {
               </View>
 
               <View style={styles.socialRow}>
-                <Pressable 
-                    style={styles.socialBtn}
-                    onPress={() => handleSocialLogin('facebook')}
-                    disabled={loading}
-                  >
-                  <FontAwesome name="facebook" size={18} color={colors.primary} />
+                <Pressable
+                  style={styles.socialBtn}
+                  onPress={() => handleSocialLogin("facebook")}
+                  disabled={loading}
+                >
+                  <FontAwesome name="facebook" size={17} color={colors.primary} />
                 </Pressable>
-                  
-                <Pressable 
-                    style={styles.socialBtn}
-                    onPress={() => handleSocialLogin('google')}
-                    disabled={loading}
-                  >
-                  <AntDesign name="google" size={18} color={colors.primary} />
+
+                <Pressable
+                  style={styles.socialBtn}
+                  onPress={() => handleSocialLogin("google")}
+                  disabled={loading}
+                >
+                  <AntDesign name="google" size={17} color={colors.primary} />
                 </Pressable>
-                  
-                <Pressable 
-                    style={styles.socialBtn}
-                    onPress={() => handleSocialLogin('apple')}
-                    disabled={loading}
-                  >
-                  <Ionicons name="logo-apple" size={18} color={colors.primary} />
+
+                <Pressable
+                  style={styles.socialBtn}
+                  onPress={() => handleSocialLogin("twitter")}
+                  disabled={loading}
+                >
+                  <FontAwesome name="twitter" size={17} color={colors.primary} />
                 </Pressable>
               </View>
 
               <View style={styles.bottomTextRow}>
-                <Text style={{ color: colors.textGray, fontSize: 12 }}>
-                  Don’t have an account?{" "}
-                </Text>
+                <Text style={styles.bottomPlain}>Don’t have an account? </Text>
+
                 <Pressable onPress={() => switchTo("/signup")} disabled={loading}>
                   <Text style={styles.linkPink}>Sign Up</Text>
                 </Pressable>
               </View>
             </View>
-          </ScrollView>
+          </View>
         </KeyboardAvoidingView>
       </Animated.View>
     </View>
@@ -379,65 +349,119 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  overlayRoot: { flex: 1, backgroundColor: "transparent" },
-  backdrop: { flex: 1, backgroundColor: "#000" },
-  screen: { position: "absolute", left: 0, right: 0, bottom: 0, height: "100%" },
-
-  scrollContent: {
-    flexGrow: 1,
-    backgroundColor: colors.pinkBg,
+  overlayRoot: {
+    flex: 1,
+    backgroundColor: "#fff",
   },
 
-  top: { height: 170, paddingTop: 48, paddingHorizontal: 18 },
-  backRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  backText: { fontSize: 12, color: colors.textGrayLight },
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.18)",
+  },
+
+  screen: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "100%",
+  },
+
+  page: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingHorizontal: 22,
+    paddingTop: isSmallPhone ? 16 : 20,
+    paddingBottom: isSmallPhone ? 12 : 18,
+  },
+
+  backRow: {
+    height: 32,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+
+  backText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: "800",
+  },
 
   logoSmall: {
-    width: 180,
-    height: 180,
+    width: isSmallPhone ? 110 : 130,
+    height: isSmallPhone ? 110 : 130,
     resizeMode: "contain",
     alignSelf: "center",
-    marginTop: 12,
+    marginTop: isSmallPhone ? 4 : 8,
+    marginBottom: isSmallPhone ? 8 : 14,
   },
 
   card: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    paddingHorizontal: 22,
-    paddingTop: 26,
-    paddingBottom: 40,
-    marginTop: 60,
-    minHeight: H - 170,
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 34,
+    paddingHorizontal: 20,
+    paddingTop: isSmallPhone ? 18 : 24,
+    paddingBottom: isSmallPhone ? 14 : 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 7,
   },
 
-  h1: { fontSize: 27, fontWeight: "800", color: colors.primary, textAlign: "center" },
-  h2: { marginTop: 10, fontSize: 12, color: colors.textGray, textAlign: "center", lineHeight: 17 },
+  h1: {
+    fontSize: isSmallPhone ? 22 : 25,
+    fontWeight: "900",
+    color: colors.primary,
+    textAlign: "center",
+  },
+
+  h2: {
+    marginTop: 6,
+    fontSize: isSmallPhone ? 11 : 12,
+    lineHeight: isSmallPhone ? 16 : 18,
+    color: "#8A8A8A",
+    textAlign: "center",
+    fontWeight: "600",
+  },
 
   input: {
-    height: 44,
-    borderRadius: 22,
+    height: isSmallPhone ? 44 : 48,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: colors.inputBorder,
+    borderColor: "#F2D7E3",
     paddingHorizontal: 16,
     fontSize: 12,
     color: colors.textDark,
-    backgroundColor: colors.white,
-    marginTop: 50,
+    backgroundColor: "#FFF9FB",
+    marginTop: isSmallPhone ? 18 : 24,
   },
 
   inputPass: {
     marginTop: 12,
-    height: 44,
-    borderRadius: 22,
+    height: isSmallPhone ? 44 : 48,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: colors.inputBorder,
+    borderColor: "#F2D7E3",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
+    backgroundColor: "#FFF9FB",
   },
-  passField: { flex: 1, fontSize: 12, color: colors.textDark },
-  eyeBtn: { paddingLeft: 10, paddingVertical: 6 },
+
+  passField: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.textDark,
+  },
+
+  eyeBtn: {
+    paddingLeft: 10,
+    paddingVertical: 6,
+  },
 
   rowBetween: {
     marginTop: 10,
@@ -445,56 +469,107 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  rememberRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  fakeCheck: { width: 12, height: 12, borderRadius: 3, borderWidth: 1, borderColor: colors.primary },
-  fakeCheckChecked: { backgroundColor: colors.primary },
-  smallPink: { fontSize: 10, color: colors.primary },
+
+  rememberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  fakeCheck: {
+    width: 14,
+    height: 14,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+
+  fakeCheckChecked: {
+    backgroundColor: colors.primary,
+  },
+
+  smallPink: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: "700",
+  },
 
   loginBtn: {
-    marginTop: 30,
-    height: 44,
-    borderRadius: 22,
+    marginTop: isSmallPhone ? 18 : 24,
+    height: isSmallPhone ? 48 : 52,
+    borderRadius: 18,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    elevation: 2,
-    // Platform-specific shadow styles
-    ...(Platform.OS === 'ios' && {
-      shadowColor: "#000",
-      shadowOpacity: 0.12,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 3 },
-    }),
-    ...(Platform.OS === 'android' && {
-      shadowColor: "#000",
-      shadowOpacity: 0.12,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 3 },
-    }),
+    shadowColor: colors.primary,
+    shadowOpacity: 0.24,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 7,
   },
 
-  loginText: { color: colors.white, fontSize: 13, fontWeight: "800" },
+  loginText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "900",
+  },
 
-  dividerRow: { marginTop: 30, flexDirection: "row", alignItems: "center", gap: 10 },
-  line: { flex: 1, height: 1, backgroundColor: colors.line },
-  dividerText: { fontSize: 10, color: colors.textGray },
+  dividerRow: {
+    marginTop: isSmallPhone ? 16 : 22,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
 
-  socialRow: { marginTop: 30, flexDirection: "row", justifyContent: "center", gap: 16 },
+  line: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#EFE4E8",
+  },
+
+  dividerText: {
+    fontSize: 10,
+    color: "#A0A0A0",
+  },
+
+  socialRow: {
+    marginTop: isSmallPhone ? 12 : 16,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 14,
+  },
+
   socialBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: isSmallPhone ? 42 : 46,
+    height: isSmallPhone ? 42 : 46,
+    borderRadius: 23,
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: "#F1E3EA",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
 
   bottomTextRow: {
-    marginTop: 16,
+    marginTop: isSmallPhone ? 12 : 16,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
   },
-  linkPink: { color: colors.primary, fontSize: 12, fontWeight: "700" },
+
+  bottomPlain: {
+    color: colors.textGray,
+    fontSize: 11,
+  },
+
+  linkPink: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: "900",
+  },
 });

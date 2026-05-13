@@ -17,22 +17,14 @@ import { supabase } from "../../server/supabaseService";
 
 function PickerModal({ visible, title, options, onClose, onPick }) {
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={() => {}}>
           <Text style={styles.modalTitle}>{title}</Text>
-          <ScrollView style={{ maxHeight: 320 }}>
+
+          <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
             {options.map((opt) => (
-              <Pressable
-                key={opt}
-                style={styles.modalItem}
-                onPress={() => onPick(opt)}
-              >
+              <Pressable key={opt} style={styles.modalItem} onPress={() => onPick(opt)}>
                 <Text style={styles.modalItemText}>{opt}</Text>
               </Pressable>
             ))}
@@ -45,6 +37,7 @@ function PickerModal({ visible, title, options, onClose, onPick }) {
 
 export default function BookingBranchDoctor() {
   const router = useRouter();
+
   const {
     service: passedService,
     serviceName: passedServiceName,
@@ -52,15 +45,15 @@ export default function BookingBranchDoctor() {
     branch: passedBranch,
     doctor: passedDoctor,
   } = useLocalSearchParams();
+
   const incomingService =
     typeof passedService === "string" && passedService.trim()
       ? passedService
       : typeof passedServiceName === "string"
-        ? passedServiceName
-        : "";
-  const [service, setService] = useState(
-    incomingService
-  );
+      ? passedServiceName
+      : "";
+
+  const [service, setService] = useState(incomingService);
   const [branch, setBranch] = useState(
     typeof passedBranch === "string" ? passedBranch : ""
   );
@@ -68,6 +61,7 @@ export default function BookingBranchDoctor() {
     typeof passedDoctor === "string" ? passedDoctor : ""
   );
   const [doctorId, setDoctorId] = useState("");
+
   const [showService, setShowService] = useState(false);
   const [showBranch, setShowBranch] = useState(false);
   const [showDoctor, setShowDoctor] = useState(false);
@@ -85,30 +79,37 @@ export default function BookingBranchDoctor() {
   const fetchServices = async () => {
     try {
       const { data, error } = await supabase
-        .from('dental_services')
-        .select('name, category, subcategory')
-        .eq('is_active', true)
-        .order('display_order', { ascending: true });
+        .from("dental_services")
+        .select("name, category, subcategory")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+
       if (error) throw error;
-      setServices(data.map((s) => s.name));
+
+      setServices((data || []).map((s) => s.name));
     } catch (err) {
-      console.error('Error fetching services:', err);
+      console.error("Error fetching services:", err);
     }
   };
 
   const fetchDentists = async () => {
     try {
       setLoading(true);
-      const [{ data: dentists, error: dentistsError }, { data: schedules, error: schedulesError }] =
-        await Promise.all([
-          supabase
-            .from("dentist_list")
-            .select("id, name, specialization, experience_years, total_patients, success_rate"),
-          supabase
-            .from("dentist_schedule")
-            .select("dentist_id, branch, day_of_week")
-            .eq("is_active", true),
-        ]);
+
+      const [
+        { data: dentists, error: dentistsError },
+        { data: schedules, error: schedulesError },
+      ] = await Promise.all([
+        supabase
+          .from("dentist_list")
+          .select(
+            "id, name, specialization, experience_years, total_patients, success_rate"
+          ),
+        supabase
+          .from("dentist_schedule")
+          .select("dentist_id, branch, day_of_week")
+          .eq("is_active", true),
+      ]);
 
       if (dentistsError) throw dentistsError;
       if (schedulesError) throw schedulesError;
@@ -120,6 +121,7 @@ export default function BookingBranchDoctor() {
       (schedules || []).forEach((row) => {
         const branchName = row.branch?.trim();
         const dentist = dentistMap.get(row.dentist_id);
+
         if (!branchName || !dentist) return;
 
         if (!branchGroups[branchName]) branchGroups[branchName] = [];
@@ -135,12 +137,14 @@ export default function BookingBranchDoctor() {
 
       if (typeof passedBranch === "string" && typeof passedDoctor === "string") {
         const presetDoctor =
-          branchGroups[passedBranch]?.find((d) => d.name === passedDoctor) || null;
+          branchGroups[passedBranch]?.find((d) => d.name === passedDoctor) ||
+          null;
+
         if (presetDoctor) setDoctorId(presetDoctor.id);
       }
     } catch (err) {
-      console.error('Error fetching dentists:', err);
-      Alert.alert('Error', 'Failed to load dentist data');
+      console.error("Error fetching dentists:", err);
+      Alert.alert("Error", "Failed to load dentist data");
     } finally {
       setLoading(false);
     }
@@ -152,7 +156,10 @@ export default function BookingBranchDoctor() {
       return;
     }
 
-    const selected = (doctorsByBranch[branch] || []).find((d) => d.name === doctor);
+    const selected = (doctorsByBranch[branch] || []).find(
+      (d) => d.name === doctor
+    );
+
     setDoctorId(selected?.id || "");
   }, [branch, doctor, doctorsByBranch]);
 
@@ -165,9 +172,16 @@ export default function BookingBranchDoctor() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+      <View
+        style={[
+          styles.container,
+          { alignItems: "center", justifyContent: "center" },
+        ]}
+      >
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 10, fontSize: 14, color: colors.textGray }}>Loading dentists...</Text>
+        <Text style={{ marginTop: 10, fontSize: 14, color: colors.textGray }}>
+          Loading dentists...
+        </Text>
       </View>
     );
   }
@@ -211,11 +225,7 @@ export default function BookingBranchDoctor() {
       </Pressable>
 
       <Pressable
-        style={[
-          styles.dropdown,
-          { marginTop: 12 },
-          !branch && { opacity: 0.55 },
-        ]}
+        style={[styles.dropdown, { marginTop: 12 }, !branch && { opacity: 0.55 }]}
         onPress={() => {
           if (!branch) return;
           setShowDoctor(true);
@@ -231,9 +241,16 @@ export default function BookingBranchDoctor() {
         style={[styles.proceedBtn, !canProceed && { opacity: 0.5 }]}
         onPress={() => {
           if (!canProceed) return;
+
           router.push({
             pathname: "/booking/appointment",
-            params: { service, branch, doctor, doctorId, preassessmentId },
+            params: {
+              service,
+              branch,
+              doctor,
+              doctorId,
+              preassessmentId,
+            },
           });
         }}
       >
@@ -267,10 +284,10 @@ export default function BookingBranchDoctor() {
       <PickerModal
         visible={showDoctor}
         title="Select Doctor"
-        options={doctors.map(d => d.name)}
+        options={doctors.map((d) => d.name)}
         onClose={() => setShowDoctor(false)}
         onPick={(opt) => {
-          const selectedDentist = doctors.find(d => d.name === opt);
+          const selectedDentist = doctors.find((d) => d.name === opt);
           setDoctor(opt);
           setDoctorId(selectedDentist?.id || "");
           setShowDoctor(false);
@@ -284,7 +301,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingTop: 46,
+    paddingTop: 16,
     paddingHorizontal: 18,
   },
 
@@ -297,7 +314,7 @@ const styles = StyleSheet.create({
   },
 
   imageWrap: {
-    marginTop: 10,
+    marginTop: 6,
   },
 
   heroImage: {
@@ -322,14 +339,15 @@ const styles = StyleSheet.create({
   },
 
   dropdown: {
-    height: 44,
-    borderRadius: 10,
+    height: 46,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: "#F1D2DE",
     paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    backgroundColor: "#FFF8FB",
   },
 
   dropdownText: {
@@ -341,16 +359,16 @@ const styles = StyleSheet.create({
   proceedBtn: {
     position: "absolute",
     right: 24,
-    bottom: 50,
+    bottom: 28,
     width: 120,
-    height: 42,
-    borderRadius: 21,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
     elevation: 4,
   },
 
@@ -369,21 +387,22 @@ const styles = StyleSheet.create({
 
   modalCard: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 22,
+    padding: 18,
   },
 
   modalTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "900",
     color: colors.primary,
-    marginBottom: 10,
+    marginBottom: 12,
+    textAlign: "center",
   },
 
   modalItem: {
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: "#F3F3F3",
   },
 
   modalItemText: {
