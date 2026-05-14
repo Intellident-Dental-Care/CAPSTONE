@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { colors } from "./theme/colors";
@@ -169,6 +170,37 @@ export default function Dentists() {
   const [selectedDentist, setSelectedDentist] = useState(null);
   const isMountedRef = useRef(true);
 
+  // Load bookmarks from device storage on mount
+  useEffect(() => {
+    isMountedRef.current = true;
+    loadBookmarks();
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const loadBookmarks = async () => {
+    try {
+      const stored = await AsyncStorage.getItem("dentist_bookmarks");
+      if (stored && isMountedRef.current) {
+        const parsed = JSON.parse(stored);
+        setLikedMap(parsed);
+        console.log("Loaded dentist bookmarks from device");
+      }
+    } catch (err) {
+      console.error("Error loading bookmarks:", err);
+    }
+  };
+
+  const saveBookmarks = async (newLiked) => {
+    try {
+      await AsyncStorage.setItem("dentist_bookmarks", JSON.stringify(newLiked));
+      console.log("Saved dentist bookmarks to device");
+    } catch (err) {
+      console.error("Error saving bookmarks:", err);
+    }
+  };
+
   const fetchDentists = async (forceRefresh = false) => {
     // Skip if cache is still valid and not forced
     if (!forceRefresh && isCacheValid()) {
@@ -198,7 +230,7 @@ export default function Dentists() {
         throw dentistsError;
       }
 
-      console.log("✅ Fetched dentists:", dentistRows?.length || 0);
+      console.log("Fetched dentists:", dentistRows?.length || 0);
 
       // Fetch schedules
       const { data: scheduleRows, error: schedulesError } = await supabase
@@ -207,10 +239,10 @@ export default function Dentists() {
         .eq("is_active", true);
 
       if (schedulesError) {
-        console.warn("⚠️ Warning loading schedules:", schedulesError);
+        console.warn("Warning loading schedules:", schedulesError);
       }
 
-      console.log("✅ Fetched schedules:", scheduleRows?.length || 0);
+      console.log("Fetched schedules:", scheduleRows?.length || 0);
 
       // Create dentist map
       const dentistMap = new Map((dentistRows || []).map((d) => [d.id, d]));
@@ -277,7 +309,7 @@ export default function Dentists() {
 
       mapped.sort((a, b) => a.name.localeCompare(b.name));
 
-      console.log("✅ Total mapped dentists:", mapped.length);
+      console.log("Total mapped dentists:", mapped.length);
 
       // Build merged dentists (one entry per dentist, consolidating all branches)
       const dentistGrouped = new Map();
@@ -325,8 +357,8 @@ export default function Dentists() {
 
       mergedMapped.sort((a, b) => a.name.localeCompare(b.name));
 
-      console.log("✅ Merged dentists:", mergedMapped.length);
-      console.log("📍 Branch options:", Array.from(branchSet));
+      console.log("Merged dentists:", mergedMapped.length);
+      console.log("Branch options:", Array.from(branchSet));
 
       // Cache the results
       dentistsCache = mapped;
@@ -345,7 +377,7 @@ export default function Dentists() {
       setMergedDentists(mergedMapped);
       setBranchOptions(scheduleCache.branches);
     } catch (err) {
-      console.error("❌ Error loading dentists:", err);
+      console.error("Error loading dentists:", err);
       if (isMountedRef.current) {
         Alert.alert("Error", "Failed to load dentists");
       }
@@ -370,7 +402,7 @@ export default function Dentists() {
   useFocusEffect(
     React.useCallback(() => {
       if (dentistsCache && isCacheValid()) {
-        console.log("📦 Cache valid, using cached data");
+        console.log("Cache valid, using cached data");
         if (isMountedRef.current) {
           setDentists(dentistsCache);
           setMergedDentists(scheduleCache.merged);
@@ -378,10 +410,10 @@ export default function Dentists() {
         }
       } else if (dentistsCache === null) {
         // First time loading
-        console.log("🔄 First load");
+        console.log("First load");
       } else {
         // Cache expired
-        console.log("⏰ Cache expired, fetching fresh data");
+        console.log("Cache expired, fetching fresh data");
         fetchDentists(false);
       }
     }, [])
@@ -463,6 +495,12 @@ export default function Dentists() {
     });
   };
 
+  const handleToggleLike = async (dentistId) => {
+    const newLiked = { ...likedMap, [dentistId]: !likedMap[dentistId] };
+    setLikedMap(newLiked);
+    await saveBookmarks(newLiked);
+  };
+
   const renderRow = ({ item, index }) => {
     if (item.type === "title") {
       return (
@@ -485,9 +523,7 @@ export default function Dentists() {
         <DentistCard
           item={d}
           liked={!!likedMap[d.dentistId]}
-          onToggleLike={() =>
-            setLikedMap((prev) => ({ ...prev, [d.dentistId]: !prev[d.dentistId] }))
-          }
+          onToggleLike={() => handleToggleLike(d.dentistId)}
           onBook={() => {
             setSelectedDentist(d);
             setFlowModalVisible(true);

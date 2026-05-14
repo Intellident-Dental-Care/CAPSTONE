@@ -1,5 +1,5 @@
 // app/services.js
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -10,13 +10,23 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { colors } from "./theme/colors";
 import { supabase } from "../server/supabaseService";
 
 const DEFAULT_DESCRIPTION =
   "This dental service helps improve your oral health and supports proper treatment planning based on your needs.";
+
+// Cache system for services (5 minutes TTL)
+let servicesCache = null;
+let cacheTimestamp = 0;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function isCacheValid() {
+  return servicesCache && (Date.now() - cacheTimestamp) < CACHE_TTL_MS;
+}
 
 export default function Services() {
   const router = useRouter();
@@ -26,34 +36,109 @@ export default function Services() {
   const [liked, setLiked] = useState({});
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const isMountedRef = useRef(true);
 
+  // Load bookmarks from device storage on mount
   useEffect(() => {
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from("dental_services")
-          .select("id, name, category, subcategory, price_display")
-          .eq("is_active", true)
-          .order("display_order", { ascending: true });
+    isMountedRef.current = true;
+    loadBookmarks();
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
-        if (error) throw error;
+  const loadBookmarks = async () => {
+    try {
+      const stored = await AsyncStorage.getItem("service_bookmarks");
+      if (stored && isMountedRef.current) {
+        const parsed = JSON.parse(stored);
+        setLiked(parsed);
+        console.log("Loaded service bookmarks from device");
+      }
+    } catch (err) {
+      console.error("Error loading bookmarks:", err);
+    }
+  };
 
-        setServices(
-          (data || []).map((s) => ({
-            id: s.id,
-            category: s.category || "General",
-            name: s.name,
-            price: s.price_display || "Price not available",
-            description: DEFAULT_DESCRIPTION,
-          }))
-        );
-      } catch (err) {
-        console.error("Error fetching services:", err);
-      } finally {
+  const saveBookmarks = async (newLiked) => {
+    try {
+      await AsyncStorage.setItem("service_bookmarks", JSON.stringify(newLiked));
+      console.log("Saved service bookmarks to device");
+    } catch (err) {
+      console.error("Error saving bookmarks:", err);
+    }
+  };
+
+  const fetchServices = async (forceRefresh = false) => {
+    // Skip if cache is still valid and not forced
+    if (!forceRefresh && isCacheValid()) {
+      console.log("Using cached services data");
+      if (!isMountedRef.current) return;
+      setServices(servicesCache);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      if (!isMountedRef.current) return;
+      setLoading(true);
+
+      console.log("Fetching fresh services data...");
+
+      const { data, error } = await supabase
+        .from("dental_services")
+        .select("id, name, category, subcategory, price_display")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+
+      const mapped = (data || []).map((s) => ({
+        id: s.id,
+        category: s.category || "General",
+        name: s.name,
+        price: s.price_display || "Price not available",
+        description: DEFAULT_DESCRIPTION,
+      }));
+
+      console.log("Fetched services:", mapped.length);
+
+      // Cache results
+      servicesCache = mapped;
+      cacheTimestamp = Date.now();
+
+      if (!isMountedRef.current) return;
+      setServices(mapped);
+    } catch (err) {
+      console.error("Error fetching services:", err);
+    } finally {
+      if (isMountedRef.current) {
         setLoading(false);
       }
-    })();
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    fetchServices();
   }, []);
+
+  // Smart refresh on focus - only refresh if cache is stale
+  useFocusEffect(
+    React.useCallback(() => {
+      if (servicesCache && isCacheValid()) {
+        console.log("Cache valid, using cached services");
+        if (isMountedRef.current) {
+          setServices(servicesCache);
+        }
+      } else if (servicesCache === null) {
+        console.log("First load services");
+      } else {
+        console.log("Cache expired, fetching fresh services");
+        fetchServices(false);
+      }
+    }, [])
+  );
 
   const categories = useMemo(() => {
     const cats = [...new Set(services.map((s) => s.category))];
@@ -74,15 +159,30 @@ export default function Services() {
     });
   }, [query, activeCategory, services]);
 
-  const favorites = useMemo(
-    () => filtered.filter((x) => !!liked[x.id]),
-    [filtered, liked]
-  );
+  // Avoid duplicate bookmarked items by using a Set
+  const favorites = useMemo(() => {
+    const seen = new Set();
+    return filtered.filter((x) => {
+      if (!!liked[x.id] && !seen.has(x.id)) {
+        seen.add(x.id);
+        return true;
+      }
+      return false;
+    });
+  }, [filtered, liked]);
 
-  const nonFavorites = useMemo(
-    () => filtered.filter((x) => !liked[x.id]),
-    [filtered, liked]
-  );
+  // Avoid duplicate non-bookmarked items by using a Set
+  const nonFavorites = useMemo(() => {
+    const seenFav = new Set(Object.keys(liked).filter((k) => liked[k]));
+    const seen = new Set();
+    return filtered.filter((x) => {
+      if (!seenFav.has(x.id) && !seen.has(x.id)) {
+        seen.add(x.id);
+        return true;
+      }
+      return false;
+    });
+  }, [filtered, liked]);
 
   const listData = useMemo(() => {
     const out = [];
@@ -111,6 +211,12 @@ export default function Services() {
         category: service.category,
       },
     });
+  };
+
+  const handleToggleLike = async (serviceId) => {
+    const newLiked = { ...liked, [serviceId]: !liked[serviceId] };
+    setLiked(newLiked);
+    await saveBookmarks(newLiked);
   };
 
   const renderRow = ({ item, index }) => {
@@ -145,12 +251,7 @@ export default function Services() {
           <Pressable
             style={styles.heartBtn}
             hitSlop={12}
-            onPress={() =>
-              setLiked((p) => ({
-                ...p,
-                [svc.id]: !p[svc.id],
-              }))
-            }
+            onPress={() => handleToggleLike(svc.id)}
           >
             <Ionicons
               name={isLiked ? "heart" : "heart-outline"}
