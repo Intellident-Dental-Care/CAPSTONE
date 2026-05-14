@@ -13,7 +13,7 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "./../theme/colors";
 import { supabase } from "../../server/supabaseService";
-import { getCurrentActiveProfileForSession } from "../_storage/authStorage";
+import { getCurrentActiveProfileForSession, getSession } from "../_storage/authStorage";
 import {
   appointmentsListCache,
   APPOINTMENT_CACHE_TTL_MS,
@@ -98,12 +98,11 @@ export default function AppointmentsScreen() {
       const profileId = isUuid(activeProfile?.id) ? activeProfile.id : null;
       const cacheKey = profileId || "__no_profile__";
       const cached = appointmentsListCache[cacheKey];
-      const now = Date.now();
-      const isStale =
-        !cached || now - cached.fetchedAt > APPOINTMENT_CACHE_TTL_MS;
 
+      // Instantly load cached data for UI speed
       if (cached) setAppointments(cached.data);
-      if (!isStale) return;
+
+      // The stale check is removed here so it ALWAYS fetches fresh data in the background
 
       let dbQuery = supabase
         .from("bookings")
@@ -115,8 +114,9 @@ export default function AppointmentsScreen() {
       if (profileId) {
         dbQuery = dbQuery.eq("profile_id", profileId);
       } else {
-        const { data: authData } = await supabase.auth.getUser();
-        const user = authData?.user;
+        // Fast local session fetch (Prevents re-login network delays)
+        const session = await getSession();
+        const user = session?.user;
         if (!user) return;
 
         if (activeProfile?.name) {
