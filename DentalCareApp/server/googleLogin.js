@@ -10,13 +10,13 @@ WebBrowser.maybeCompleteAuthSession();
 
 export const handleGoogleLogin = async () => {
   try {
-    console.log('=== STARTING GOOGLE OAUTH (SESSION MODE) ===');
+    console.log('=== STARTING GOOGLE OAUTH (VERCEL CALLBACK) ===');
 
     const localRedirectUrl = Linking.createURL('/');
     console.log('📱 Local Redirect URL:', localRedirectUrl);
 
     const callbackUrl = `https://dentalcare-oauth-callback.vercel.app?return_to=${encodeURIComponent(localRedirectUrl)}`;
-    
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -32,63 +32,42 @@ export const handleGoogleLogin = async () => {
     if (error) throw error;
 
     console.log('📱 Opening Auth Session...');
-    
 
     const result = await WebBrowser.openAuthSessionAsync(
-      data.url,       
-      localRedirectUrl 
+      data.url,
+      localRedirectUrl
     );
 
-    console.log('=== AUTH SESSION RESULT ===');
+    console.log('=== GOOGLE AUTH SESSION RESULT ===');
     console.log('Result type:', result.type);
     console.log('Result URL:', result.url);
 
     if (result.type === 'success' && result.url) {
-      console.log('✅ Auth Session Successful! Browser closed automatically.');
-      console.log('🔗 Result URL:', result.url);
-      
       const params = parseUrlParams(result.url);
-      
-      console.log('🔍 Parsed tokens:', {
-        hasAccessToken: !!params.access_token,
-        hasRefreshToken: !!params.refresh_token,
-        accessTokenPreview: params.access_token ? params.access_token.substring(0, 20) + '...' : null
-      });
-      
+
       if (params.access_token && params.refresh_token) {
-        console.log('🔓 Tokens found. Setting session...');
-        
-        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.setSession({
             access_token: params.access_token,
             refresh_token: params.refresh_token,
-        });
+          });
 
-        if (sessionError) {
-          console.error('Session error:', sessionError);
-          throw sessionError;
-        }
-
-        console.log('✅ Session set successfully');
-        console.log('👤 User:', sessionData.user?.email);
+        if (sessionError) throw sessionError;
 
         await processUserProfile(sessionData.user, 'google');
-        
-        console.log('🏠 Navigating to home...');
-        router.replace("/home");
+
+        router.replace('/home');
         return sessionData.user;
-        
-      } else {
-        console.log('⚠️ No tokens found in result URL');
-        throw new Error('No authentication tokens received');
       }
-      
-    } else if (result.type === 'cancel') {
-      console.log('❌ Login cancelled by user');
-      throw new Error('Google login was cancelled');
-    } else {
-      console.log('❌ Login failed:', result.type);
-      throw new Error('Google login failed');
+
+      throw new Error('No authentication tokens received');
     }
+
+    if (result.type === 'cancel') {
+      throw new Error('Google login was cancelled');
+    }
+
+    throw new Error('Google login failed');
 
   } catch (error) {
     console.log('=== GOOGLE LOGIN ERROR ===');

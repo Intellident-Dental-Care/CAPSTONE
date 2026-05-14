@@ -8,16 +8,13 @@ WebBrowser.maybeCompleteAuthSession();
 
 export const handleFacebookLogin = async () => {
   try {
-    console.log('=== STARTING FACEBOOK OAUTH (SESSION MODE) ===');
-    
-    // 1. Get your specific local development URL
+    console.log('=== STARTING FACEBOOK OAUTH (VERCEL CALLBACK) ===');
+
     const localRedirectUrl = Linking.createURL('/');
     console.log('📱 Local Redirect URL:', localRedirectUrl);
 
-    // 2. Prepare the Vercel Callback
     const callbackUrl = `https://dentalcare-oauth-callback.vercel.app?return_to=${encodeURIComponent(localRedirectUrl)}`;
-    
-    // 3. Get the Facebook Auth URL from Supabase
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'facebook',
       options: {
@@ -34,7 +31,6 @@ export const handleFacebookLogin = async () => {
 
     console.log('📱 Opening Facebook Auth Session...');
     
-    // 4. Open Auth Session and wait for completion
     const result = await WebBrowser.openAuthSessionAsync(
       data.url,
       localRedirectUrl
@@ -46,55 +42,31 @@ export const handleFacebookLogin = async () => {
 
     // 5. Handle the Result
     if (result.type === 'success' && result.url) {
-      console.log('✅ Facebook Auth Session Successful!');
-      console.log('🔗 Result URL:', result.url);
-      
-      // Extract tokens from the URL
       const params = parseUrlParams(result.url);
-      
-      console.log('🔍 Parsed Facebook tokens:', {
-        hasAccessToken: !!params.access_token,
-        hasRefreshToken: !!params.refresh_token,
-        accessTokenPreview: params.access_token ? params.access_token.substring(0, 20) + '...' : null
-      });
-      
+
       if (params.access_token && params.refresh_token) {
-        console.log('🔓 Facebook tokens found. Setting session...');
-        
-        // Set Supabase Session
-        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.setSession({
             access_token: params.access_token,
             refresh_token: params.refresh_token,
-        });
+          });
 
-        if (sessionError) {
-          console.error('Facebook session error:', sessionError);
-          throw sessionError;
-        }
+        if (sessionError) throw sessionError;
 
-        console.log('✅ Facebook session set successfully');
-        console.log('👤 User:', sessionData.user?.email);
-
-        // Process User Profile
         await processUserProfile(sessionData.user, 'facebook');
-        
-        // Navigate to home
-        console.log('🏠 Navigating to home...');
-        router.replace("/home");
+
+        router.replace('/home');
         return sessionData.user;
-        
-      } else {
-        console.log('⚠️ No tokens found in Facebook result URL');
-        throw new Error('No authentication tokens received from Facebook');
       }
-      
-    } else if (result.type === 'cancel') {
-      console.log('❌ Facebook login cancelled by user');
-      throw new Error('Facebook login was cancelled');
-    } else {
-      console.log('❌ Facebook login failed:', result.type);
-      throw new Error('Facebook login failed');
+
+      throw new Error('No authentication tokens received from Facebook');
     }
+
+    if (result.type === 'cancel') {
+      throw new Error('Facebook login was cancelled');
+    }
+
+    throw new Error('Facebook login failed');
 
   } catch (error) {
     console.log('=== FACEBOOK LOGIN ERROR ===');

@@ -24,6 +24,10 @@ import {
   ensureDefaultProfileForEmail,
   addProfileToEmail,
 } from "./_storage/authStorage";
+import {
+  profileIndexCache,
+  clearAllProfileCaches,
+} from "./_storage/profileCache";
 
 export default function History() {
   const router = useRouter();
@@ -31,7 +35,8 @@ export default function History() {
   const [filter, setFilter] = useState("All");
   const [profileModalVisible, setProfileModalVisible] = useState(false);
 
-  const [loggedInEmail, setLoggedInEmail] = useState("");
+  const [fullName, setFullName] = useState(profileIndexCache.fullName || "User");
+  const [loggedInEmail, setLoggedInEmail] = useState(profileIndexCache.loggedInEmail || "");
   const [profiles, setProfiles] = useState([]);
   const [selectedProfile, setSelectedProfile] = useState({
     id: "",
@@ -73,32 +78,46 @@ export default function History() {
   const loadProfiles = async () => {
     try {
       const session = await getSession();
-      const email = (session?.email || "").trim().toLowerCase();
+      const accountEmail = (session?.user?.email || "").trim().toLowerCase();
+      setLoggedInEmail(accountEmail);
 
-      setLoggedInEmail(email);
-
-      if (!email) return;
+      if (!accountEmail) {
+        setProfiles([]);
+        setSelectedProfile(null);
+        return;
+      }
 
       const setup = await ensureDefaultProfileForEmail(
-        email,
+        accountEmail,
         session?.fullName || "User"
       );
 
-      if (setup?.profiles) {
-        setProfiles(setup.profiles);
+      let activeProfile = setup?.activeProfile || null;
+      let allProfiles = setup?.profiles || [];
+
+      if (!activeProfile) {
+        activeProfile = await getActiveProfileByEmail(accountEmail);
+      }
+      if (!allProfiles.length) {
+        allProfiles = await getProfilesByEmail(accountEmail);
       }
 
-      if (setup?.activeProfile) {
-        setSelectedProfile(setup.activeProfile);
-      } else {
-        const savedProfiles = await getProfilesByEmail(email);
-        const activeProfile = await getActiveProfileByEmail(email);
+      setProfiles(allProfiles || []);
+      setSelectedProfile(activeProfile || null);
 
-        setProfiles(savedProfiles);
-        if (activeProfile) {
-          setSelectedProfile(activeProfile);
-        }
+      if (activeProfile?.name) {
+        setFullName(activeProfile.name);
+      } else if (session?.fullName) {
+        setFullName(session.fullName);
       }
+
+      Object.assign(profileIndexCache, {
+        loaded: true,
+        profiles: allProfiles || [],
+        selectedProfile: activeProfile || null,
+        fullName: activeProfile?.name || session?.fullName || "User",
+        loggedInEmail: accountEmail,
+      });
     } catch (error) {
       console.log("loadProfiles error:", error);
     }
@@ -106,19 +125,23 @@ export default function History() {
 
   useFocusEffect(
     useCallback(() => {
-      loadProfiles();
-      fetchHistoryData();
+      (async () => {
+        await loadProfiles();
+        await fetchHistoryData();
+      })();
     }, [])
   );
 
   const handleSelectProfile = async (profile) => {
     try {
-      setSelectedProfile(profile);
-      setProfileModalVisible(false);
+      if (!loggedInEmail || !profile) return;
 
-      if (loggedInEmail) {
-        await setActiveProfileByEmail(loggedInEmail, profile);
-      }
+      await setActiveProfileByEmail(loggedInEmail, profile);
+      setSelectedProfile(profile);
+      setFullName(profile?.name || "User");
+      profileIndexCache.selectedProfile = profile;
+      profileIndexCache.fullName = profile?.name || "User";
+      setProfileModalVisible(false);
     } catch (error) {
       console.log("handleSelectProfile error:", error);
     }
@@ -141,6 +164,11 @@ export default function History() {
       if (result.profile) {
         await setActiveProfileByEmail(loggedInEmail, result.profile);
         setSelectedProfile(result.profile);
+        setFullName(result.profile.name || "User");
+        setProfiles((prev) => [...prev, result.profile]);
+        profileIndexCache.selectedProfile = result.profile;
+        profileIndexCache.fullName = result.profile.name || "User";
+        profileIndexCache.profiles = [...(profileIndexCache.profiles || []), result.profile];
         setProfileModalVisible(false);
         router.push("/patient-first-setup");
         return;
@@ -156,6 +184,7 @@ export default function History() {
   const handleLogout = async () => {
     try {
       setProfileModalVisible(false);
+      clearAllProfileCaches();
       await logoutUser();
       router.replace("/get-started");
     } catch (error) {

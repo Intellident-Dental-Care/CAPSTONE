@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { colors } from "./theme/colors";
 import { startDeepLinkListener } from "../server/deepLinkHandler";
 import { getSession } from "./_storage/authStorage";
+import { restoreSessionFromStorage } from "../server/supabaseService";
 
 export default function Index() {
   const router = useRouter();
@@ -17,6 +18,11 @@ export default function Index() {
       try {
         const session = await getSession();
 
+        // Restore Supabase session from AsyncStorage if available
+        if (session?.session) {
+          await restoreSessionFromStorage(session);
+        }
+
         setTimeout(() => {
           if (session?.user || session?.session?.user) {
             router.replace("/home");
@@ -25,6 +31,7 @@ export default function Index() {
           }
         }, 1200);
       } catch (error) {
+        console.error('Session check error:', error);
         router.replace("/get-started");
       }
     };

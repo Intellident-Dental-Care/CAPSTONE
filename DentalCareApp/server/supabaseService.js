@@ -65,11 +65,39 @@ export const signUpUser = async ({ fullName, email, password }) => {
   }
 };
 
+// Restore session from stored data (for app initialization)
+export const restoreSessionFromStorage = async (storedSession) => {
+  if (!storedSession?.session) {
+    return null;
+  }
+
+  try {
+    // Set the session in Supabase client
+    const { error } = await supabase.auth.setSession(storedSession.session);
+    if (error) {
+      console.warn('Failed to restore Supabase session:', error);
+      return null;
+    }
+    return storedSession.user;
+  } catch (error) {
+    console.warn('Error restoring session:', error);
+    return null;
+  }
+};
+
 // Helper function to get current user
 export const getCurrentUser = async () => {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error) throw error;
-  return user;
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) {
+      console.warn('getCurrentUser error:', error.message);
+      return null;
+    }
+    return user;
+  } catch (error) {
+    console.warn('Exception in getCurrentUser:', error);
+    return null;
+  }
 };
 
 // Helper function to get user profile
