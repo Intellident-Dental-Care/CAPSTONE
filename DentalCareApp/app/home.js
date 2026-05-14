@@ -37,6 +37,7 @@ import {
   formatAppointmentDate,
   formatAppointmentTime,
 } from "../server/upcomingAppointment";
+import { getServerUrl } from "../server/getClientSideUrl";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import ProfileSwitcherModal from "./components/ProfileSwitcherModal";
@@ -88,6 +89,8 @@ export default function Home() {
 
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState(null);
+  const [recentVisits, setRecentVisits] = useState([]);
+  const [treatmentPlans, setTreatmentPlans] = useState([]);
 
   const loadQueueForAppointment = useCallback(async (appointment, { showLoader = true } = {}) => {
     if (!appointment) {
@@ -104,6 +107,88 @@ export default function Home() {
       setQueueData(null);
     } finally {
       if (showLoader) setLoadingQueue(false);
+    }
+  }, []);
+
+  const fetchRecentVisits = useCallback(async (session) => {
+    try {
+      const userId = session?.user?.id || session?.id;
+      const token = session?.session?.access_token || session?.access_token || "";
+
+      if (!userId) {
+        setRecentVisits([]);
+        return;
+      }
+
+      const baseUrl = await getServerUrl();
+      const apiUrl = `${baseUrl}/api/patient-history?userId=${userId}`;
+
+      const res = await fetch(apiUrl, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const result = await res.json();
+      if (result.success && result.data) {
+        // Flatten all items from all months and get the 3 most recent
+        const allItems = [];
+        result.data.forEach(monthGroup => {
+          if (monthGroup.items && Array.isArray(monthGroup.items)) {
+            allItems.push(...monthGroup.items);
+          }
+        });
+        
+        // Sort by date (most recent first) and take top 3
+        const recent = allItems
+          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .slice(0, 3);
+        
+        setRecentVisits(recent);
+      } else {
+        setRecentVisits([]);
+      }
+    } catch (error) {
+      console.log("fetchRecentVisits error:", error);
+      setRecentVisits([]);
+    }
+  }, []);
+
+  const fetchTreatmentPlan = useCallback(async (session) => {
+    try {
+      const userId = session?.user?.id || session?.id;
+      const token = session?.session?.access_token || session?.access_token || "";
+
+      if (!userId) {
+        setTreatmentPlans([]);
+        return;
+      }
+
+      const baseUrl = await getServerUrl();
+      const apiUrl = `${baseUrl}/api/upcoming-treatments?userId=${userId}`;
+
+      const res = await fetch(apiUrl, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const result = await res.json();
+      if (result.success && Array.isArray(result.data)) {
+        // Filter only treatment-type bookings and sort by date
+        const treatments = result.data
+          .filter(t => t.type === "Treatment" || t.service_type === "Treatment")
+          .sort((a, b) => new Date(a.appointment_date || a.date) - new Date(b.appointment_date || b.date));
+        
+        setTreatmentPlans(treatments);
+      } else {
+        setTreatmentPlans([]);
+      }
+    } catch (error) {
+      console.log("fetchTreatmentPlan error:", error);
+      setTreatmentPlans([]);
     }
   }, []);
 
@@ -179,10 +264,12 @@ export default function Home() {
       });
 
       await loadUpcomingForProfile(activeProfile);
+      await fetchRecentVisits(session);
+      await fetchTreatmentPlan(session);
     } catch (error) {
       console.log("loadProfiles error:", error);
     }
-  }, [loadUpcomingForProfile]);
+  }, [loadUpcomingForProfile, fetchRecentVisits, fetchTreatmentPlan]);
 
   useFocusEffect(
     useCallback(() => {
@@ -203,6 +290,9 @@ export default function Home() {
       profileIndexCache.fullName = profile?.name || "User";
 
       await loadUpcomingForProfile(profile);
+      const session = await getSession();
+      await fetchRecentVisits(session);
+      await fetchTreatmentPlan(session);
       setProfileModalVisible(false);
     } catch (error) {
       console.log("handleSelectProfile error:", error);
@@ -229,6 +319,9 @@ export default function Home() {
         setFullName(result.profile.name || "User");
         setProfiles((prev) => [...prev, result.profile]);
         await loadUpcomingForProfile(result.profile);
+        const session = await getSession();
+        await fetchRecentVisits(session);
+        await fetchTreatmentPlan(session);
         setProfileModalVisible(false);
         router.push("/patient-first-setup");
         return;
@@ -249,6 +342,34 @@ export default function Home() {
       router.replace("/get-started");
     } catch (error) {
       console.log("handleLogout error:", error);
+    }
+  };
+
+  const handleReschedule = (treatment) => {
+    try {
+      if (!treatment?.id) {
+        Alert.alert("Error", "Unable to reschedule this appointment");
+        return;
+      }
+
+      router.push({
+        pathname: "/booking/appointment",
+        params: {
+          service: treatment.service || treatment.title,
+          serviceName: treatment.service || treatment.title,
+          branch: treatment.branch,
+          doctor: treatment.dentist_name || treatment.doctor,
+          doctorId: treatment.dentist_id,
+          preassessmentId: treatment.preassessment_id,
+          bookingId: treatment.id,
+          editMode: "true",
+          originalDate: treatment.appointment_date || treatment.date,
+          originalTime: treatment.appointment_time || treatment.time,
+        },
+      });
+    } catch (error) {
+      console.log("handleReschedule error:", error);
+      Alert.alert("Error", "Failed to reschedule appointment");
     }
   };
 
@@ -547,219 +668,72 @@ export default function Home() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.recentScroll}
           >
-
-            <RecentCard
-              title="Dr. Mendoza"
-              clinic="GC Dental Care • Dentist"
-              service="Teeth Cleaning"
-              onBookNow={openFlowModal}
-              onDetails={() =>
-                openDetailModal({
-                  doctor: "Dr. Mendoza",
-                  title: "Tooth Cleaning",
-                  type: "Routine",
-                  status: "Completed",
-                  date: "January 10, 2026",
-                  time: "9:30 AM",
-                  tooth: "3rd Molar",
-                  description:
-                    "Patient experienced mild gum discomfort and sensitivity when brushing around the affected area.",
-                  qaList: [
-                    {
-                      question: "Do you feel tooth pain when biting or chewing?",
-                      answer: "No",
-                    },
-                    {
-                      question: "Do you experience sensitivity to cold drinks?",
-                      answer: "Yes",
-                    },
-                    {
-                      question: "Do your gums bleed when brushing or flossing?",
-                      answer: "Yes",
-                    },
-                  ],
-                  suggestedTreatment: "Tooth Cleaning",
-                  suggestedPrice: "Starting Price: ₱1,000",
-                  procedure: "Oral Prophylaxis / Tooth Cleaning",
-                })
-              }
-            />
-
-            <RecentCard
-              title="Dr. Guillermo"
-              clinic="GC Dental Care • Dentist"
-              service="Dental Implant"
-              onBookNow={openFlowModal}
-              onDetails={() =>
-                openDetailModal({
-                  doctor: "Dr. Guillermo",
-                  title: "Dental Implant",
-                  type: "Treatment",
-                  status: "Completed",
-                  date: "December 18, 2025",
-                  time: "1:00 PM",
-                  tooth: "Front Incisor",
-                  description:
-                    "Patient wanted replacement for a missing tooth and asked about long-term implant options.",
-                  qaList: [
-                    {
-                      question: "Do you feel tooth pain when biting or chewing?",
-                      answer: "No",
-                    },
-                    {
-                      question: "Do you experience sensitivity to cold drinks?",
-                      answer: "No",
-                    },
-                  ],
-                  suggestedTreatment: "Dental Implant",
-                  suggestedPrice: "Starting Price: ₱15,000",
-                  procedure: "Dental Implant Procedure",
-                })
-              }
-            />
-
-            <RecentCard
-              title="Dr. Amparo"
-              clinic="GC Dental Care • Dentist"
-              service="Braces"
-              onBookNow={openFlowModal}
-              onDetails={() =>
-                openDetailModal({
-                  doctor: "Dr. Amparo",
-                  title: "Braces Consultation",
-                  type: "Treatment",
-                  status: "Completed",
-                  date: "November 28, 2025",
-                  time: "11:00 AM",
-                  tooth: "Upper and Lower Teeth",
-                  description:
-                    "Patient consulted for teeth alignment and possible orthodontic treatment plan.",
-                  qaList: [
-                    {
-                      question: "Do you feel tooth pain when biting or chewing?",
-                      answer: "Slightly",
-                    },
-                    {
-                      question: "Do you experience sensitivity to cold drinks?",
-                      answer: "No",
-                    },
-                  ],
-                  suggestedTreatment: "Braces",
-                  suggestedPrice: "Starting Price: ₱35,000",
-                  procedure: "Orthodontic Consultation",
-                })
-              }
-            />
+            {recentVisits.length > 0 ? (
+              recentVisits.map((visit, idx) => (
+                <RecentCard
+                  key={idx}
+                  title={visit.doctor}
+                  clinic={`${visit.doctor} • Dentist`}
+                  service={visit.title}
+                  onBookNow={openFlowModal}
+                  onDetails={() => openDetailModal(visit)}
+                />
+              ))
+            ) : (
+              <View style={{ padding: 16, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#999', fontSize: 12 }}>No recent visits yet</Text>
+              </View>
+            )}
           </ScrollView>
 
           <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
             Treatment Plan
           </Text>
 
-          <TreatmentItem
-            title="Teeth Whitening"
-            sub="Scheduled for January 20, 2026 • 10:00 AM"
-            status="Confirmed"
-            rightA="VIEW DETAILS"
-            rightB="RESCHEDULE"
-            onViewDetails={() =>
-              openDetailModal({
-                doctor: "Dr. Dian Crizzie Mendoza",
-                title: "Teeth Whitening",
-                type: "Treatment",
-                status: "Confirmed",
-                date: "January 20, 2026",
-                time: "10:00 AM",
-                tooth: "Front Incisor",
-                description:
-                  "Patient requested cosmetic whitening to improve tooth shade and remove visible discoloration.",
-                qaList: [
-                  {
-                    question: "Do you feel tooth pain when biting or chewing?",
-                    answer: "No",
-                  },
-                  {
-                    question: "Do you experience sensitivity to cold drinks?",
-                    answer: "No",
-                  },
-                ],
-                suggestedTreatment: "Teeth Whitening",
-                suggestedPrice: "Starting Price: ₱3,500",
-                procedure: "Cosmetic Teeth Whitening",
-              })
-            }
-            onPrimaryAction={openFlowModal}
-          />
-
-          <TreatmentItem
-            title="Routine Cleaning"
-            sub="Due in 3 Months • April 2026"
-            status="Suggested Booking"
-            rightA="VIEW DETAILS"
-            rightB="BOOK NOW"
-            onViewDetails={() =>
-              openDetailModal({
-                doctor: "Assigned upon booking",
-                title: "Routine Cleaning",
-                type: "Routine",
-                status: "Suggested Booking",
-                date: "April 2026",
-                time: "To be selected",
-                tooth: "General Teeth Cleaning",
-                description:
-                  "Routine cleaning is recommended based on your previous dental visit schedule.",
-                qaList: [
-                  {
-                    question: "Do you feel tooth pain when biting or chewing?",
-                    answer: "No",
-                  },
-                  {
-                    question: "Do you experience sensitivity to cold drinks?",
-                    answer: "Sometimes",
-                  },
-                ],
-                suggestedTreatment: "Routine Cleaning",
-                suggestedPrice: "Starting Price: ₱1,000",
-                procedure: "Oral Prophylaxis / Tooth Cleaning",
-              })
-            }
-            onPrimaryAction={openFlowModal}
-          />
-
-          <TreatmentItem
-            title="Routine Cleaning"
-            sub="Due in 8 Months • July 2026"
-            status="Suggested Booking"
-            rightA="VIEW DETAILS"
-            rightB="BOOK NOW"
-            onViewDetails={() =>
-              openDetailModal({
-                doctor: "Assigned upon booking",
-                title: "Routine Cleaning",
-                type: "Routine",
-                status: "Suggested Booking",
-                date: "July 2026",
-                time: "To be selected",
-                tooth: "General Teeth Cleaning",
-                description:
-                  "Another follow-up routine cleaning is suggested to maintain oral health and prevent plaque buildup.",
-                qaList: [
-                  {
-                    question: "Do your gums bleed when brushing or flossing?",
-                    answer: "Occasionally",
-                  },
-                  {
-                    question: "Do you experience sensitivity to cold drinks?",
-                    answer: "No",
-                  },
-                ],
-                suggestedTreatment: "Routine Cleaning",
-                suggestedPrice: "Starting Price: ₱1,000",
-                procedure: "Oral Prophylaxis / Tooth Cleaning",
-              })
-            }
-            onPrimaryAction={openFlowModal}
-          />
+          {treatmentPlans.length > 0 ? (
+            treatmentPlans.map((treatment, idx) => {
+              const appointmentDate = treatment.appointment_date || treatment.date || "";
+              const appointmentTime = treatment.appointment_time || treatment.time || "";
+              const formattedDate = appointmentDate ? new Date(appointmentDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "";
+              const dateStr = appointmentTime && formattedDate ? `${formattedDate} • ${appointmentTime}` : (formattedDate || "Date TBD");
+              
+              return (
+                <TreatmentItem
+                  key={idx}
+                  title={treatment.service || treatment.title || "Dental Treatment"}
+                  sub={`Scheduled for ${dateStr}`}
+                  status={treatment.status || "Confirmed"}
+                  rightA="VIEW DETAILS"
+                  rightB={treatment.status === "confirmed" || treatment.status === "pending" ? "RESCHEDULE" : "BOOK NOW"}
+                  onViewDetails={() => openDetailModal({
+                    doctor: treatment.dentist_name || treatment.doctor || "Assigned Dentist",
+                    title: treatment.service || treatment.title || "Dental Treatment",
+                    type: treatment.type || "Treatment",
+                    status: treatment.status || "Confirmed",
+                    date: formattedDate,
+                    time: appointmentTime || "-",
+                    tooth: treatment.tooth || "Not specified",
+                    description: treatment.description || "-",
+                    qaList: treatment.qaList || [],
+                    suggestedTreatment: treatment.service || treatment.title || "-",
+                    suggestedPrice: treatment.price_display || "Contact clinic for pricing",
+                    procedure: treatment.procedure_name || treatment.service || "-",
+                  })}
+                  onPrimaryAction={() => {
+                    if (treatment.status === "confirmed" || treatment.status === "pending") {
+                      handleReschedule(treatment);
+                    } else {
+                      openFlowModal();
+                    }
+                  }}
+                />
+              );
+            })
+          ) : (
+            <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+              <Text style={{ color: '#999', fontSize: 12 }}>No treatment plans scheduled</Text>
+            </View>
+          )}
         </ScrollView>
 
         <View style={styles.bottomBar}>

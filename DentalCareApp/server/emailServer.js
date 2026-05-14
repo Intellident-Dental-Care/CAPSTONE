@@ -273,7 +273,9 @@ app.get('/server-info', (req, res) => {
 });
 
 const historyRoute = require('./PatientHistory/patientHistory');
+const upcomingTreatmentsRoute = require('./upcomingTreatments');
 app.use('/api/patient-history', historyRoute);
+app.use('/api/upcoming-treatments', upcomingTreatmentsRoute);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Email server running on port ${PORT}`);

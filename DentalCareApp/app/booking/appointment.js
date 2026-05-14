@@ -209,10 +209,12 @@ function convertTo12Hour(time24h) {
 /* ---------- component ---------- */
 export default function BookingAppointment() {
   const router = useRouter();
-  const { service, branch, doctor, doctorId, preassessmentId } = useLocalSearchParams();
+  const { service, branch, doctor, doctorId, preassessmentId, bookingId, editMode, originalDate, originalTime } = useLocalSearchParams();
 
   const selectedDoctorId =
     typeof doctorId === "string" && doctorId.length ? doctorId : "";
+  const isEditMode = editMode === "true";
+  const existingBookingId = typeof bookingId === "string" ? bookingId : null;
 
   const [showAlert, setShowAlert] = useState(false);
   const [dentistData, setDentistData] = useState(null);
@@ -228,10 +230,14 @@ export default function BookingAppointment() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [selectedISO, setSelectedISO] = useState("");
+  const [selectedISO, setSelectedISO] = useState(
+    isEditMode && typeof originalDate === "string" ? originalDate : ""
+  );
   const [selectedLabel, setSelectedLabel] = useState("");
 
-  const [selectedTime, setSelectedTime] = useState("");
+  const [selectedTime, setSelectedTime] = useState(
+    isEditMode && typeof originalTime === "string" ? convertTo12Hour(originalTime) : ""
+  );
   const [timeTab, setTimeTab] = useState("Morning");
 
   const [showCalendar, setShowCalendar] = useState(false);
@@ -586,19 +592,78 @@ export default function BookingAppointment() {
         status: 'pending'
       };
 
-      console.log('Inserting booking data:', bookingData);
+      console.log(isEditMode ? 'Updating booking data:' : 'Inserting booking data:', bookingData);
 
-      let { error } = await supabase
-        .from('bookings')
-        .insert([bookingData]);
+      let error;
 
-      // Backward compatibility: some DBs still don't have bookings.service.
-      if (isMissingServiceColumnError(error)) {
-        const { service: _unusedService, ...legacyBookingData } = bookingData;
-        const retry = await supabase
+      if (isEditMode && existingBookingId) {
+        // UPDATE existing booking (reschedule)
+        console.log('Rescheduling booking:', existingBookingId);
+        
+        const updateData = {
+          appointment_date: selectedISO,
+          appointment_time: time24h,
+          status: 'pending'
+        };
+
+        const { error: updateError } = await supabase
           .from('bookings')
-          .insert([legacyBookingData]);
-        error = retry.error;
+          .update(updateData)
+          .eq('id', existingBookingId);
+
+        error = updateError;
+      } else {
+        // CREATE new booking
+        // Check for existing booking at same slot
+        const { data: existingBooking } = await supabase
+          .from('bookings')
+          .select('id, patient_name')
+          .eq('dentist_id', dentistData.id)
+          .eq('appointment_date', selectedISO)
+          .eq('appointment_time', time24h)
+          .eq('branch', branch)
+          .in('status', ['pending', 'confirmed']);
+
+        if (existingBooking && existingBooking.length > 0) {
+          Alert.alert('Time Slot Unavailable', 'This time slot is already booked by another patient. Please select a different time.');
+          setBooking(false);
+          await fetchBookedTimeSlots();
+          return;
+        }
+
+        // Check if this profile already has a booking with this doctor on this date
+        let dupQuery = supabase
+          .from('bookings')
+          .select('id')
+          .eq('dentist_id', dentistData.id)
+          .eq('appointment_date', selectedISO)
+          .eq('status', 'pending');
+
+        dupQuery = profileId
+          ? dupQuery.eq('profile_id', profileId)
+          : dupQuery.eq('user_id', user.id);
+
+        const { data: userExistingBooking } = await dupQuery;
+        if (userExistingBooking && userExistingBooking.length > 0) {
+          Alert.alert('Booking Exists', 'You already have a booking with this doctor on this date.');
+          setBooking(false);
+          return;
+        }
+
+        const { error: insertError } = await supabase
+          .from('bookings')
+          .insert([bookingData]);
+
+        // Backward compatibility: some DBs still don't have bookings.service.
+        if (isMissingServiceColumnError(insertError)) {
+          const { service: _unusedService, ...legacyBookingData } = bookingData;
+          const retry = await supabase
+            .from('bookings')
+            .insert([legacyBookingData]);
+          error = retry.error;
+        } else {
+          error = insertError;
+        }
       }
 
       if (error) throw error;
@@ -608,7 +673,7 @@ export default function BookingAppointment() {
       clearAppointmentCacheForProfile(cacheKey);
       delete appointmentsListCache[cacheKey];
 
-      console.log('Booking created successfully');
+      console.log(isEditMode ? 'Booking rescheduled successfully' : 'Booking created successfully');
       setShowAlert(true);
     } catch (err) {
       console.error('Error creating booking:', err);
