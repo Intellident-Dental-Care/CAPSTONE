@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
   Modal,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -242,29 +243,57 @@ export default function AppointmentsScreen() {
     setSelectedAppointment(null);
   };
 
-  const handleCancelAppointment = async () => {
-    try {
-      if (!selectedAppointment?.id) return;
+  const handleCancelAppointment = () => {
+    if (!selectedAppointment?.id) return;
 
-      const { error } = await supabase
-        .from("bookings")
-        .update({ status: "cancelled" })
-        .eq("id", selectedAppointment.id);
+    Alert.alert(
+      "Cancel Appointment",
+      "Are you sure you want to cancel this appointment?",
+      [
+        { text: "No, keep it", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from("bookings")
+                .update({ status: "cancelled" })
+                .eq("id", selectedAppointment.id);
 
-      if (error) throw error;
+              if (error) throw error;
 
-      setAppointments((prev) =>
-        prev.map((item) =>
-          item.id === selectedAppointment.id
-            ? { ...item, status: "Cancelled" }
-            : item
-        )
-      );
+              // Update local state AND update the cache so it doesn't revert back on focus
+              setAppointments((prev) => {
+                const updated = prev.map((item) =>
+                  item.id === selectedAppointment.id
+                    ? { ...item, status: "Cancelled" }
+                    : item
+                );
 
-      handleCloseDetails();
-    } catch (err) {
-      console.error("Cancel appointment error:", err);
-    }
+                for (let key in appointmentsListCache) {
+                  if (appointmentsListCache[key]?.data) {
+                    appointmentsListCache[key].data = appointmentsListCache[key].data.map((item) =>
+                      item.id === selectedAppointment.id
+                        ? { ...item, status: "Cancelled" }
+                        : item
+                    );
+                  }
+                }
+
+                return updated;
+              });
+
+              handleCloseDetails();
+              Alert.alert("Success", "Appointment has been cancelled.");
+            } catch (err) {
+              console.error("Cancel appointment error:", err);
+              Alert.alert("Error", "Failed to cancel the appointment.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const getStatusColor = (status) => {
