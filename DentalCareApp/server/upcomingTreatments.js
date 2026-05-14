@@ -10,25 +10,37 @@ const supabaseAdmin = createClient(
 
 router.get("/", async (req, res) => {
   try {
-    const { userId } = req.query;
+    const { userId, profileId } = req.query;
     if (!userId) return res.status(400).json({ error: "Missing userId" });
+
+    console.log("upcomingTreatments request:", { userId, profileId });
 
     // Get upcoming bookings (pending, confirmed)
     const today = new Date().toISOString().split('T')[0];
     
-    const { data: bookings, error: bookingErr } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("bookings")
       .select("*")
       .eq("user_id", userId)
       .in("status", ["pending", "confirmed"])
-      .gte("appointment_date", today)
-      .order("appointment_date", { ascending: true });
-
-    if (bookingErr) throw bookingErr;
-
-    if (!bookings || bookings.length === 0) {
-      return res.json({ success: true, data: [] });
+      .gte("appointment_date", today);
+    
+    // If profileId provided, filter by profile_id
+    if (profileId && profileId !== "null" && profileId !== "") {
+      console.log("Filtering by profileId:", profileId);
+      query = query.eq("profile_id", profileId);
+    } else {
+      console.log("No profileId filter, getting user_id bookings only");
     }
+    
+    const { data: bookings, error: bookingErr } = await query.order("appointment_date", { ascending: true });
+
+    if (bookingErr) {
+      console.error("Booking query error:", bookingErr);
+      throw bookingErr;
+    }
+
+    console.log("Found bookings:", bookings?.length || 0);
 
     // Get dental services to determine treatment vs routine
     const serviceNames = [...new Set(bookings.map(b => b.service).filter(Boolean))];

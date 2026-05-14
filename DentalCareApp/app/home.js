@@ -110,7 +110,7 @@ export default function Home() {
     }
   }, []);
 
-  const fetchRecentVisits = useCallback(async (session) => {
+  const fetchRecentVisits = useCallback(async (session, profile = null) => {
     try {
       const userId = session?.user?.id || session?.id;
       const token = session?.session?.access_token || session?.access_token || "";
@@ -121,7 +121,14 @@ export default function Home() {
       }
 
       const baseUrl = await getServerUrl();
-      const apiUrl = `${baseUrl}/api/patient-history?userId=${userId}`;
+      let apiUrl = `${baseUrl}/api/patient-history?userId=${userId}`;
+      
+      // Add profileId if a profile is selected
+      if (profile?.id) {
+        apiUrl += `&profileId=${profile.id}`;
+      }
+
+      console.log("fetchRecentVisits URL:", apiUrl);
 
       const res = await fetch(apiUrl, {
         headers: {
@@ -129,6 +136,14 @@ export default function Home() {
           Authorization: `Bearer ${token}`
         }
       });
+
+      // Check if response is OK
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("fetchRecentVisits error response:", res.status, text);
+        setRecentVisits([]);
+        return;
+      }
 
       const result = await res.json();
       if (result.success && result.data) {
@@ -155,7 +170,7 @@ export default function Home() {
     }
   }, []);
 
-  const fetchTreatmentPlan = useCallback(async (session) => {
+  const fetchTreatmentPlan = useCallback(async (session, profile = null) => {
     try {
       const userId = session?.user?.id || session?.id;
       const token = session?.session?.access_token || session?.access_token || "";
@@ -166,7 +181,14 @@ export default function Home() {
       }
 
       const baseUrl = await getServerUrl();
-      const apiUrl = `${baseUrl}/api/upcoming-treatments?userId=${userId}`;
+      let apiUrl = `${baseUrl}/api/upcoming-treatments?userId=${userId}`;
+      
+      // Add profileId if a profile is selected
+      if (profile?.id) {
+        apiUrl += `&profileId=${profile.id}`;
+      }
+
+      console.log("fetchTreatmentPlan URL:", apiUrl);
 
       const res = await fetch(apiUrl, {
         headers: {
@@ -174,6 +196,14 @@ export default function Home() {
           Authorization: `Bearer ${token}`
         }
       });
+
+      // Check if response is OK
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("fetchTreatmentPlan error response:", res.status, text);
+        setTreatmentPlans([]);
+        return;
+      }
 
       const result = await res.json();
       if (result.success && Array.isArray(result.data)) {
@@ -264,8 +294,8 @@ export default function Home() {
       });
 
       await loadUpcomingForProfile(activeProfile);
-      await fetchRecentVisits(session);
-      await fetchTreatmentPlan(session);
+      await fetchRecentVisits(session, activeProfile);
+      await fetchTreatmentPlan(session, activeProfile);
     } catch (error) {
       console.log("loadProfiles error:", error);
     }
@@ -291,8 +321,8 @@ export default function Home() {
 
       await loadUpcomingForProfile(profile);
       const session = await getSession();
-      await fetchRecentVisits(session);
-      await fetchTreatmentPlan(session);
+      await fetchRecentVisits(session, profile);
+      await fetchTreatmentPlan(session, profile);
       setProfileModalVisible(false);
     } catch (error) {
       console.log("handleSelectProfile error:", error);
@@ -320,8 +350,8 @@ export default function Home() {
         setProfiles((prev) => [...prev, result.profile]);
         await loadUpcomingForProfile(result.profile);
         const session = await getSession();
-        await fetchRecentVisits(session);
-        await fetchTreatmentPlan(session);
+        await fetchRecentVisits(session, result.profile);
+        await fetchTreatmentPlan(session, result.profile);
         setProfileModalVisible(false);
         router.push("/patient-first-setup");
         return;

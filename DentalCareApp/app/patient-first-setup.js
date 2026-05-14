@@ -18,6 +18,7 @@ import {
   getCurrentActiveProfileForSession,
   getPatientProfileByProfileId,
   savePatientProfileByProfileId,
+  saveMedicalHistoryToSupabase,
   setPatientSetupDoneForProfile,
   setPatientSetupDoneForUser,
 } from "./_storage/authStorage";
@@ -295,6 +296,7 @@ export default function PatientFirstSetup() {
     }
 
     const payload = {
+      profileId,
       fullName,
       dob,
       age,
@@ -325,10 +327,19 @@ export default function PatientFirstSetup() {
       },
     };
 
-    const result = await savePatientProfileByProfileId(profileId, payload);
+    // Save to local storage (AsyncStorage) for immediate use
+    const localResult = await savePatientProfileByProfileId(profileId, payload);
 
-    if (!result.success) {
-      Alert.alert("Error", result.message || "Failed to save medical form.");
+    if (!localResult.success) {
+      Alert.alert("Error", localResult.message || "Failed to save medical form.");
+      return;
+    }
+
+    // Save to Supabase
+    const supabaseResult = await saveMedicalHistoryToSupabase(payload);
+
+    if (!supabaseResult.success) {
+      Alert.alert("Error", supabaseResult.message || "Failed to save to cloud.");
       return;
     }
 

@@ -59,3 +59,6 @@ export function clearAllProfileCaches() {
   Object.keys(appointmentsListCache).forEach((k) => delete appointmentsListCache[k]);
   Object.keys(dentistListCache).forEach((k) => delete dentistListCache[k]);
 }
+
+// Default export (utility module - not a route)
+export default {};

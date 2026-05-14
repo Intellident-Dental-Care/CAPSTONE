@@ -48,7 +48,7 @@ export default function History() {
   const [selectedHistory, setSelectedHistory] = useState(null);
   const [historyDetailsVisible, setHistoryDetailsVisible] = useState(false);
 
-  const fetchHistoryData = async () => {
+  const fetchHistoryData = async (profile = null) => {
     try {
       const session = await getSession();
       const userId = session?.user?.id || session?.id; 
@@ -57,7 +57,14 @@ export default function History() {
       if (!userId) return;
 
       const baseUrl = await getServerUrl();
-      const apiUrl = `${baseUrl}/api/patient-history?userId=${userId}`;
+      let apiUrl = `${baseUrl}/api/patient-history?userId=${userId}`;
+      
+      // Add profileId if a profile is selected
+      if (profile?.id) {
+        apiUrl += `&profileId=${profile.id}`;
+      }
+
+      console.log("fetchHistoryData URL:", apiUrl);
 
       const res = await fetch(apiUrl, {
         headers: {
@@ -65,6 +72,13 @@ export default function History() {
           Authorization: `Bearer ${token}`
         }
       });
+
+      // Check if response is OK
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("fetchHistoryData error response:", res.status, text);
+        return;
+      }
       
       const result = await res.json();
       if (result.success) {
@@ -84,7 +98,7 @@ export default function History() {
       if (!accountEmail) {
         setProfiles([]);
         setSelectedProfile(null);
-        return;
+        return null;
       }
 
       const setup = await ensureDefaultProfileForEmail(
@@ -118,16 +132,19 @@ export default function History() {
         fullName: activeProfile?.name || session?.fullName || "User",
         loggedInEmail: accountEmail,
       });
+      
+      return activeProfile;
     } catch (error) {
       console.log("loadProfiles error:", error);
+      return null;
     }
   };
 
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        await loadProfiles();
-        await fetchHistoryData();
+        const activeProfile = await loadProfiles();
+        await fetchHistoryData(activeProfile);
       })();
     }, [])
   );
@@ -142,6 +159,9 @@ export default function History() {
       profileIndexCache.selectedProfile = profile;
       profileIndexCache.fullName = profile?.name || "User";
       setProfileModalVisible(false);
+      
+      // Fetch history data for the selected profile
+      await fetchHistoryData(profile);
     } catch (error) {
       console.log("handleSelectProfile error:", error);
     }

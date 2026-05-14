@@ -696,6 +696,145 @@ export const setPatientSetupDoneForUser = async (email) => {
 };
 
 /* =========================
+   MEDICAL HISTORY FUNCTIONS (Supabase)
+========================= */
+
+// Helper function to validate UUID format
+const isValidUUID = (uuid) => {
+  if (!uuid || typeof uuid !== "string") return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+};
+
+export const saveMedicalHistoryToSupabase = async (payload) => {
+  try {
+    const session = await getSession();
+    const userId = session?.user?.id;
+
+    if (!userId || !isValidUUID(userId)) {
+      return { success: false, message: "User not authenticated" };
+    }
+
+    let { profileId, fullName, dob, mobile, email, medicalHistory } = payload;
+
+    // Validate profileId - if not a valid UUID, treat as null (main account only)
+    if (profileId && !isValidUUID(profileId)) {
+      console.warn(`Invalid profileId format: ${profileId}. Saving as main account only.`);
+      profileId = null;
+    }
+
+    // Prepare the data to insert/update
+    const medicalData = {
+      user_id: userId,
+      profile_id: profileId || null,
+      full_name: fullName,
+      dob: dob,
+      mobile: mobile,
+      email: email,
+      blood_type: medicalHistory?.bloodType || null,
+      medical_history: medicalHistory || {},
+    };
+
+    // Check if record already exists with proper user_id and profile_id validation
+    let query = supabase
+      .from("patient_medical_profiles")
+      .select("id, user_id, profile_id");
+
+    if (profileId) {
+      // For profile-based accounts: match both user_id AND profile_id
+      query = query.eq("user_id", userId).eq("profile_id", profileId);
+    } else {
+      // For main account: match user_id and ensure profile_id is null
+      query = query.eq("user_id", userId).is("profile_id", null);
+    }
+
+    const { data: existingRecords, error: selectError } = await query;
+
+    if (selectError) {
+      console.error("Error checking existing record:", selectError);
+      return { success: false, message: "Failed to check existing record" };
+    }
+
+    let result;
+
+    if (existingRecords && existingRecords.length > 0) {
+      // Update existing record - validate ownership before updating
+      const existingRecord = existingRecords[0];
+      
+      // Safety check: Ensure we're not updating someone else's record
+      const isOwner = existingRecord.user_id === userId && 
+                      (profileId ? existingRecord.profile_id === profileId : existingRecord.profile_id === null);
+      
+      if (!isOwner) {
+        console.error("Unauthorized: Attempting to update record owned by another user");
+        return { success: false, message: "Unauthorized access to medical record" };
+      }
+
+      // Warn if multiple records exist (should never happen with proper constraints)
+      if (existingRecords.length > 1) {
+        console.warn(`Warning: Found ${existingRecords.length} medical records for user. Updating first record only.`);
+      }
+
+      const recordId = existingRecord.id;
+      result = await supabase
+        .from("patient_medical_profiles")
+        .update(medicalData)
+        .eq("id", recordId)
+        .eq("user_id", userId); // Double-check user_id in update query
+    } else {
+      // No existing record - create a new one
+      result = await supabase
+        .from("patient_medical_profiles")
+        .insert([medicalData]);
+    }
+
+    if (result.error) {
+      console.error("Error saving medical history:", result.error);
+      return { success: false, message: result.error.message };
+    }
+
+    return { success: true, data: result.data };
+  } catch (error) {
+    console.error("saveMedicalHistoryToSupabase error:", error);
+    return { success: false, message: error.message };
+  }
+};
+
+export const getMedicalHistoryFromSupabase = async (profileId) => {
+  try {
+    const session = await getSession();
+    const userId = session?.user?.id;
+
+    if (!userId) {
+      return { success: false, message: "User not authenticated", data: null };
+    }
+
+    let query = supabase
+      .from("patient_medical_profiles")
+      .select("*");
+
+    if (profileId) {
+      query = query.eq("profile_id", profileId).eq("user_id", userId);
+    } else {
+      query = query.eq("user_id", userId).is("profile_id", null);
+    }
+
+    const { data, error } = await query.single();
+
+    if (error && error.code !== "PGRST116") {
+      // PGRST116 = no rows found (not an error in this case)
+      console.error("Error fetching medical history:", error);
+      return { success: false, message: error.message, data: null };
+    }
+
+    return { success: true, data: data || null };
+  } catch (error) {
+    console.error("getMedicalHistoryFromSupabase error:", error);
+    return { success: false, message: error.message, data: null };
+  }
+};
+
+/* =========================
    ONBOARDING FUNCTIONS
 ========================= */
 

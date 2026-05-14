@@ -23,18 +23,34 @@ const QUESTIONS = [
 
 router.get("/", async (req, res) => {
   try {
-    const { userId } = req.query;
+    const { userId, profileId } = req.query;
     if (!userId) return res.status(400).json({ error: "Missing userId" });
 
+    console.log("patientHistory request:", { userId, profileId });
+
     // 1. Get Completed Bookings
-    const { data: bookings, error: bookingErr } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("bookings")
       .select("*")
       .eq("user_id", userId)
-      .eq("status", "completed")
-      .order("appointment_date", { ascending: false });
+      .eq("status", "completed");
+    
+    // If profileId provided, filter by profile_id
+    if (profileId && profileId !== "null" && profileId !== "") {
+      console.log("Filtering by profileId:", profileId);
+      query = query.eq("profile_id", profileId);
+    } else {
+      console.log("No profileId filter, getting user_id bookings only");
+    }
+    
+    const { data: bookings, error: bookingErr } = await query.order("appointment_date", { ascending: false });
 
-    if (bookingErr) throw bookingErr;
+    if (bookingErr) {
+      console.error("Booking query error:", bookingErr);
+      throw bookingErr;
+    }
+
+    console.log("Found completed bookings:", bookings?.length || 0);
 
     if (!bookings || bookings.length === 0) {
       return res.json({ success: true, data: [] });

@@ -35,6 +35,7 @@ export default function AISummary() {
 
   const [analyzing, setAnalyzing] = useState(true);
   const [detectedProblem, setDetectedProblem] = useState("Unknown");
+  const [problemDescription, setProblemDescription] = useState(""); 
   const [suggestedService, setSuggestedService] = useState("Analyzing...");
   const [suggestedPrice, setSuggestedPrice] = useState("...");
   const [showAnswerSummary, setShowAnswerSummary] = useState(false);
@@ -68,9 +69,13 @@ export default function AISummary() {
       });
 
       const aiData = await aiResponse.json();
+      
       const problem = aiData.detected_problem || "Normal";
+      // NEW: Extract the description from your Python backend
+      const description = aiData.description || ""; 
 
       setDetectedProblem(problem);
+      setProblemDescription(description);
 
       const criteria = getRecommendedServiceCriteria(problem);
 
@@ -94,6 +99,7 @@ export default function AISummary() {
     } catch (error) {
       console.error("AI Analysis Error: ", error);
       setDetectedProblem("Analysis Error");
+      setProblemDescription(""); // Clear description on error
       setSuggestedService("Unable to determine service");
       setSuggestedPrice("-");
     } finally {
@@ -162,6 +168,12 @@ export default function AISummary() {
           <Text style={styles.diagnosisText}>
             Condition Found: {detectedProblem.toUpperCase()}
           </Text>
+          
+          {problemDescription ? (
+            <Text style={[styles.diagnosisText, { marginTop: 4, fontWeight: "600", color: "#666", lineHeight: 18 }]}>
+              Description: {problemDescription}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.toothCard}>
