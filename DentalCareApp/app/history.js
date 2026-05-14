@@ -29,6 +29,13 @@ import {
   clearAllProfileCaches,
 } from "./_storage/profileCache";
 
+function isUuid(value) {
+  if (!value) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value)
+  );
+}
+
 export default function History() {
   const router = useRouter();
 
@@ -59,9 +66,10 @@ export default function History() {
       const baseUrl = await getServerUrl();
       let apiUrl = `${baseUrl}/api/patient-history?userId=${userId}`;
       
-      // Add profileId if a profile is selected
-      if (profile?.id) {
-        apiUrl += `&profileId=${profile.id}`;
+      // Add profileId only if it's a valid UUID
+      const safeProfileId = isUuid(profile?.id) ? profile.id : null;
+      if (safeProfileId) {
+        apiUrl += `&profileId=${safeProfileId}`;
       }
 
       console.log("fetchHistoryData URL:", apiUrl);

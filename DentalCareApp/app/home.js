@@ -123,9 +123,10 @@ export default function Home() {
       const baseUrl = await getServerUrl();
       let apiUrl = `${baseUrl}/api/patient-history?userId=${userId}`;
       
-      // Add profileId if a profile is selected
-      if (profile?.id) {
-        apiUrl += `&profileId=${profile.id}`;
+      // Add profileId only if it's a valid UUID
+      const safeProfileId = isUuid(profile?.id) ? profile.id : null;
+      if (safeProfileId) {
+        apiUrl += `&profileId=${safeProfileId}`;
       }
 
       console.log("fetchRecentVisits URL:", apiUrl);
@@ -183,9 +184,10 @@ export default function Home() {
       const baseUrl = await getServerUrl();
       let apiUrl = `${baseUrl}/api/upcoming-treatments?userId=${userId}`;
       
-      // Add profileId if a profile is selected
-      if (profile?.id) {
-        apiUrl += `&profileId=${profile.id}`;
+      // Add profileId only if it's a valid UUID
+      const safeProfileId = isUuid(profile?.id) ? profile.id : null;
+      if (safeProfileId) {
+        apiUrl += `&profileId=${safeProfileId}`;
       }
 
       console.log("fetchTreatmentPlan URL:", apiUrl);
@@ -484,7 +486,7 @@ export default function Home() {
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.hello}>Hello,</Text>
-              <Text style={styles.name}>{fullName}</Text>
+              <Text style={styles.name}>{String(fullName || "User")}</Text>
             </View>
 
             <View style={styles.headerRight}>
@@ -660,8 +662,8 @@ export default function Home() {
                 </View>
 
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.docName}>{upcomingAppointment.doctorName}</Text>
-                  <Text style={styles.docSub}>{upcomingAppointment.branch} • {upcomingAppointment.specialization}</Text>
+                  <Text style={styles.docName}>{String(upcomingAppointment?.doctorName || "Dentist")}</Text>
+                  <Text style={styles.docSub}>{String((upcomingAppointment?.branch || "") + " • " + (upcomingAppointment?.specialization || ""))}</Text>
                 </View>
               </View>
 
@@ -712,7 +714,7 @@ export default function Home() {
             ) : (
               <View style={{ padding: 16, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ color: '#999', fontSize: 12 }}>No recent visits yet</Text>
-              </View>
+              </View> /* TO BE EDITED */
             )}
           </ScrollView>
 
@@ -761,8 +763,8 @@ export default function Home() {
             })
           ) : (
             <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-              <Text style={{ color: '#999', fontSize: 12 }}>No treatment plans scheduled</Text>
-            </View>
+              <Text style={{ color: '#999', fontSize: 12 }}>No treatment plans scheduled</Text> 
+            </View> /* TO BE EDITED */
           )}
         </ScrollView>
 
@@ -866,7 +868,7 @@ export default function Home() {
               >
                 <View style={styles.detailCardBox}>
                   <View style={styles.detailTopRow}>
-                    <Text style={styles.detailProcedure}>{selectedDetail?.title}</Text>
+                    <Text style={styles.detailProcedure}>{String(selectedDetail?.title || "")}</Text>
 
                     {!!selectedDetail?.status && (
                       <View
@@ -886,35 +888,35 @@ export default function Home() {
                             { color: getStatusColor(selectedDetail.status) },
                           ]}
                         >
-                          {selectedDetail.status}
+                          {String(selectedDetail.status || "")}
                         </Text>
                       </View>
                     )}
                   </View>
 
                   <Text style={styles.detailTreatment}>
-                    {selectedDetail?.procedure}
+                    {String(selectedDetail?.procedure || "")}
                   </Text>
 
                   <View style={styles.detailInfoGrid}>
                     <View style={styles.detailInfoItem}>
                       <Text style={styles.label}>Dentist</Text>
-                      <Text style={styles.value}>{selectedDetail?.doctor}</Text>
+                      <Text style={styles.value}>{String(selectedDetail?.doctor || "")}</Text>
                     </View>
 
                     <View style={styles.detailInfoItem}>
                       <Text style={styles.label}>Date</Text>
-                      <Text style={styles.value}>{selectedDetail?.date}</Text>
+                      <Text style={styles.value}>{String(selectedDetail?.date || "")}</Text>
                     </View>
 
                     <View style={styles.detailInfoItem}>
                       <Text style={styles.label}>Time</Text>
-                      <Text style={styles.value}>{selectedDetail?.time}</Text>
+                      <Text style={styles.value}>{String(selectedDetail?.time || "")}</Text>
                     </View>
 
                     <View style={styles.detailInfoItem}>
                       <Text style={styles.label}>Tooth / Area</Text>
-                      <Text style={styles.value}>{selectedDetail?.tooth}</Text>
+                      <Text style={styles.value}>{String(selectedDetail?.tooth || "")}</Text>
                     </View>
                   </View>
                 </View>
@@ -945,7 +947,7 @@ export default function Home() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.toothPlaceholderLabel}>Affected Tooth</Text>
                       <Text style={styles.toothPlaceholderValue}>
-                        {selectedDetail?.tooth || "Not specified"}
+                        {String(selectedDetail?.tooth || "Not specified")}
                       </Text>
                       <Text style={styles.toothPlaceholderHint}>
                         Pre-assessment tooth information
@@ -956,17 +958,17 @@ export default function Home() {
                   <View style={styles.suggestedCard}>
                     <Text style={styles.suggestedLabel}>Suggested Treatment</Text>
                     <Text style={styles.suggestedValue}>
-                      {selectedDetail?.suggestedTreatment || "-"}
+                      {String(selectedDetail?.suggestedTreatment || "-")}
                     </Text>
                     <Text style={styles.suggestedPrice}>
-                      {selectedDetail?.suggestedPrice || "-"}
+                      {String(selectedDetail?.suggestedPrice || "-")}
                     </Text>
                   </View>
 
                   <View style={styles.assessmentBox}>
                     <Text style={styles.assessmentLabel}>Patient Description</Text>
                     <Text style={styles.assessmentText}>
-                      {selectedDetail?.description || "No description provided."}
+                      {String(selectedDetail?.description || "No description provided.")}
                     </Text>
                   </View>
 
@@ -986,8 +988,8 @@ export default function Home() {
                             },
                           ]}
                         >
-                          <Text style={styles.qText}>Q: {q.question}</Text>
-                          <Text style={styles.aText}>A: {q.answer}</Text>
+                          <Text style={styles.qText}>Q: {String(q.question || "")}</Text>
+                          <Text style={styles.aText}>A: {String(q.answer || "")}</Text>
                         </View>
                       ))
                     ) : (
@@ -1012,7 +1014,7 @@ function QuickBtn({ icon, label, onPress }) {
   return (
     <Pressable style={styles.quickBtn} onPress={onPress}>
       <View style={styles.quickIcon}>{icon}</View>
-      <Text style={styles.quickLabel}>{label}</Text>
+      <Text style={styles.quickLabel}>{String(label || "")}</Text>
     </Pressable>
   );
 }
@@ -1025,8 +1027,8 @@ function RecentCard({ title, clinic, service, onBookNow, onDetails }) {
           <Ionicons name="person" size={20} color={colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.recentTitle}>{service}</Text>
-          <Text style={styles.recentClinic}>{title}</Text>
+          <Text style={styles.recentTitle}>{String(service || "")}</Text>
+          <Text style={styles.recentClinic}>{String(title || "")}</Text>
         </View>
       </View>
 
@@ -1059,18 +1061,18 @@ function TreatmentItem({
     <View style={styles.treatCard}>
       <View style={styles.treatTopRow}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.treatTitle}>{title}</Text>
-          <Text style={styles.treatSub}>{sub}</Text>
+          <Text style={styles.treatTitle}>{String(title || "")}</Text>
+          <Text style={styles.treatSub}>{String(sub || "")}</Text>
         </View>
 
         <View style={styles.treatStatusBadge}>
-          <Text style={styles.treatStatus}>{status}</Text>
+          <Text style={styles.treatStatus}>{String(status || "")}</Text>
         </View>
       </View>
 
       <View style={styles.treatActions}>
         <Pressable style={styles.smallChip} onPress={onViewDetails}>
-          <Text style={styles.smallChipText}>{rightA}</Text>
+          <Text style={styles.smallChipText}>{String(rightA || "")}</Text>
         </Pressable>
         <Pressable
           style={[styles.smallChip, styles.primaryChip]}
@@ -1082,7 +1084,7 @@ function TreatmentItem({
               styles.primaryChipText,
             ]}
           >
-            {rightB}
+            {String(rightB || "")}
           </Text>
         </Pressable>
       </View>
@@ -1104,7 +1106,7 @@ function NavItem({ icon, label, active, onPress }) {
           { color: active ? colors.primary : "#9A9A9A" },
         ]}
       >
-        {label}
+        {String(label || "")}
       </Text>
     </Pressable>
   );

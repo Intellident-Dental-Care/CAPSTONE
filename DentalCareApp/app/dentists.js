@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -13,11 +13,21 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { colors } from "./theme/colors";
 import { supabase } from "../server/supabaseService";
 
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// Cache with TTL (5 minutes)
+let dentistsCache = null;
+let scheduleCache = null;
+let cacheTimestamp = 0;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function isCacheValid() {
+  return dentistsCache && scheduleCache && (Date.now() - cacheTimestamp) < CACHE_TTL_MS;
+}
 
 function formatTime12(time24) {
   if (!time24) return "";
@@ -109,9 +119,9 @@ function DentistCard({ item, liked, onToggleLike, onBook }) {
         <View style={styles.topRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.name} numberOfLines={1}>
-              {item.name}
+              {String(item.name || "")}
             </Text>
-            <Text style={styles.role}>{item.specialty}</Text>
+            <Text style={styles.role}>{String(item.specialty || "")}</Text>
           </View>
 
           <Pressable onPress={onToggleLike} style={styles.heartBtn}>
@@ -126,14 +136,14 @@ function DentistCard({ item, liked, onToggleLike, onBook }) {
         <View style={styles.detailBox}>
           <Ionicons name="location-outline" size={13} color={colors.primary} />
           <Text style={styles.small} numberOfLines={1}>
-            {item.specialties}
+            {String(item.specialties || "")}
           </Text>
         </View>
 
         <View style={styles.detailBox}>
           <Ionicons name="time-outline" size={13} color={colors.primary} />
           <Text style={styles.small} numberOfLines={2}>
-            {item.availability}
+            {String(item.availability || "")}
           </Text>
         </View>
 
@@ -155,33 +165,62 @@ export default function Dentists() {
   const [branchOptions, setBranchOptions] = useState(["All"]);
   const [loading, setLoading] = useState(true);
   const [mergedDentists, setMergedDentists] = useState([]);
-
   const [flowModalVisible, setFlowModalVisible] = useState(false);
   const [selectedDentist, setSelectedDentist] = useState(null);
+  const isMountedRef = useRef(true);
 
-  useEffect(() => {
-    const fetchDentists = async () => {
-      try {
-        setLoading(true);
-        const [{ data: dentistRows, error: dentistsError }, { data: scheduleRows, error: schedulesError }] =
-          await Promise.all([
-            supabase
-              .from("dentist_list")
-              .select("id, name, specialization, experience_years, total_patients, success_rate"),
-            supabase
-              .from("dentist_schedule")
-              .select("dentist_id, branch, day_of_week, start_time, end_time")
-              .eq("is_active", true),
-          ]);
+  const fetchDentists = async (forceRefresh = false) => {
+    // Skip if cache is still valid and not forced
+    if (!forceRefresh && isCacheValid()) {
+      console.log("Using cached dentists data");
+      if (!isMountedRef.current) return;
+      setDentists(dentistsCache);
+      setMergedDentists(scheduleCache.merged);
+      setBranchOptions(scheduleCache.branches);
+      setLoading(false);
+      return;
+    }
 
-        if (dentistsError) throw dentistsError;
-        if (schedulesError) throw schedulesError;
+    try {
+      if (!isMountedRef.current) return;
+      setLoading(true);
+      
+      console.log("Fetching fresh dentists data...");
 
-        const dentistMap = new Map((dentistRows || []).map((d) => [d.id, d]));
-        const groupedByDentistBranch = new Map();
-        const branchSet = new Set(["All"]);
+      // Fetch ALL dentists (no filters) - ordered by name
+      const { data: dentistRows, error: dentistsError } = await supabase
+        .from("dentist_list")
+        .select("*")
+        .order("name", { ascending: true });
 
-        (scheduleRows || []).forEach((row) => {
+      if (dentistsError) {
+        console.error("Dentist query error:", dentistsError);
+        throw dentistsError;
+      }
+
+      console.log("✅ Fetched dentists:", dentistRows?.length || 0);
+
+      // Fetch schedules
+      const { data: scheduleRows, error: schedulesError } = await supabase
+        .from("dentist_schedule")
+        .select("*")
+        .eq("is_active", true);
+
+      if (schedulesError) {
+        console.warn("⚠️ Warning loading schedules:", schedulesError);
+      }
+
+      console.log("✅ Fetched schedules:", scheduleRows?.length || 0);
+
+      // Create dentist map
+      const dentistMap = new Map((dentistRows || []).map((d) => [d.id, d]));
+      
+      // Group schedules by dentist+branch
+      const groupedByDentistBranch = new Map();
+      const branchSet = new Set(["All"]);
+
+      if (scheduleRows && scheduleRows.length > 0) {
+        scheduleRows.forEach((row) => {
           const branchName = row.branch?.trim();
           const dentist = dentistMap.get(row.dentist_id);
           if (!branchName || !dentist) return;
@@ -199,71 +238,154 @@ export default function Dentists() {
 
           groupedByDentistBranch.get(key).rows.push(row);
         });
+      }
 
-        const mapped = Array.from(groupedByDentistBranch.values()).map((entry) => {
-          const daysText = formatDays(entry.rows.map((r) => r.day_of_week));
-          return {
-            id: `${entry.dentist.id}-${entry.branch}`,
-            dentistId: entry.dentist.id,
-            name: entry.dentist.name,
-            branch: entry.branch,
-            specialty: entry.dentist.specialization || "Dentist",
-            specialties: `Days in Branch | ${daysText}`,
-            availability: getEarliestAvailability(entry.rows, entry.branch),
-            photo: null,
-          };
+      // Build dentists list - Include ALL dentists, even without schedules
+      const mapped = [];
+
+      // Add dentists with schedules (grouped by branch)
+      Array.from(groupedByDentistBranch.values()).forEach((entry) => {
+        const daysText = formatDays(entry.rows.map((r) => r.day_of_week));
+        mapped.push({
+          id: `${entry.dentist.id}-${entry.branch}`,
+          dentistId: entry.dentist.id,
+          name: entry.dentist.name,
+          branch: entry.branch,
+          specialty: entry.dentist.specialization || "Dentist",
+          specialties: `Days in Branch | ${daysText}`,
+          availability: getEarliestAvailability(entry.rows, entry.branch),
+          photo: null,
         });
+      });
 
-        mapped.sort((a, b) => a.name.localeCompare(b.name));
+      // Add dentists WITHOUT schedules
+      const dentistsWithSchedules = new Set(Array.from(groupedByDentistBranch.values()).map(e => e.dentist.id));
+      dentistRows.forEach((dentist) => {
+        if (!dentistsWithSchedules.has(dentist.id)) {
+          mapped.push({
+            id: `${dentist.id}-basic`,
+            dentistId: dentist.id,
+            name: dentist.name,
+            specialty: dentist.specialization || "Dentist",
+            specialties: `Experience: ${dentist.experience_years || "0"} years`,
+            availability: "Schedule not available",
+            branch: "Main",
+            photo: null,
+          });
+        }
+      });
 
-        setDentists(mapped);
-        setBranchOptions(Array.from(branchSet).sort((a, b) => {
-          if (a === "All") return -1;
-          if (b === "All") return 1;
-          return a.localeCompare(b);
-        }));
+      mapped.sort((a, b) => a.name.localeCompare(b.name));
 
-        const dentistGrouped = new Map();
-        Array.from(groupedByDentistBranch.values()).forEach((entry) => {
-          if (!dentistGrouped.has(entry.dentist.id)) {
-            dentistGrouped.set(entry.dentist.id, {
-              dentist: entry.dentist,
-              branches: [],
-            });
-          }
+      console.log("✅ Total mapped dentists:", mapped.length);
+
+      // Build merged dentists (one entry per dentist, consolidating all branches)
+      const dentistGrouped = new Map();
+      
+      // First, add ALL dentists from the dentist_list
+      dentistRows.forEach((dentist) => {
+        dentistGrouped.set(dentist.id, {
+          dentist,
+          branches: [],
+        });
+      });
+
+      // Then populate their branches from schedules
+      Array.from(groupedByDentistBranch.values()).forEach((entry) => {
+        if (dentistGrouped.has(entry.dentist.id)) {
           dentistGrouped.get(entry.dentist.id).branches.push({
             branch: entry.branch,
             rows: entry.rows,
           });
-        });
+        }
+      });
 
-        const mergedMapped = Array.from(dentistGrouped.values()).map((entry) => {
-          const branchNames = entry.branches.map((b) => b.branch).join(", ");
-          const { availabilityText, earliestBranch } = getEarliestAvailabilityAndBranch(entry.branches);
-          return {
-            id: `${entry.dentist.id}-merged`,
-            dentistId: entry.dentist.id,
-            name: entry.dentist.name,
-            branch: earliestBranch,
-            specialty: entry.dentist.specialization || "Dentist",
-            specialties: `Branches | ${branchNames}`,
-            availability: availabilityText,
-            photo: null,
-          };
-        });
+      // Add "Main" branch for dentists with no schedules
+      dentistGrouped.forEach((entry) => {
+        if (entry.branches.length === 0) {
+          entry.branches.push({ branch: "Main", rows: [] });
+          branchSet.add("Main");
+        }
+      });
 
-        mergedMapped.sort((a, b) => a.name.localeCompare(b.name));
-        setMergedDentists(mergedMapped);
-      } catch (err) {
-        console.error("Error loading dentist schedules:", err);
-        Alert.alert("Error", "Failed to load dentist schedules.");
-      } finally {
+      const mergedMapped = Array.from(dentistGrouped.values()).map((entry) => {
+        const branchNames = entry.branches.map((b) => b.branch).join(", ");
+        const { availabilityText, earliestBranch } = getEarliestAvailabilityAndBranch(entry.branches);
+        return {
+          id: `${entry.dentist.id}-merged`,
+          dentistId: entry.dentist.id,
+          name: entry.dentist.name,
+          branch: earliestBranch || "Main",
+          specialty: entry.dentist.specialization || "Dentist",
+          specialties: `Branches | ${branchNames}`,
+          availability: availabilityText,
+          photo: null,
+        };
+      });
+
+      mergedMapped.sort((a, b) => a.name.localeCompare(b.name));
+
+      console.log("✅ Merged dentists:", mergedMapped.length);
+      console.log("📍 Branch options:", Array.from(branchSet));
+
+      // Cache the results
+      dentistsCache = mapped;
+      scheduleCache = {
+        merged: mergedMapped,
+        branches: Array.from(branchSet).sort((a, b) => {
+          if (a === "All") return -1;
+          if (b === "All") return 1;
+          return a.localeCompare(b);
+        }),
+      };
+      cacheTimestamp = Date.now();
+
+      if (!isMountedRef.current) return;
+      setDentists(mapped);
+      setMergedDentists(mergedMapped);
+      setBranchOptions(scheduleCache.branches);
+    } catch (err) {
+      console.error("❌ Error loading dentists:", err);
+      if (isMountedRef.current) {
+        Alert.alert("Error", "Failed to load dentists");
+      }
+    } finally {
+      if (isMountedRef.current) {
         setLoading(false);
       }
-    };
+    }
+  };
 
+  // Initial load on mount
+  useEffect(() => {
+    isMountedRef.current = true;
     fetchDentists();
+    
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
+
+  // Smart refresh on focus - only refresh if cache is stale
+  useFocusEffect(
+    React.useCallback(() => {
+      if (dentistsCache && isCacheValid()) {
+        console.log("📦 Cache valid, using cached data");
+        if (isMountedRef.current) {
+          setDentists(dentistsCache);
+          setMergedDentists(scheduleCache.merged);
+          setBranchOptions(scheduleCache.branches);
+        }
+      } else if (dentistsCache === null) {
+        // First time loading
+        console.log("🔄 First load");
+      } else {
+        // Cache expired
+        console.log("⏰ Cache expired, fetching fresh data");
+        fetchDentists(false);
+      }
+    }, [])
+  );
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -345,7 +467,7 @@ export default function Dentists() {
     if (item.type === "title") {
       return (
         <Text style={[styles.sectionTitle, index === 0 && { marginTop: 0 }]}>
-          {item.label}
+          {String(item.label || "")}
         </Text>
       );
     }
@@ -428,7 +550,7 @@ export default function Dentists() {
                   ellipsizeMode="tail"
                   style={[styles.pillText, active && { color: "#fff" }]}
                 >
-                  {b}
+                  {String(b || "")}
                 </Text>
               </Pressable>
             );

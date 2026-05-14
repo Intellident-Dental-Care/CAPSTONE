@@ -23,8 +23,8 @@ function PickerModal({ visible, title, options, onClose, onPick }) {
           <Text style={styles.modalTitle}>{title}</Text>
 
           <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
-            {options.map((opt) => (
-              <Pressable key={opt} style={styles.modalItem} onPress={() => onPick(opt)}>
+            {options.map((opt, index) => (
+              <Pressable key={`${opt}-${index}`} style={styles.modalItem} onPress={() => onPick(opt)}>
                 <Text style={styles.modalItemText}>{opt}</Text>
               </Pressable>
             ))}
