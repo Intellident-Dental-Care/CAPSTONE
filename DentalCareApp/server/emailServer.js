@@ -69,17 +69,49 @@ app.post('/send-verification', async (req, res) => {
     
     console.log('Generated OTP:', otp, 'Expires at:', otpExpiresAt);
 
-    const { error: updateError } = await supabase
+    // First, check if user exists in users table
+    const { data: existingUser, error: checkError } = await supabase
       .from('users')
-      .update({
-        verification_otp: otp,
-        otp_expires_at: otpExpiresAt.toISOString()
-      })
-      .eq('id', userId);
+      .select('id')
+      .eq('id', userId)
+      .single();
 
-    if (updateError) {
-      console.error('Failed to store OTP:', updateError);
-      return res.status(500).json({ error: 'Failed to store verification code' });
+    let upsertError;
+
+    if (checkError && checkError.code === 'PGRST116') {
+      // User doesn't exist, so INSERT a new user record
+      console.log('User profile does not exist. Creating new user record.');
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({
+          id: userId,
+          email: email,
+          full_name: fullName,
+          verification_otp: otp,
+          otp_expires_at: otpExpiresAt.toISOString(),
+          is_verified: false,
+          created_at: new Date().toISOString()
+        });
+      upsertError = insertError;
+    } else if (!checkError && existingUser) {
+      // User exists, so UPDATE the OTP fields
+      console.log('User profile exists. Updating OTP.');
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          verification_otp: otp,
+          otp_expires_at: otpExpiresAt.toISOString()
+        })
+        .eq('id', userId);
+      upsertError = updateError;
+    } else {
+      // Some other error occurred
+      upsertError = checkError;
+    }
+
+    if (upsertError) {
+      console.error('Failed to store OTP:', upsertError);
+      return res.status(500).json({ error: 'Failed to store verification code', details: upsertError.message });
     }
 
     const mailOptions = {
@@ -127,17 +159,48 @@ app.post('/resend-otp', async (req, res) => {
     
     console.log('Generated new OTP:', otp, 'Expires at:', otpExpiresAt);
 
-    const { error: updateError } = await supabase
+    // Check if user exists, if not create it
+    const { data: existingUser, error: checkError } = await supabase
       .from('users')
-      .update({
-        verification_otp: otp,
-        otp_expires_at: otpExpiresAt.toISOString()
-      })
-      .eq('id', userId);
+      .select('id')
+      .eq('id', userId)
+      .single();
+
+    let updateError;
+
+    if (checkError && checkError.code === 'PGRST116') {
+      // User doesn't exist, create it
+      console.log('User profile does not exist. Creating new user record for resend.');
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({
+          id: userId,
+          email: email,
+          full_name: fullName,
+          verification_otp: otp,
+          otp_expires_at: otpExpiresAt.toISOString(),
+          is_verified: false,
+          created_at: new Date().toISOString()
+        });
+      updateError = insertError;
+    } else if (!checkError && existingUser) {
+      // User exists, update OTP
+      console.log('User profile exists. Updating OTP for resend.');
+      const { error: uError } = await supabase
+        .from('users')
+        .update({
+          verification_otp: otp,
+          otp_expires_at: otpExpiresAt.toISOString()
+        })
+        .eq('id', userId);
+      updateError = uError;
+    } else {
+      updateError = checkError;
+    }
 
     if (updateError) {
       console.error('Failed to update OTP:', updateError);
-      return res.status(500).json({ error: 'Failed to update verification code' });
+      return res.status(500).json({ error: 'Failed to update verification code', details: updateError.message });
     }
 
     const mailOptions = {

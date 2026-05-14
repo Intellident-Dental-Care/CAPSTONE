@@ -129,8 +129,6 @@ export const createUser = async (userData) => {
     const updatedAccounts = [...accounts, newUser];
     await saveAccounts(updatedAccounts);
 
-    await ensureDefaultProfileForEmail(newUser.email, newUser.fullName);
-
     return { success: true, user: newUser };
   } catch (error) {
     console.log("createUser error:", error);
@@ -157,7 +155,6 @@ export const loginUser = async (email, password) => {
 
     // Adapt local user to unified session format
     await storeSession({ user: matchedUser, session: null, fullName: matchedUser.fullName });
-    await ensureDefaultProfileForEmail(matchedUser.email, matchedUser.fullName || "User");
 
     return { success: true, user: matchedUser };
   } catch (error) {
