@@ -10,11 +10,12 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { colors } from "./theme/colors";
 import { supabase } from "../server/supabaseService";
+import { getSession, getActiveProfileByEmail } from "./_storage/authStorage";
+import { profileIndexCache } from "./_storage/profileCache";
 
 const DEFAULT_DESCRIPTION =
   "This dental service helps improve your oral health and supports proper treatment planning based on your needs.";
@@ -28,6 +29,33 @@ function isCacheValid() {
   return servicesCache && (Date.now() - cacheTimestamp) < CACHE_TTL_MS;
 }
 
+// Resolver for allowing the main account to have a NULL profile_id
+async function getValidProfileId(userId, activeProfile) {
+  if (!activeProfile?.id) return null; // Main account
+
+  // 1. Check if the ID exists in user_profiles
+  const { data: pExists } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("id", activeProfile.id)
+    .maybeSingle();
+
+  if (pExists) return activeProfile.id;
+
+  // 2. If it fails, check by profile name
+  const { data: nMatch } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("name", activeProfile.name || "User")
+    .maybeSingle();
+
+  if (nMatch) return nMatch.id;
+
+  // 3. If neither matches, it means this is the main account, so return null
+  return null; 
+}
+
 export default function Services() {
   const router = useRouter();
 
@@ -37,8 +65,8 @@ export default function Services() {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const isMountedRef = useRef(true);
+  const currentProfileIdRef = useRef(undefined); // use undefined so null registers as a valid switch
 
-  // Load bookmarks from device storage on mount
   useEffect(() => {
     isMountedRef.current = true;
     loadBookmarks();
@@ -49,28 +77,104 @@ export default function Services() {
 
   const loadBookmarks = async () => {
     try {
-      const stored = await AsyncStorage.getItem("service_bookmarks");
-      if (stored && isMountedRef.current) {
-        const parsed = JSON.parse(stored);
-        setLiked(parsed);
-        console.log("Loaded service bookmarks from device");
+      const session = await getSession();
+      const userId = session?.user?.id;
+      const accountEmail = (session?.user?.email || session?.email || "").trim().toLowerCase();
+      
+      if (!userId || !accountEmail) {
+        if (isMountedRef.current) setLiked({});
+        return;
+      }
+
+      const activeProfile = profileIndexCache.selectedProfile || await getActiveProfileByEmail(accountEmail);
+      const profileId = await getValidProfileId(userId, activeProfile);
+
+      let query = supabase
+        .from("service_bookmarks")
+        .select("service_id")
+        .eq("user_id", userId);
+
+      if (profileId) {
+        query = query.eq("profile_id", profileId);
+      } else {
+        query = query.is("profile_id", null);
+      }
+
+      const { data: bookmarks, error } = await query;
+
+      if (error) {
+        console.log("Error loading service bookmarks:", error.message);
+        if (isMountedRef.current) setLiked({});
+        return;
+      }
+
+      const bookmarkMap = {};
+      (bookmarks || []).forEach(b => {
+        bookmarkMap[b.service_id] = true;
+      });
+
+      if (isMountedRef.current) {
+        setLiked(bookmarkMap);
+        console.log("Loaded service bookmarks for profile:", profileId === null ? "Main Account" : profileId);
       }
     } catch (err) {
       console.error("Error loading bookmarks:", err);
+      if (isMountedRef.current) setLiked({});
     }
   };
 
-  const saveBookmarks = async (newLiked) => {
+  const saveBookmarks = async (serviceId, isBookmarked) => {
     try {
-      await AsyncStorage.setItem("service_bookmarks", JSON.stringify(newLiked));
-      console.log("Saved service bookmarks to device");
+      const session = await getSession();
+      const userId = session?.user?.id;
+      const accountEmail = (session?.user?.email || session?.email || "").trim().toLowerCase();
+      
+      if (!userId || !accountEmail) return;
+
+      const activeProfile = profileIndexCache.selectedProfile || await getActiveProfileByEmail(accountEmail);
+      const profileId = await getValidProfileId(userId, activeProfile);
+
+      if (isBookmarked) {
+        const { error } = await supabase
+          .from("service_bookmarks")
+          .insert({
+            user_id: userId,
+            profile_id: profileId, // explicitly allowed to be null
+            service_id: serviceId
+          });
+
+        if (error && error.code !== "23505") { 
+          console.error("Error saving service bookmark:", error);
+        } else {
+          console.log("Saved service bookmark");
+        }
+      } else {
+        let query = supabase
+          .from("service_bookmarks")
+          .delete()
+          .eq("user_id", userId)
+          .eq("service_id", serviceId);
+
+        if (profileId) {
+          query = query.eq("profile_id", profileId);
+        } else {
+          query = query.is("profile_id", null);
+        }
+
+        const { error } = await query;
+
+        if (error) {
+          console.error("Error deleting service bookmark:", error);
+        } else {
+          console.log("Deleted service bookmark");
+        }
+      }
     } catch (err) {
-      console.error("Error saving bookmarks:", err);
+      console.error("Error managing bookmarks:", err);
     }
   };
 
   const fetchServices = async (forceRefresh = false) => {
-    // Skip if cache is still valid and not forced
     if (!forceRefresh && isCacheValid()) {
       console.log("Using cached services data");
       if (!isMountedRef.current) return;
@@ -101,8 +205,6 @@ export default function Services() {
         description: DEFAULT_DESCRIPTION,
       }));
 
-      console.log("Fetched services:", mapped.length);
-
       // Cache results
       servicesCache = mapped;
       cacheTimestamp = Date.now();
@@ -118,25 +220,78 @@ export default function Services() {
     }
   };
 
-  // Initial load
   useEffect(() => {
     fetchServices();
   }, []);
 
-  // Smart refresh on focus - only refresh if cache is stale
   useFocusEffect(
     React.useCallback(() => {
+      let isMounted = true;
+
+      const refreshBookmarks = async () => {
+        try {
+          const session = await getSession();
+          const userId = session?.user?.id;
+          const accountEmail = (session?.user?.email || session?.email || "").trim().toLowerCase();
+          
+          if (!userId || !accountEmail || !isMounted) return;
+
+          const activeProfile = profileIndexCache.selectedProfile || await getActiveProfileByEmail(accountEmail);
+          const profileId = await getValidProfileId(userId, activeProfile);
+
+          if (currentProfileIdRef.current !== profileId) {
+            if (isMounted) setLiked({});
+            currentProfileIdRef.current = profileId;
+          }
+
+          let query = supabase
+            .from("service_bookmarks")
+            .select("service_id")
+            .eq("user_id", userId);
+
+          if (profileId) {
+            query = query.eq("profile_id", profileId);
+          } else {
+            query = query.is("profile_id", null);
+          }
+
+          const { data: bookmarks, error } = await query;
+
+          if (error) {
+            console.log("Error loading service bookmarks:", error.message);
+            if (isMounted) setLiked({});
+            return;
+          }
+
+          const bookmarkMap = {};
+          (bookmarks || []).forEach(b => {
+            bookmarkMap[b.service_id] = true;
+          });
+
+          if (isMounted) {
+            setLiked(bookmarkMap);
+          }
+        } catch (err) {
+          console.error("Error refreshing bookmarks:", err);
+          if (isMounted) setLiked({});
+        }
+      };
+
+      refreshBookmarks();
+
       if (servicesCache && isCacheValid()) {
-        console.log("Cache valid, using cached services");
-        if (isMountedRef.current) {
+        if (isMounted) {
           setServices(servicesCache);
         }
       } else if (servicesCache === null) {
         console.log("First load services");
       } else {
-        console.log("Cache expired, fetching fresh services");
         fetchServices(false);
       }
+
+      return () => {
+        isMounted = false;
+      };
     }, [])
   );
 
@@ -159,7 +314,6 @@ export default function Services() {
     });
   }, [query, activeCategory, services]);
 
-  // Avoid duplicate bookmarked items by using a Set
   const favorites = useMemo(() => {
     const seen = new Set();
     return filtered.filter((x) => {
@@ -171,7 +325,6 @@ export default function Services() {
     });
   }, [filtered, liked]);
 
-  // Avoid duplicate non-bookmarked items by using a Set
   const nonFavorites = useMemo(() => {
     const seenFav = new Set(Object.keys(liked).filter((k) => liked[k]));
     const seen = new Set();
@@ -216,7 +369,7 @@ export default function Services() {
   const handleToggleLike = async (serviceId) => {
     const newLiked = { ...liked, [serviceId]: !liked[serviceId] };
     setLiked(newLiked);
-    await saveBookmarks(newLiked);
+    await saveBookmarks(serviceId, newLiked[serviceId]);
   };
 
   const renderRow = ({ item, index }) => {

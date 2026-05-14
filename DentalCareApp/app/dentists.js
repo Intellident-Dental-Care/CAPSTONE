@@ -12,11 +12,12 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { colors } from "./theme/colors";
 import { supabase } from "../server/supabaseService";
+import { getSession, getActiveProfileByEmail } from "./_storage/authStorage";
+import { profileIndexCache } from "./_storage/profileCache";
 
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -105,6 +106,33 @@ function getEarliestAvailabilityAndBranch(branches) {
   return { availabilityText: "No upcoming schedule", earliestBranch: branches[0]?.branch || "" };
 }
 
+// Resolver for allowing the main account to have a NULL profile_id
+async function getValidProfileId(userId, activeProfile) {
+  if (!activeProfile?.id) return null; // Main account
+
+  // 1. Check if the ID exists in user_profiles
+  const { data: pExists } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("id", activeProfile.id)
+    .maybeSingle();
+
+  if (pExists) return activeProfile.id;
+
+  // 2. If it fails, check by profile name
+  const { data: nMatch } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("name", activeProfile.name || "User")
+    .maybeSingle();
+
+  if (nMatch) return nMatch.id;
+
+  // 3. If neither matches, it means this is the main account, so return null
+  return null; 
+}
+
 function DentistCard({ item, liked, onToggleLike, onBook }) {
   return (
     <View style={styles.card}>
@@ -169,8 +197,8 @@ export default function Dentists() {
   const [flowModalVisible, setFlowModalVisible] = useState(false);
   const [selectedDentist, setSelectedDentist] = useState(null);
   const isMountedRef = useRef(true);
+  const currentProfileIdRef = useRef(undefined); // use undefined so null registers as a valid switch
 
-  // Load bookmarks from device storage on mount
   useEffect(() => {
     isMountedRef.current = true;
     loadBookmarks();
@@ -181,30 +209,105 @@ export default function Dentists() {
 
   const loadBookmarks = async () => {
     try {
-      const stored = await AsyncStorage.getItem("dentist_bookmarks");
-      if (stored && isMountedRef.current) {
-        const parsed = JSON.parse(stored);
-        setLikedMap(parsed);
-        console.log("Loaded dentist bookmarks from device");
+      const session = await getSession();
+      const userId = session?.user?.id;
+      const accountEmail = (session?.user?.email || session?.email || "").trim().toLowerCase();
+      
+      if (!userId || !accountEmail) {
+        if (isMountedRef.current) setLikedMap({});
+        return;
+      }
+
+      const activeProfile = profileIndexCache.selectedProfile || await getActiveProfileByEmail(accountEmail);
+      const profileId = await getValidProfileId(userId, activeProfile);
+
+      let query = supabase
+        .from("dentist_bookmarks")
+        .select("dentist_id")
+        .eq("user_id", userId);
+
+      if (profileId) {
+        query = query.eq("profile_id", profileId);
+      } else {
+        query = query.is("profile_id", null);
+      }
+
+      const { data: bookmarks, error } = await query;
+
+      if (error) {
+        console.log("Error loading dentist bookmarks:", error.message);
+        if (isMountedRef.current) setLikedMap({});
+        return;
+      }
+
+      const bookmarkMap = {};
+      (bookmarks || []).forEach(b => {
+        bookmarkMap[b.dentist_id] = true;
+      });
+
+      if (isMountedRef.current) {
+        setLikedMap(bookmarkMap);
+        console.log("Loaded dentist bookmarks for profile:", profileId === null ? "Main Account" : profileId);
       }
     } catch (err) {
       console.error("Error loading bookmarks:", err);
+      if (isMountedRef.current) setLikedMap({});
     }
   };
 
-  const saveBookmarks = async (newLiked) => {
+  const saveBookmarks = async (dentistId, isBookmarked) => {
     try {
-      await AsyncStorage.setItem("dentist_bookmarks", JSON.stringify(newLiked));
-      console.log("Saved dentist bookmarks to device");
+      const session = await getSession();
+      const userId = session?.user?.id;
+      const accountEmail = (session?.user?.email || session?.email || "").trim().toLowerCase();
+      
+      if (!userId || !accountEmail) return;
+
+      const activeProfile = profileIndexCache.selectedProfile || await getActiveProfileByEmail(accountEmail);
+      const profileId = await getValidProfileId(userId, activeProfile);
+
+      if (isBookmarked) {
+        const { error } = await supabase
+          .from("dentist_bookmarks")
+          .insert({
+            user_id: userId,
+            profile_id: profileId, // explicitly allowed to be null
+            dentist_id: dentistId
+          });
+
+        if (error && error.code !== "23505") { 
+          console.error("Error saving dentist bookmark:", error);
+        } else {
+          console.log("Saved dentist bookmark");
+        }
+      } else {
+        let query = supabase
+          .from("dentist_bookmarks")
+          .delete()
+          .eq("user_id", userId)
+          .eq("dentist_id", dentistId);
+
+        if (profileId) {
+          query = query.eq("profile_id", profileId);
+        } else {
+          query = query.is("profile_id", null);
+        }
+
+        const { error } = await query;
+
+        if (error) {
+          console.error("Error deleting dentist bookmark:", error);
+        } else {
+          console.log("Deleted dentist bookmark");
+        }
+      }
     } catch (err) {
-      console.error("Error saving bookmarks:", err);
+      console.error("Error managing bookmarks:", err);
     }
   };
 
   const fetchDentists = async (forceRefresh = false) => {
-    // Skip if cache is still valid and not forced
     if (!forceRefresh && isCacheValid()) {
-      console.log("Using cached dentists data");
       if (!isMountedRef.current) return;
       setDentists(dentistsCache);
       setMergedDentists(scheduleCache.merged);
@@ -216,38 +319,20 @@ export default function Dentists() {
     try {
       if (!isMountedRef.current) return;
       setLoading(true);
-      
-      console.log("Fetching fresh dentists data...");
 
-      // Fetch ALL dentists (no filters) - ordered by name
       const { data: dentistRows, error: dentistsError } = await supabase
         .from("dentist_list")
         .select("*")
         .order("name", { ascending: true });
 
-      if (dentistsError) {
-        console.error("Dentist query error:", dentistsError);
-        throw dentistsError;
-      }
+      if (dentistsError) throw dentistsError;
 
-      console.log("Fetched dentists:", dentistRows?.length || 0);
-
-      // Fetch schedules
       const { data: scheduleRows, error: schedulesError } = await supabase
         .from("dentist_schedule")
         .select("*")
         .eq("is_active", true);
 
-      if (schedulesError) {
-        console.warn("Warning loading schedules:", schedulesError);
-      }
-
-      console.log("Fetched schedules:", scheduleRows?.length || 0);
-
-      // Create dentist map
       const dentistMap = new Map((dentistRows || []).map((d) => [d.id, d]));
-      
-      // Group schedules by dentist+branch
       const groupedByDentistBranch = new Map();
       const branchSet = new Set(["All"]);
 
@@ -272,10 +357,7 @@ export default function Dentists() {
         });
       }
 
-      // Build dentists list - Include ALL dentists, even without schedules
       const mapped = [];
-
-      // Add dentists with schedules (grouped by branch)
       Array.from(groupedByDentistBranch.values()).forEach((entry) => {
         const daysText = formatDays(entry.rows.map((r) => r.day_of_week));
         mapped.push({
@@ -290,7 +372,6 @@ export default function Dentists() {
         });
       });
 
-      // Add dentists WITHOUT schedules
       const dentistsWithSchedules = new Set(Array.from(groupedByDentistBranch.values()).map(e => e.dentist.id));
       dentistRows.forEach((dentist) => {
         if (!dentistsWithSchedules.has(dentist.id)) {
@@ -309,12 +390,7 @@ export default function Dentists() {
 
       mapped.sort((a, b) => a.name.localeCompare(b.name));
 
-      console.log("Total mapped dentists:", mapped.length);
-
-      // Build merged dentists (one entry per dentist, consolidating all branches)
       const dentistGrouped = new Map();
-      
-      // First, add ALL dentists from the dentist_list
       dentistRows.forEach((dentist) => {
         dentistGrouped.set(dentist.id, {
           dentist,
@@ -322,7 +398,6 @@ export default function Dentists() {
         });
       });
 
-      // Then populate their branches from schedules
       Array.from(groupedByDentistBranch.values()).forEach((entry) => {
         if (dentistGrouped.has(entry.dentist.id)) {
           dentistGrouped.get(entry.dentist.id).branches.push({
@@ -332,7 +407,6 @@ export default function Dentists() {
         }
       });
 
-      // Add "Main" branch for dentists with no schedules
       dentistGrouped.forEach((entry) => {
         if (entry.branches.length === 0) {
           entry.branches.push({ branch: "Main", rows: [] });
@@ -357,10 +431,6 @@ export default function Dentists() {
 
       mergedMapped.sort((a, b) => a.name.localeCompare(b.name));
 
-      console.log("Merged dentists:", mergedMapped.length);
-      console.log("Branch options:", Array.from(branchSet));
-
-      // Cache the results
       dentistsCache = mapped;
       scheduleCache = {
         merged: mergedMapped,
@@ -377,7 +447,6 @@ export default function Dentists() {
       setMergedDentists(mergedMapped);
       setBranchOptions(scheduleCache.branches);
     } catch (err) {
-      console.error("Error loading dentists:", err);
       if (isMountedRef.current) {
         Alert.alert("Error", "Failed to load dentists");
       }
@@ -388,34 +457,80 @@ export default function Dentists() {
     }
   };
 
-  // Initial load on mount
   useEffect(() => {
     isMountedRef.current = true;
     fetchDentists();
-    
     return () => {
       isMountedRef.current = false;
     };
   }, []);
 
-  // Smart refresh on focus - only refresh if cache is stale
   useFocusEffect(
     React.useCallback(() => {
+      let isMounted = true;
+
+      const refreshBookmarks = async () => {
+        try {
+          const session = await getSession();
+          const userId = session?.user?.id;
+          const accountEmail = (session?.user?.email || session?.email || "").trim().toLowerCase();
+          
+          if (!userId || !accountEmail || !isMounted) return;
+
+          const activeProfile = profileIndexCache.selectedProfile || await getActiveProfileByEmail(accountEmail);
+          const profileId = await getValidProfileId(userId, activeProfile);
+
+          if (currentProfileIdRef.current !== profileId) {
+            if (isMounted) setLikedMap({});
+            currentProfileIdRef.current = profileId;
+          }
+
+          let query = supabase
+            .from("dentist_bookmarks")
+            .select("dentist_id")
+            .eq("user_id", userId);
+
+          if (profileId) {
+            query = query.eq("profile_id", profileId);
+          } else {
+            query = query.is("profile_id", null);
+          }
+
+          const { data: bookmarks, error } = await query;
+
+          if (error) {
+            if (isMounted) setLikedMap({});
+            return;
+          }
+
+          const bookmarkMap = {};
+          (bookmarks || []).forEach(b => {
+            bookmarkMap[b.dentist_id] = true;
+          });
+
+          if (isMounted) {
+            setLikedMap(bookmarkMap);
+          }
+        } catch (err) {
+          if (isMounted) setLikedMap({});
+        }
+      };
+
+      refreshBookmarks();
+
       if (dentistsCache && isCacheValid()) {
-        console.log("Cache valid, using cached data");
-        if (isMountedRef.current) {
+        if (isMounted) {
           setDentists(dentistsCache);
           setMergedDentists(scheduleCache.merged);
           setBranchOptions(scheduleCache.branches);
         }
-      } else if (dentistsCache === null) {
-        // First time loading
-        console.log("First load");
-      } else {
-        // Cache expired
-        console.log("Cache expired, fetching fresh data");
+      } else if (dentistsCache !== null) {
         fetchDentists(false);
       }
+
+      return () => {
+        isMounted = false;
+      };
     }, [])
   );
 
@@ -498,7 +613,7 @@ export default function Dentists() {
   const handleToggleLike = async (dentistId) => {
     const newLiked = { ...likedMap, [dentistId]: !likedMap[dentistId] };
     setLikedMap(newLiked);
-    await saveBookmarks(newLiked);
+    await saveBookmarks(dentistId, newLiked[dentistId]);
   };
 
   const renderRow = ({ item, index }) => {
