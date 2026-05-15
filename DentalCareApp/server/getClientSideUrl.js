@@ -1,28 +1,51 @@
 let cachedServerUrl = null;
 let lastDiscoveryTime = 0;
 let discoveryInProgress = false;
+let detectedLocalNetwork = null;
 
-const PRIVATE_NETWORKS = {
-  classC: { subnets: [1, 0, 18, 2, 10, 11, 15, 20, 100], devices: [1, 15, 10, 11, 20, 100, 254] },
-  classA: { subnets: [0, 1], devices: [1, 10, 15, 20, 100, 254] },
-  classB: { subnets: [16, 20, 31], devices: [1, 10, 15, 254] }
+const generateCommonNetworkAddresses = () => {
+  const addresses = [];
+  // 192.168.x.x range (most common)
+  [1, 0, 18, 2, 10, 11, 15, 20, 100].forEach(s => {
+    [1, 15, 10, 11, 20, 100, 254].forEach(d => addresses.push(`192.168.${s}.${d}`));
+  });
+  // 10.x.x.x range
+  [0, 1, 28, 32].forEach(s => {
+    [1, 15, 10, 11, 20, 100, 254, 182].forEach(d => addresses.push(`10.${s}.${d}.1`));
+    addresses.push(`10.${s}.33.182`); // Common local IP
+  });
+  // 172.16-31.x.x range
+  for (let s = 16; s <= 31; s++) {
+    [1, 15, 10, 254].forEach(d => addresses.push(`172.${s}.0.${d}`));
+  }
+  return addresses;
 };
 
-const generateNetworkAddresses = () => {
-  const addresses = new Set();
-  PRIVATE_NETWORKS.classC.subnets.forEach(s => PRIVATE_NETWORKS.classC.devices.forEach(d => addresses.add(`192.168.${s}.${d}`)));
-  PRIVATE_NETWORKS.classA.subnets.forEach(s => PRIVATE_NETWORKS.classA.devices.forEach(d => addresses.add(`10.${s}.0.${d}`)));
-  PRIVATE_NETWORKS.classB.subnets.forEach(s => PRIVATE_NETWORKS.classB.devices.forEach(d => addresses.add(`172.${s}.0.${d}`)));
-  return Array.from(addresses);
+// Prioritize servers based on proximity to local network
+const getPrioritizedIPs = () => {
+  const addresses = generateCommonNetworkAddresses();
+  
+  // Move likely candidates to front
+  const prioritized = [
+    '10.28.33.182',
+    'localhost',
+    '127.0.0.1'
+  ];
+  
+  // Add remaining addresses, removing duplicates
+  const seen = new Set(prioritized);
+  for (const addr of addresses) {
+    if (!seen.has(addr)) {
+      prioritized.push(addr);
+      seen.add(addr);
+    }
+  }
+  
+  return prioritized;
 };
 
-// Forces your known actual computer IP to the very front of the line!
-const HIGH_PRIORITY_IPS = [
-  "192.168.18.15", 
-  ...generateNetworkAddresses()
-];
-
-const EXTENDED_IPS = generateNetworkAddresses();
+const HIGH_PRIORITY_IPS = getPrioritizedIPs();
+const EXTENDED_IPS = generateCommonNetworkAddresses();
 
 const testSingleEndpoint = async (ip, timeout = 300) => {
   try {
@@ -74,19 +97,34 @@ const performBackgroundDiscovery = async () => {
 
 export const getServerUrl = async () => {
   const now = Date.now();
-  if (cachedServerUrl && (now - lastDiscoveryTime < 300000)) return cachedServerUrl;
   
-  // Scans the first 30 IPs immediately, catching the .18 subnet
-  const quickResults = await Promise.allSettled(HIGH_PRIORITY_IPS.slice(0, 30).map(ip => testSingleEndpoint(ip, 150)));
+  // Return cached URL if still valid (5 minute cache)
+  if (cachedServerUrl && (now - lastDiscoveryTime < 300000)) {
+    return cachedServerUrl;
+  }
+  
+  // Try quick discovery with short timeouts on priority IPs
+  const quickResults = await Promise.allSettled(
+    HIGH_PRIORITY_IPS.slice(0, 20).map(ip => testSingleEndpoint(ip, 100))
+  );
+  
   for (const result of quickResults) {
     if (result.status === 'fulfilled' && result.value) {
       cachedServerUrl = result.value;
       lastDiscoveryTime = now;
+      console.log('[Discovery] Found server at:', cachedServerUrl);
       return cachedServerUrl;
     }
   }
+  
+  // If quick discovery failed, try remaining IPs in background
   performBackgroundDiscovery();
-  return `http://${HIGH_PRIORITY_IPS[0]}:5001`;
+  
+  // Return cached URL or null (don't guess)
+  if (cachedServerUrl) return cachedServerUrl;
+  
+  console.warn('[Discovery] Server not found, returning localhost fallback');
+  return 'http://localhost:5001';
 };
 
 setTimeout(() => { if (!cachedServerUrl) performBackgroundDiscovery(); }, 100);
