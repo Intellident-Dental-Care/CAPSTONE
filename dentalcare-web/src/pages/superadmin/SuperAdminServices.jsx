@@ -42,6 +42,7 @@ export default function SuperAdminServices() {
         "Cosmetic Dentistry",
       ];
     }
+
     const unique = [...new Set(services.map((s) => s.category).filter(Boolean))];
     return unique.sort();
   }, [services]);
@@ -49,6 +50,8 @@ export default function SuperAdminServices() {
   const [form, setForm] = useState({
     name: "",
     category: "Consultation",
+    price_min: "",
+    price_max: "",
     description: "",
   });
 
@@ -69,6 +72,7 @@ export default function SuperAdminServices() {
 
   const fetchServices = async () => {
     const res = await getSuperAdminServices();
+
     if (res?.success) {
       setServices(res.data || []);
     }
@@ -77,6 +81,23 @@ export default function SuperAdminServices() {
   useEffect(() => {
     fetchServices();
   }, []);
+
+  const formatPriceRange = (min, max) => {
+    const minPrice = Number(min || 0);
+    const maxPrice = Number(max || 0);
+
+    const format = (value) =>
+      `₱${value.toLocaleString("en-PH", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      })}`;
+
+    if (!minPrice && !maxPrice) return "₱0";
+    if (minPrice && !maxPrice) return `${format(minPrice)} starting`;
+    if (minPrice === maxPrice) return format(minPrice);
+
+    return `${format(minPrice)} - ${format(maxPrice)}`;
+  };
 
   const filteredServices = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
@@ -87,6 +108,10 @@ export default function SuperAdminServices() {
       return (
         (service.name || "").toLowerCase().includes(keyword) ||
         (service.category || "").toLowerCase().includes(keyword) ||
+        (service.subcategory || "").toLowerCase().includes(keyword) ||
+        (service.price_display || "").toLowerCase().includes(keyword) ||
+        String(service.price_min || "").includes(keyword) ||
+        String(service.price_max || "").includes(keyword) ||
         (service.description || "").toLowerCase().includes(keyword) ||
         (service.status || "").toLowerCase().includes(keyword)
       );
@@ -106,6 +131,8 @@ export default function SuperAdminServices() {
     setForm({
       name: "",
       category: categories[0] || "Consultation",
+      price_min: "",
+      price_max: "",
       description: "",
     });
   };
@@ -123,17 +150,38 @@ export default function SuperAdminServices() {
   const openAddServiceConfirmModal = (e) => {
     e.preventDefault();
 
-    if (!form.name.trim() || !form.description.trim()) return;
+    const minPrice = Number(form.price_min);
+    const maxPrice = Number(form.price_max);
+
+    if (
+      !form.name.trim() ||
+      !form.description.trim() ||
+      !form.price_min ||
+      !form.price_max ||
+      Number.isNaN(minPrice) ||
+      Number.isNaN(maxPrice) ||
+      minPrice <= 0 ||
+      maxPrice <= 0 ||
+      minPrice > maxPrice
+    ) {
+      alert("Please enter valid service details. Maximum price must be higher than or equal to minimum price.");
+      return;
+    }
+
+    const priceDisplay = formatPriceRange(minPrice, maxPrice);
 
     setConfirmModal({
       open: true,
       type: "add-service",
       ids: [],
       title: "Add Service",
-      message: `Are you sure you want to add "${form.name.trim()}" to the service list?`,
+      message: `Are you sure you want to add "${form.name.trim()}" with a price range of ${priceDisplay}?`,
       payload: {
         name: form.name.trim(),
         category: form.category,
+        price_min: minPrice,
+        price_max: maxPrice,
+        price_display: priceDisplay,
         description: form.description.trim(),
       },
     });
@@ -208,7 +256,9 @@ export default function SuperAdminServices() {
     if (type === "disable-single" || type === "disable-multiple") {
       setServices((prev) =>
         prev.map((service) =>
-          ids.includes(service.id) ? { ...service, status: "Disabled" } : service
+          ids.includes(service.id)
+            ? { ...service, status: "Disabled" }
+            : service
         )
       );
       setSelectedIds([]);
@@ -217,7 +267,9 @@ export default function SuperAdminServices() {
     if (type === "enable-single" || type === "enable-multiple") {
       setServices((prev) =>
         prev.map((service) =>
-          ids.includes(service.id) ? { ...service, status: "Active" } : service
+          ids.includes(service.id)
+            ? { ...service, status: "Active" }
+            : service
         )
       );
       setSelectedIds([]);
@@ -261,7 +313,9 @@ export default function SuperAdminServices() {
           <div className="superadmin-services-content">
             <section className="superadmin-services-header">
               <div>
-                <h2 className="superadmin-services-title">Services Management</h2>
+                <h2 className="superadmin-services-title">
+                  Services Management
+                </h2>
                 <p className="superadmin-services-subtitle">
                   Add, organize, and manage the clinic service list.
                 </p>
@@ -286,7 +340,7 @@ export default function SuperAdminServices() {
                 <div className="superadmin-services-top-actions">
                   <input
                     type="text"
-                    placeholder="Search name, category, description..."
+                    placeholder="Search name, category, price, description..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="superadmin-services-search"
@@ -328,6 +382,7 @@ export default function SuperAdminServices() {
                         </th>
                         <th>Service Name</th>
                         <th>Category</th>
+                        <th>Price</th>
                         <th>Description</th>
                         <th>Status</th>
                         <th>Action</th>
@@ -353,6 +408,14 @@ export default function SuperAdminServices() {
                             {service.category}
                           </td>
 
+                          <td className="superadmin-services-price-cell">
+                            {service.price_display ||
+                              formatPriceRange(
+                                service.price_min,
+                                service.price_max
+                              )}
+                          </td>
+
                           <td className="superadmin-services-description-cell">
                             {service.description}
                           </td>
@@ -365,7 +428,7 @@ export default function SuperAdminServices() {
                                   : "is-disabled"
                               }`}
                             >
-                              {service.status}
+                              {service.status || "Active"}
                             </span>
                           </td>
 
@@ -379,7 +442,9 @@ export default function SuperAdminServices() {
                                   : "enable-btn"
                               }`}
                             >
-                              {service.status === "Active" ? "Disable" : "Enable"}
+                              {service.status === "Active"
+                                ? "Disable"
+                                : "Enable"}
                             </button>
                           </td>
                         </tr>
@@ -387,7 +452,7 @@ export default function SuperAdminServices() {
 
                       {filteredServices.length === 0 && (
                         <tr>
-                          <td colSpan="6">
+                          <td colSpan="7">
                             <div className="superadmin-services-empty-state">
                               No service records found.
                             </div>
@@ -457,6 +522,40 @@ export default function SuperAdminServices() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="superadmin-services-field">
+                <label>Minimum Price</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="Enter minimum price"
+                  value={form.price_min}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      price_min: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="superadmin-services-field">
+                <label>Maximum Price</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="Enter maximum price"
+                  value={form.price_max}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      price_max: e.target.value,
+                    }))
+                  }
+                />
               </div>
 
               <div className="superadmin-services-field superadmin-services-field-full">

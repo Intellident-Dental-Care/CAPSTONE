@@ -690,18 +690,21 @@ export default function Home() {
 
           <View style={styles.rowBetween}>
             <Text style={styles.sectionTitle}>My Recent Visit</Text>
-            <Pressable>
-              <Text style={styles.seeAll}>See all</Text>
-            </Pressable>
+
+            {recentVisits.length > 0 && (
+              <Pressable>
+                <Text style={styles.seeAll}>See all</Text>
+              </Pressable>
+            )}
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.recentScroll}
-          >
-            {recentVisits.length > 0 ? (
-              recentVisits.map((visit, idx) => (
+          {recentVisits.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.recentScroll}
+            >
+              {recentVisits.map((visit, idx) => (
                 <RecentCard
                   key={idx}
                   title={visit.doctor}
@@ -710,13 +713,20 @@ export default function Home() {
                   onBookNow={openFlowModal}
                   onDetails={() => openDetailModal(visit)}
                 />
-              ))
-            ) : (
-              <View style={{ padding: 16, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: '#999', fontSize: 12 }}>No recent visits yet</Text>
-              </View> /* TO BE EDITED */
-            )}
-          </ScrollView>
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyRecentWrap}>
+              <EmptyStateCard
+                icon="time-outline"
+                title="No recent visits yet"
+                subtitle="Your completed appointments will appear here after your visit."
+                buttonText="Book Now"
+                onPress={openFlowModal}
+              />
+            </View>
+          )}
+             
 
           <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
             Treatment Plan
@@ -762,12 +772,15 @@ export default function Home() {
               );
             })
           ) : (
-            <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-              <Text style={{ color: '#999', fontSize: 12 }}>No treatment plans scheduled</Text> 
-            </View> /* TO BE EDITED */
+            <EmptyStateCard
+                icon="medkit-outline"
+                title="No treatment plan yet"
+                subtitle="Your suggested or scheduled treatments will appear here."
+                buttonText="Start Booking"
+                onPress={openFlowModal}
+              />
           )}
         </ScrollView>
-
         <View style={styles.bottomBar}>
           <View style={styles.slot}>
             <NavItem icon="home" label="Home" active />
@@ -1010,6 +1023,34 @@ export default function Home() {
   );
 }
 
+function EmptyStateCard({ icon, title, subtitle, buttonText, onPress }) {
+  return (
+    <View style={styles.emptyStateCard}>
+      <View style={styles.emptyStateTop}>
+        <View style={styles.emptyStateIcon}>
+          <Ionicons name={icon} size={24} color={colors.primary} />
+        </View>
+
+        <View style={styles.emptyStateContent}>
+          <Text style={styles.emptyStateTitle}>
+            {String(title || "")}
+          </Text>
+
+          <Text style={styles.emptyStateSubtitle}>
+            {String(subtitle || "")}
+          </Text>
+        </View>
+      </View>
+
+      <Pressable style={styles.emptyStateButton} onPress={onPress}>
+        <Text style={styles.emptyStateButtonText}>
+          {String(buttonText || "")}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 function QuickBtn({ icon, label, onPress }) {
   return (
     <Pressable style={styles.quickBtn} onPress={onPress}>
@@ -1152,6 +1193,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
 
+  emptyRecentWrap: {
+  width: "100%",
+},
+
   iconCircle: {
     width: 34,
     height: 34,
@@ -1161,6 +1206,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "#F8D4E0",
+  },
+
+  emptyStateTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  emptyStateContent: {
+    flex: 1,
   },
 
   avatarCircle: {
@@ -1355,6 +1410,57 @@ upcomingCard: {
     backgroundColor: "rgba(255,255,255,0.35)",
     overflow: "hidden",
   },
+
+emptyStateCard: {
+  marginTop: 10,
+  marginBottom: 8,
+  width: "100%",
+  borderRadius: 18,
+  backgroundColor: "#FFFFFF",
+  padding: 14,
+  borderWidth: 1,
+  borderColor: "#F8D4E0",
+},
+
+emptyStateIcon: {
+  width: 42,
+  height: 42,
+  borderRadius: 21,
+  backgroundColor: "#FFF1F6",
+  alignItems: "center",
+  justifyContent: "center",
+  borderWidth: 1,
+  borderColor: "#F8D4E0",
+},
+
+emptyStateTitle: {
+  fontSize: 12,
+  fontWeight: "900",
+  color: "#333",
+},
+
+emptyStateSubtitle: {
+  marginTop: 3,
+  fontSize: 9.5,
+  color: "#777",
+  fontWeight: "600",
+  lineHeight: 14,
+},
+
+emptyStateButton: {
+  marginTop: 14,
+  height: 34,
+  borderRadius: 12,
+  backgroundColor: colors.primary,
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+emptyStateButtonText: {
+  fontSize: 8.5,
+  color: "#FFFFFF",
+  fontWeight: "900",
+},
 
   queueProgressFill: {
     height: "100%",
