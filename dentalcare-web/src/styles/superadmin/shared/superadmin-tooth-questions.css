@@ -52,44 +52,10 @@
 
 .superadmin-tooth-summary-card h3 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   line-height: 1.5;
   color: #f05a96;
   font-weight: 800;
-}
-
-.superadmin-tooth-top-filter {
-  margin-bottom: 18px;
-}
-
-.superadmin-tooth-dropdown-wrap {
-  max-width: 460px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.superadmin-tooth-dropdown-wrap label {
-  color: #8a90a2;
-  font-size: 0.84rem;
-  font-weight: 700;
-}
-
-.superadmin-tooth-dropdown {
-  width: 100%;
-  min-height: 50px;
-  border: 1px solid #f2c9d8;
-  border-radius: 16px;
-  padding: 12px 14px;
-  font-size: 0.95rem;
-  color: #3f4658;
-  background: #fff;
-  outline: none;
-}
-
-.superadmin-tooth-dropdown:focus {
-  border-color: #ee8cb3;
-  box-shadow: 0 0 0 4px rgba(240, 90, 150, 0.09);
 }
 
 .superadmin-tooth-questions-card {
