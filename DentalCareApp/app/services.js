@@ -189,9 +189,10 @@ export default function Services() {
 
       console.log("Fetching fresh services data...");
 
+      // ADDED 'notes' to the select query
       const { data, error } = await supabase
         .from("dental_services")
-        .select("id, name, category, subcategory, price_display")
+        .select("id, name, category, subcategory, price_display, notes")
         .eq("is_active", true)
         .order("display_order", { ascending: true });
 
@@ -202,7 +203,7 @@ export default function Services() {
         category: s.category || "General",
         name: s.name,
         price: s.price_display || "Price not available",
-        description: DEFAULT_DESCRIPTION,
+        description: s.notes || DEFAULT_DESCRIPTION, // Maps the database notes to the description
       }));
 
       // Cache results

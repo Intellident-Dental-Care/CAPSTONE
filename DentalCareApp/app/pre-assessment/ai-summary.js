@@ -70,8 +70,9 @@ export default function AISummary() {
 
       const aiData = await aiResponse.json();
       
-      const problem = aiData.detected_problem || "Normal";
+      const problem = aiData.detected_problem || "None";
       const rawDescription = aiData.description || ""; 
+      const confidence = aiData.confidence ?? 1.0; // Extract confidence score
 
       // 4. Map the AI result, Dynamic QA list, and patient description into the scoring engine
       const localQaList = fetchedQuestions.map((qText, i) => ({
@@ -80,7 +81,7 @@ export default function AISummary() {
       }));
 
       // Get the smart recommendation AND the smart text output
-      const result = getRecommendedServiceCriteria(problem, localQaList, state.description, rawDescription);
+      const result = getRecommendedServiceCriteria(problem, confidence, localQaList, state.description, rawDescription);
 
       // 5. Update the UI with the smart text
       setDetectedProblem(result.displayProblem);
@@ -101,7 +102,7 @@ export default function AISummary() {
 
       if (data) {
         finalServiceName = data.name;
-        finalPriceDisplay = data.price_display;
+        finalPriceDisplay = data.price_display; // Using DB price_display as requested
         dispatch({ type: "SET_SUGGESTED_SERVICE", payload: data.name });
       }
 
@@ -186,7 +187,7 @@ export default function AISummary() {
           </View>
 
           <Text style={styles.diagnosisText}>
-            Condition Found: {detectedProblem.toUpperCase()}
+            Condition Found: {detectedProblem}
           </Text>
           
           {problemDescription ? (

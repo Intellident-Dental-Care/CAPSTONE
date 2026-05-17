@@ -1,4 +1,4 @@
-// app/bookiong/appoitnment.js
+// app/booking/appointment.js
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
@@ -51,11 +51,12 @@ function getWeekdayFromISO(iso) {
 
 function parseTimeToMinutes(timeValue) {
   if (!timeValue) return null;
-  const [h = "0", m = "0"] = String(timeValue).split(":");
-  const hour = Number.parseInt(h, 10);
-  const minute = Number.parseInt(m, 10);
-  if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
-  return hour * 60 + minute;
+  const [timePart, meridiem] = String(timeValue).split(" ");
+  let [hours, minutes] = timePart.split(":").map(Number);
+
+  if (meridiem === "PM" && hours !== 12) hours += 12;
+  if (meridiem === "AM" && hours === 12) hours = 0;
+  return hours * 60 + minutes;
 }
 
 function minutesTo12Hour(totalMinutes) {
@@ -395,31 +396,30 @@ export default function BookingAppointment() {
     if (!dentistData || !selectedISO || !branch) return;
 
     try {
-      console.log('Fetching booked slots for:', {
-        dentistId: dentistData.id,
-        date: selectedISO,
-        branch: branch
-      });
-
+      // Safely fetch ALL bookings for this date and branch to bypass DB case-sensitivity issues
       const { data, error } = await supabase
         .from('bookings')
-        .select('appointment_time, branch, dentist_id, appointment_date')
+        .select('id, appointment_time, branch, dentist_id, appointment_date, status')
         .eq('dentist_id', dentistData.id)
         .eq('appointment_date', selectedISO)
-        .eq('branch', branch)
-        .in('status', ['pending', 'confirmed', 'in_treatment']);
+        .eq('branch', branch);
 
       if (error) throw error;
 
-      console.log('Found bookings:', data);
+      // Filter statuses in javascript to ensure 'Pending', 'pending', 'PENDING' all get caught
+      const activeBookings = (data || []).filter(booking => {
+        // If we are rescheduling our own slot, it shouldn't block us from choosing the same time
+        if (isEditMode && booking.id === existingBookingId) return false;
+        
+        const status = (booking.status || '').toLowerCase();
+        return ['pending', 'confirmed', 'in_treatment', 'in treatment', 'in-treatment'].includes(status);
+      });
 
-      // Convert 24-hour times back to 12-hour format and extract time strings
-      const bookedTimes = data.map(booking => {
-        const time24h = booking.appointment_time;
-        return convertTo12Hour(time24h);
-      }).filter(Boolean); // Remove any invalid conversions
+      // Convert times securely
+      const bookedTimes = activeBookings.map(booking => {
+        return convertTo12Hour(booking.appointment_time);
+      }).filter(Boolean);
 
-      console.log('Booked time slots (12h format):', bookedTimes);
       setBookedTimeSlots(bookedTimes);
     } catch (err) {
       console.error('Error fetching booked time slots:', err);
@@ -531,46 +531,54 @@ export default function BookingAppointment() {
 
       const time24h = convertTo24Hour(selectedTime);
 
-      console.log('Creating booking:', {
-        dentistId: dentistData.id,
-        date: selectedISO,
-        time12h: selectedTime,
-        time24h: time24h,
-        branch: branch,
-        profileId,
-      });
-
-      // Check for existing booking at same slot
-      const { data: existingBooking } = await supabase
+      // --- 100% BULLETPROOF DUPLICATE CHECK ---
+      const { data: existingBookings } = await supabase
         .from('bookings')
-        .select('id, patient_name')
+        .select('id, appointment_time, status')
         .eq('dentist_id', dentistData.id)
         .eq('appointment_date', selectedISO)
-        .eq('appointment_time', time24h)
-        .eq('branch', branch)
-        .in('status', ['pending', 'confirmed']);
+        .eq('branch', branch);
 
-      if (existingBooking && existingBooking.length > 0) {
+      // Safely check for time conflicts using JS matching to bypass time-zone/format bugs
+      const isSlotTaken = (existingBookings || []).some(b => {
+        if (isEditMode && b.id === existingBookingId) return false;
+        
+        const st = (b.status || '').toLowerCase();
+        const isActiveStatus = ['pending', 'confirmed', 'in_treatment', 'in treatment', 'in-treatment'].includes(st);
+        
+        // Convert the DB time securely so 09:30:00 matches "9:30 AM" perfectly
+        const dbTime12h = convertTo12Hour(b.appointment_time);
+        
+        return isActiveStatus && dbTime12h === selectedTime;
+      });
+
+      if (isSlotTaken) {
         Alert.alert('Time Slot Unavailable', 'This time slot is already booked by another patient. Please select a different time.');
         setBooking(false);
         await fetchBookedTimeSlots();
         return;
       }
 
-      // Check if this profile already has a booking with this doctor on this date
+      // Check if this specific profile/user already has a booking with this doctor on this date
       let dupQuery = supabase
         .from('bookings')
-        .select('id')
+        .select('id, status')
         .eq('dentist_id', dentistData.id)
-        .eq('appointment_date', selectedISO)
-        .eq('status', 'pending');
+        .eq('appointment_date', selectedISO);
 
       dupQuery = profileId
         ? dupQuery.eq('profile_id', profileId)
         : dupQuery.eq('user_id', user.id);
 
-      const { data: userExistingBooking } = await dupQuery;
-      if (userExistingBooking && userExistingBooking.length > 0) {
+      const { data: userExistingBookings } = await dupQuery;
+      
+      const hasActiveExisting = (userExistingBookings || []).some(b => {
+        if (isEditMode && b.id === existingBookingId) return false;
+        const st = (b.status || '').toLowerCase();
+        return ['pending', 'confirmed'].includes(st);
+      });
+
+      if (hasActiveExisting) {
         Alert.alert('Booking Exists', 'You already have a booking with this doctor on this date.');
         setBooking(false);
         return;
@@ -589,17 +597,13 @@ export default function BookingAppointment() {
         appointment_date: selectedISO,
         appointment_time: time24h,
         preassessment_id: safePreassessmentId,
-        status: 'pending'
+        status: 'pending' // Enforced lowercase insertion
       };
-
-      console.log(isEditMode ? 'Updating booking data:' : 'Inserting booking data:', bookingData);
 
       let error;
 
       if (isEditMode && existingBookingId) {
         // UPDATE existing booking (reschedule)
-        console.log('Rescheduling booking:', existingBookingId);
-        
         const updateData = {
           appointment_date: selectedISO,
           appointment_time: time24h,
@@ -614,42 +618,6 @@ export default function BookingAppointment() {
         error = updateError;
       } else {
         // CREATE new booking
-        // Check for existing booking at same slot
-        const { data: existingBooking } = await supabase
-          .from('bookings')
-          .select('id, patient_name')
-          .eq('dentist_id', dentistData.id)
-          .eq('appointment_date', selectedISO)
-          .eq('appointment_time', time24h)
-          .eq('branch', branch)
-          .in('status', ['pending', 'confirmed']);
-
-        if (existingBooking && existingBooking.length > 0) {
-          Alert.alert('Time Slot Unavailable', 'This time slot is already booked by another patient. Please select a different time.');
-          setBooking(false);
-          await fetchBookedTimeSlots();
-          return;
-        }
-
-        // Check if this profile already has a booking with this doctor on this date
-        let dupQuery = supabase
-          .from('bookings')
-          .select('id')
-          .eq('dentist_id', dentistData.id)
-          .eq('appointment_date', selectedISO)
-          .eq('status', 'pending');
-
-        dupQuery = profileId
-          ? dupQuery.eq('profile_id', profileId)
-          : dupQuery.eq('user_id', user.id);
-
-        const { data: userExistingBooking } = await dupQuery;
-        if (userExistingBooking && userExistingBooking.length > 0) {
-          Alert.alert('Booking Exists', 'You already have a booking with this doctor on this date.');
-          setBooking(false);
-          return;
-        }
-
         const { error: insertError } = await supabase
           .from('bookings')
           .insert([bookingData]);
@@ -673,7 +641,6 @@ export default function BookingAppointment() {
       clearAppointmentCacheForProfile(cacheKey);
       delete appointmentsListCache[cacheKey];
 
-      console.log(isEditMode ? 'Booking rescheduled successfully' : 'Booking created successfully');
       setShowAlert(true);
     } catch (err) {
       console.error('Error creating booking:', err);

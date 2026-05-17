@@ -1,27 +1,37 @@
-export const getRecommendedServiceCriteria = (aiProblem, qaList = [], description = "", aiBackendDescription = "") => {
+export const getRecommendedServiceCriteria = (aiProblem, confidence = 1.0, qaList = [], description = "", aiBackendDescription = "") => {
+  // 1. Sanitize the AI problem
+  const sanitizeName = (str) => {
+    if (!str) return "None";
+    return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+  };
+
+  const sanitizedProblem = sanitizeName(aiProblem);
+
+  // 2. Scalable Categories mapped to your NEW database structure
   const categories = {
-    "Tooth Restoration": { score: 0, keywords: ["hole", "dark spot", "sweet", "sensitivity", "cavity", "caries", "decay", "crack", "filling", "broken"] },
-    "Tooth Extraction": { score: 0, keywords: ["wisdom", "impacted", "advanced", "severe swelling", "loose", "cannot be saved"] },
+    "Tooth Restoration": { score: 0, keywords: ["cavity", "chipped", "hole", "dark spot", "sweet", "sensitivity", "broken", "crack", "decay"] },
+    "Orthodontics": { score: 0, keywords: ["crowding", "crooked", "uneven", "braces", "align", "straighten"] },
+    "Oral Prophylaxis": { score: 0, keywords: ["plaque", "stain", "tartar", "calculus", "bleed", "gums", "bad breath"] },
+    "Tooth Extraction": { score: 0, keywords: ["wisdom", "impacted", "severe swelling", "loose", "cannot be saved"] },
     "Root Canal": { score: 0, keywords: ["wakes you up", "night", "throbbing", "severe pain", "nerve", "pulsating"] },
-    "Oral Prophylaxis / Cleaning": { score: 0, keywords: ["bleed", "gums", "bad breath", "stain", "healthy", "normal", "plaque", "tartar", "calculus"] },
     "Consultation": { score: 0, keywords: ["pain", "hurt", "discomfort", "checkup", "advice", "not sure"] }
   };
 
-  const problemStr = String(aiProblem || "").toLowerCase();
+  const problemStr = sanitizedProblem.toLowerCase();
   let aiThinksItsHealthy = false;
+
+  // Score based on the AI Output
+  if (["cavity", "chipped"].includes(problemStr)) categories["Tooth Restoration"].score += 50;
+  if (["crowding"].includes(problemStr)) categories["Orthodontics"].score += 50;
+  if (["plaque"].includes(problemStr)) categories["Oral Prophylaxis"].score += 50;
   
-  // Score the AI
-  if (["caries", "cavity", "decay", "crack", "early", "moderate"].includes(problemStr)) categories["Tooth Restoration"].score += 50;
-  if (["advanced", "impacted tooth"].includes(problemStr)) categories["Tooth Extraction"].score += 50;
-  
-  // If the AI finds nothing or just identifies the "tooth"
-  if (["stain", "black stain", "healthy", "normal", "tooth", "none"].includes(problemStr)) {
-    categories["Oral Prophylaxis / Cleaning"].score += 50;
+  if (["healthy", "normal", "none", "tooth"].includes(problemStr)) {
+    categories["Oral Prophylaxis"].score += 50;
     aiThinksItsHealthy = true; 
   }
 
   // Score the Questionnaire
-  const affirmativeAnswers = ["yes", "sometimes", "often", "always", "true"];
+  const affirmativeAnswers = ["yes", "sometimes", "often", "always", "true", "a little"];
   let symptomPointsAccumulated = 0;
 
   qaList.forEach(item => {
@@ -52,30 +62,36 @@ export const getRecommendedServiceCriteria = (aiProblem, qaList = [], descriptio
   });
 
   // --- SMART TEXT GENERATION ---
-  let displayProblem = aiProblem;
-  if (aiThinksItsHealthy) {
-    displayProblem = "None Detected"; // Overrides "Tooth" or "Healthy"
-  }
+  let displayProblem = sanitizedProblem;
+  if (aiThinksItsHealthy) displayProblem = "None Detected";
 
   let displayDescription = aiBackendDescription;
   let finalCategory = "Consultation";
+  let searchField = "name"; // Default search column
 
-  // --- CONFLICT RESOLUTION ---
-  if (aiThinksItsHealthy && symptomPointsAccumulated >= 40) {
-    // Severe symptoms but clean photo
+  // --- CONFLICT RESOLUTION & FALLBACKS ---
+  if (confidence < 0.50 && symptomPointsAccumulated > 0) {
     finalCategory = "Consultation";
+    searchField = "name";
+    displayDescription = `The AI detected potential signs of ${sanitizedProblem}, but with low certainty. Given the symptoms you reported, a professional dental consultation is highly recommended to accurately diagnose the issue.`;
+  } 
+  else if (aiThinksItsHealthy && symptomPointsAccumulated >= 40) {
+    finalCategory = "Consultation";
+    searchField = "name";
     displayDescription = "While the AI detected no visible structural damage on the surface, your reported symptoms strongly indicate an underlying issue. A comprehensive dental consultation and X-Ray evaluation are highly recommended.";
-  } else if (aiThinksItsHealthy && symptomPointsAccumulated > 0) {
-    // Mild symptoms but clean photo
+  } 
+  else if (aiThinksItsHealthy && symptomPointsAccumulated > 0) {
     finalCategory = "Consultation"; 
-    displayDescription = "The AI found no visible external damage. However, because you are experiencing mild symptoms, a professional dental consultation is needed to rule out hidden problems.";
-  } else if (aiThinksItsHealthy && symptomPointsAccumulated === 0) {
-    // Clean photo and zero symptoms
+    searchField = "name";
+    displayDescription = "The AI found no visible external damage. However, because you are experiencing symptoms, a professional dental consultation is needed to rule out hidden problems.";
+  } 
+  else if (aiThinksItsHealthy && symptomPointsAccumulated === 0) {
+    finalCategory = "Cleaning";
+    searchField = "name";
     displayDescription = "The AI detected no visible issues, and no symptoms were reported. Routine oral prophylaxis (cleaning) is recommended to maintain optimal dental health.";
-  }
-
-  // If we didn't force a consultation due to a conflict, find the highest score
-  if (!(aiThinksItsHealthy && symptomPointsAccumulated > 0)) {
+  } 
+  else {
+    // Find highest score
     let highestScore = -1;
     Object.keys(categories).forEach(cat => {
       if (categories[cat].score > highestScore) {
@@ -83,21 +99,23 @@ export const getRecommendedServiceCriteria = (aiProblem, qaList = [], descriptio
         finalCategory = cat;
       }
     });
-
-    if (highestScore === 0) finalCategory = "Consultation";
   }
 
+  // --- MAP TO THE NEW DATABASE STRUCTURE ---
   const resultMap = {
-    "Tooth Restoration": { field: "subcategory", value: "Tooth Restoration" },
-    "Tooth Extraction": { field: "subcategory", value: "Tooth Extraction" },
-    "Root Canal": { field: "subcategory", value: "Root Canal" },
-    "Oral Prophylaxis / Cleaning": { field: "subcategory", value: "Oral Prophylaxis / Cleaning" },
-    "Consultation": { field: "name", value: "Consultation" }
+    "Tooth Restoration": { field: "name", value: "Restoration" }, // Finds "Tooth Restoration (Front)"
+    "Tooth Extraction": { field: "name", value: "Extraction" },   // Finds "Anterior Extraction"
+    "Root Canal": { field: "name", value: "Root Canal" },         // Finds "Root Canal Treatment"
+    "Oral Prophylaxis": { field: "name", value: "Cleaning" },     // Finds "Light Cleaning"
+    "Orthodontics": { field: "category", value: "Braces" },       // Finds any service in "Braces" category
+    "Consultation": { field: "name", value: "Consultation" }      // Finds "General Consultation"
   };
 
+  const finalQuery = resultMap[finalCategory] || { field: "name", value: "Consultation" };
+
   return {
-    query: resultMap[finalCategory] || { field: "name", value: "Consultation" },
+    query: finalQuery,
     displayProblem: displayProblem,
-    displayDescription: displayDescription || "A clinical evaluation is recommended based on your assessment."
+    displayDescription: displayDescription || `A clinical evaluation for ${finalCategory} is recommended based on your assessment.`
   };
 };
