@@ -73,12 +73,29 @@ export const restoreSessionFromStorage = async (storedSession) => {
 
   try {
     // Set the session in Supabase client
-    const { error } = await supabase.auth.setSession(storedSession.session);
+    const { data, error } = await supabase.auth.setSession(storedSession.session);
     if (error) {
       console.warn('Failed to restore Supabase session:', error);
+      // Try to refresh the session if it exists
+      if (storedSession.session?.refresh_token) {
+        try {
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession(storedSession.session);
+          if (refreshError) {
+            console.warn('Failed to refresh session:', refreshError);
+            return null;
+          }
+          if (refreshData.session) {
+            // Successfully refreshed, session is now restored
+            return refreshData.user;
+          }
+        } catch (refreshErr) {
+          console.warn('Error during session refresh:', refreshErr);
+          return null;
+        }
+      }
       return null;
     }
-    return storedSession.user;
+    return data?.user || storedSession.user;
   } catch (error) {
     console.warn('Error restoring session:', error);
     return null;

@@ -1002,7 +1002,11 @@ export default function Home() {
                           ]}
                         >
                           <Text style={styles.qText}>Q: {String(q.question || "")}</Text>
-                          <Text style={styles.aText}>A: {String(q.answer || "")}</Text>
+                          <Text style={styles.aText}>
+                              A: {typeof q.answer === "object"
+                                ? q.answer?.answer || JSON.stringify(q.answer)
+                                : q.answer || "No answer"}
+                          </Text>
                         </View>
                       ))
                     ) : (
