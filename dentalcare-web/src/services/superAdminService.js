@@ -105,6 +105,31 @@ export const getSuperAdminServices = async () => {
   return await fetchJson("/super_admin/services", { method: "GET" });
 };
 
+export const getSuperAdminServiceCategories = async () => {
+  return await fetchJson("/super_admin/services/categories", { method: "GET" });
+};
+
+export const createSuperAdminServiceCategory = async (payload) => {
+  return await fetchJson("/super_admin/services/categories", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const updateSuperAdminServiceCategory = async (id, payload) => {
+  return await fetchJson(`/super_admin/services/categories/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const updateSuperAdminServiceCategoryStatus = async (ids, status) => {
+  return await fetchJson("/super_admin/services/categories/status", {
+    method: "PATCH",
+    body: JSON.stringify({ ids, status }),
+  });
+};
+
 export const getSuperAdminFaqs = async () => {
   return await fetchJson("/super_admin/faqs", { method: "GET" });
 };
