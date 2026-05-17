@@ -134,6 +134,7 @@ export default function Questions() {
               description: null,
               tooth_selected:
                 state.tooth === "Not specified" ? null : state.tooth,
+              uploaded_images: state.remotePhotoUris || [], 
             },
           ])
           .select()

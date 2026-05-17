@@ -8,6 +8,7 @@ const initial = {
   answers: {},
   description: "",
   photoUri: "",
+  remotePhotoUris: [],
   preassessmentId: null,
   suggestedService: "",
 };
@@ -34,6 +35,15 @@ function preAssessmentReducer(state, action) {
 
     case "SET_PHOTO":
       return { ...state, photoUri: action.payload };
+
+    case "SET_REMOTE_PHOTOS":
+      return { ...state, remotePhotoUris: action.payload };
+      
+    case "ADD_REMOTE_PHOTOS":
+      return { 
+        ...state, 
+        remotePhotoUris: [...(state.remotePhotoUris || []), ...action.payload] 
+      };
 
     case "SET_PREASSESSMENT_ID":
       return { ...state, preassessmentId: action.payload };
