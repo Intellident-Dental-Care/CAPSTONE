@@ -16,19 +16,6 @@ import { supabase } from "../../server/supabaseService";
 import { getServerUrl } from "../../server/getClientSideUrl";
 import { getRecommendedServiceCriteria } from "../../server/AIRecommendation/serviceMapper";
 
-const QUESTIONS = [
-  "Do you feel tooth pain when biting or chewing?",
-  "Do you experience sensitivity to cold drinks?",
-  "Do you experience sensitivity to hot food/drinks?",
-  "Do your gums bleed when brushing or flossing?",
-  "Do you notice swelling in the gums or face?",
-  "Do you have bad breath even after brushing?",
-  "Do you see a visible hole or dark spot on the tooth?",
-  "Do you feel pain that wakes you up at night?",
-  "Do you feel pain when eating sweet food?",
-  "Have you had a filling or dental treatment on this tooth before?",
-];
-
 export default function AISummary() {
   const router = useRouter();
   const { state, dispatch } = usePreAssessment();
@@ -39,6 +26,7 @@ export default function AISummary() {
   const [suggestedService, setSuggestedService] = useState("Analyzing...");
   const [suggestedPrice, setSuggestedPrice] = useState("...");
   const [showAnswerSummary, setShowAnswerSummary] = useState(false);
+  const [dynamicQuestions, setDynamicQuestions] = useState([]);
 
   useEffect(() => {
     runAnalysis();
@@ -46,6 +34,17 @@ export default function AISummary() {
 
   const runAnalysis = async () => {
     try {
+      // 1. Fetch dynamic questions from the database first
+      const { data: qData } = await supabase
+        .from("questionnaire")
+        .select("*")
+        .eq("is_active", true)
+        .order("question_order");
+
+      const fetchedQuestions = qData ? qData.map(q => q.question_text) : [];
+      setDynamicQuestions(fetchedQuestions);
+
+      // 2. Prepare the photo for AI Analysis
       const imageToAnalyze = Array.isArray(state.photoUri)
         ? state.photoUri[0]
         : state.photoUri;
@@ -62,6 +61,7 @@ export default function AISummary() {
         type: "image/jpeg",
       });
 
+      // 3. Send photo to Python AI
       const aiResponse = await fetch(AI_API_URL, {
         method: "POST",
         headers: { "Content-Type": "multipart/form-data" },
@@ -71,18 +71,27 @@ export default function AISummary() {
       const aiData = await aiResponse.json();
       
       const problem = aiData.detected_problem || "Normal";
-      const description = aiData.description || ""; 
+      const rawDescription = aiData.description || ""; 
 
-      setDetectedProblem(problem);
-      setProblemDescription(description);
+      // 4. Map the AI result, Dynamic QA list, and patient description into the scoring engine
+      const localQaList = fetchedQuestions.map((qText, i) => ({
+        question: qText,
+        answer: state.answers?.[i] || "-",
+      }));
 
-      const criteria = getRecommendedServiceCriteria(problem);
+      // Get the smart recommendation AND the smart text output
+      const result = getRecommendedServiceCriteria(problem, localQaList, state.description, rawDescription);
 
+      // 5. Update the UI with the smart text
+      setDetectedProblem(result.displayProblem);
+      setProblemDescription(result.displayDescription);
+
+      // 6. Query the service based on the scoring engine criteria
       const { data } = await supabase
         .from("dental_services")
         .select("*")
         .eq("is_active", true)
-        .ilike(criteria.field, `%${criteria.value}%`)
+        .ilike(result.query.field, `%${result.query.value}%`)
         .order("price_min", { ascending: true })
         .limit(1)
         .single();
@@ -99,7 +108,7 @@ export default function AISummary() {
       setSuggestedService(finalServiceName);
       setSuggestedPrice(finalPriceDisplay);
 
-      // Save the AI recommendation to the database
+      // 7. Save the AI recommendation to the database
       if (state.preassessmentId) {
         await supabase
           .from("patient_preassessment")
@@ -119,11 +128,11 @@ export default function AISummary() {
   };
 
   const qaList = useMemo(() => {
-    return QUESTIONS.map((qText, i) => ({
+    return dynamicQuestions.map((qText, i) => ({
       qText,
       ans: state.answers?.[i] || "-",
     }));
-  }, [state.answers]);
+  }, [state.answers, dynamicQuestions]);
 
   if (analyzing) {
     return (
