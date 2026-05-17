@@ -402,24 +402,6 @@ export default function DentistPatientHistory() {
                     </div>
                   )}
                 </div>
-
-                <div className="history-modal-actions">
-                  <button
-                    type="button"
-                    className="history-close-btn"
-                    onClick={() => setHistoryModalOpen(false)}
-                  >
-                    Close
-                  </button>
-
-                  <button
-                    type="button"
-                    className="history-add-btn"
-                    onClick={() => setProcedureModalOpen(true)}
-                  >
-                    Add Procedure
-                  </button>
-                </div>
               </div>
             </div>
           </div>
