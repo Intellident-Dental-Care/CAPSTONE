@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminSidebar from "../../components/admin/layout/AdminSidebar";
 import AdminTopbar from "../../components/admin/layout/AdminTopbar";
-import { applyQueueDelay, getTodayQueue, updateQueueStatus } from "../../services/adminService";
+import { applyQueueDelay, getTodayQueue, updateQueueStatus, resetQueueDelay } from "../../services/adminService";
 
 import "../../styles/admin/dashboard/admin-layout.css";
 import "../../styles/admin/layout/admin-sidebar.css";
@@ -446,8 +446,10 @@ export default function Queue() {
 
                   <div className="queue-delay-preview">
                     <div className="queue-delay-preview-item">
-                      <span>Suggested Action</span>
-                      <strong>Notify waiting patients</strong>
+                      <span>Current Delay</span>
+                      <strong style={{ color: delayOffsetMinutes > 0 ? "#E24C4B" : "#2FA55A" }}>
+                        {delayOffsetMinutes} minutes
+                      </strong>
                     </div>
 
                     <div className="queue-delay-preview-item">
@@ -456,12 +458,34 @@ export default function Queue() {
                     </div>
                   </div>
 
-                  <button
-                    className="queue-primary-btn queue-delay-btn"
-                    onClick={() => setShowDelayModal(true)}
-                  >
-                    Update Schedule & Notify
-                  </button>
+                  <div style={{ display: "flex", gap: "10px", marginTop: "14px" }}>
+                    <button
+                      style={{ flex: 1 }}
+                      className="queue-primary-btn queue-delay-btn"
+                      onClick={() => setShowDelayModal(true)}
+                    >
+                      Add Delay
+                    </button>
+
+                    {delayOffsetMinutes > 0 && (
+                      <button
+                        style={{ flex: 1, backgroundColor: "#FFF1F6", color: "#e11d48", border: "1px solid #F8D4E0" }}
+                        className="queue-primary-btn"
+                        onClick={async () => {
+                          setIsApplyingDelay(true);
+                          const res = await resetQueueDelay();
+                          if (res?.success) {
+                            setDelayOffsetMinutes(0);
+                            await loadQueue();
+                          }
+                          setIsApplyingDelay(false);
+                        }}
+                        disabled={isApplyingDelay}
+                      >
+                        Reset Delay
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </section>

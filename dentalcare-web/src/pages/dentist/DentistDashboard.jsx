@@ -239,6 +239,7 @@ export default function DentistDashboard() {
       questions: [],
       suggestedTreatment: "Dental Appointment",
       suggestedPrice: "-",
+      description: "No description provided."
     });
     setIsModalOpen(true);
   };

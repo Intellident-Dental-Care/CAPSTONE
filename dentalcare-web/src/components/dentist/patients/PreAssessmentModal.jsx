@@ -1,6 +1,56 @@
 import React, { useEffect, useRef, useState } from "react";
 import PreAssessmentQAList from "./PreAssessmentQAList";
 import SuggestedProcedureCard from "./SuggestedProcedureCard";
+import { getSecureImageBlob } from "../../../services/dentistService";
+
+const SecureImage = ({ imagePath, index }) => {
+  const [blobUrl, setBlobUrl] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    
+    const loadBlob = async () => {
+      const url = await getSecureImageBlob(imagePath);
+      if (active && url) setBlobUrl(url);
+    };
+
+    loadBlob();
+
+    return () => {
+      active = false;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [imagePath]);
+
+  if (!blobUrl) {
+    return (
+      <div className="uploaded-photo-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f0f0', width: '160px', height: '160px', borderRadius: '10px' }}>
+        <span style={{ fontSize: '12px', color: '#888', fontWeight: '500' }}>Loading...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="uploaded-photo-card">
+      <a href={blobUrl} target="_blank" rel="noopener noreferrer">
+        <img
+          src={blobUrl}
+          alt={`Uploaded ${index + 1}`}
+          className="uploaded-photo-img"
+          style={{ 
+            width: "160px", 
+            height: "160px", 
+            objectFit: "cover", 
+            borderRadius: "10px", 
+            border: "1px solid #e0e0e0",
+            cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
+          }}
+        />
+      </a>
+    </div>
+  );
+};
 
 export default function PreAssessmentModal({
   open,
@@ -10,16 +60,12 @@ export default function PreAssessmentModal({
   showAddProcedure = true,
 }) {
   const iframeRef = useRef(null);
-  
-  // Track the tooth locally so if the dentist clicks a different tooth, it updates the UI
   const [localTooth, setLocalTooth] = useState("Not specified");
 
-  // Sync local tooth when the modal first opens or data changes
   useEffect(() => {
     setLocalTooth(data?.tooth || "Not specified");
   }, [data]);
 
-  // Listen for the dentist clicking around inside the 3D model
   useEffect(() => {
     const handleMessage = (event) => {
       if (event.data?.type === 'TOOTH_SELECTED') {
@@ -32,14 +78,12 @@ export default function PreAssessmentModal({
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // When the 3D iframe finishes loading, immediately tell it to select the patient's tooth
   const handleIframeLoad = () => {
     if (data?.tooth && data.tooth !== "Not specified" && iframeRef.current) {
       iframeRef.current.contentWindow.postMessage({ type: 'SELECT_TOOTH', tooth: data.tooth }, '*');
     }
   };
 
-  // Re-apply tooth selection whenever the modal opens with a tooth value
   useEffect(() => {
     if (!open || !iframeRef.current) return;
     if (!data?.tooth || data.tooth === "Not specified") return;
@@ -54,6 +98,7 @@ export default function PreAssessmentModal({
     questions = [],
     suggestedTreatment,
     suggestedPrice,
+    description,
   } = data;
 
   return (
@@ -72,7 +117,6 @@ export default function PreAssessmentModal({
 
         <div className="preassessment-content">
           <div className="preassessment-left">
-            {/* Replaced static image with the interactive 3D model iframe */}
             <div className="preassessment-image-wrap" style={{ position: 'relative', width: '100%', height: '300px', overflow: 'hidden', borderRadius: '8px' }}>
               <iframe
                 ref={iframeRef}
@@ -96,19 +140,29 @@ export default function PreAssessmentModal({
 
             <PreAssessmentQAList questions={questions} />
 
+            <div style={{ marginTop: '16px', marginBottom: '16px' }}>
+              <p className="uploaded-photos-label">Patient Description</p>
+              <div style={{ 
+                backgroundColor: '#f9f9f9', 
+                padding: '12px 16px', 
+                borderRadius: '8px', 
+                border: '1px solid #efefef',
+                color: '#555',
+                fontSize: '13px',
+                lineHeight: '1.6',
+                marginTop: '8px'
+              }}>
+                {description || "No additional description provided."}
+              </div>
+            </div>
+
             <div className="uploaded-photos-section">
               <p className="uploaded-photos-label">Uploaded Photos</p>
 
-              <div className="uploaded-photos-grid">
+              <div className="uploaded-photos-grid" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '10px' }}>
                 {uploadedPhotos.length > 0 ? (
-                  uploadedPhotos.map((photo, index) => (
-                    <div className="uploaded-photo-card" key={index}>
-                      <img
-                        src={photo}
-                        alt={`Uploaded ${index + 1}`}
-                        className="uploaded-photo-img"
-                      />
-                    </div>
+                  uploadedPhotos.map((path, index) => (
+                    <SecureImage key={index} imagePath={path} index={index} />
                   ))
                 ) : (
                   <div className="uploaded-photo-empty">

@@ -260,6 +260,24 @@ export const getAdminPatients = async () => {
   }
 };
 
+export const resetQueueDelay = async () => {
+  try {
+    const data = await fetchJson("/admin/queuecontrol/delay", {
+      method: "POST",
+      body: JSON.stringify({ reset: true, message: "The dentist has caught up. The clinic is now back on schedule." }),
+    });
+
+    if (data?.success) {
+      adminCache.queue = null;
+      adminCache.dashboard = null;
+    }
+
+    return data;
+  } catch (error) {
+    return { success: false, message: "Failed to reset queue delay" };
+  }
+};
+
 export const isSuperAdmin = () => {
   const user = AuthService.getCurrentUser();
   return user?.admin_type === "super_admin" || user?.adminType === "super_admin";

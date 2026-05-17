@@ -51,21 +51,15 @@ const computeWaitMetrics = (bookings, totalDelayMinutes) => {
   let nextPatientWait = 0;
 
   if (nextAppointmentMinutes !== null) {
-    // FIX: Apply the delay to the appointment time FIRST to get the new Expected Start Time.
     const expectedStartMins = nextAppointmentMinutes + totalDelayMinutes;
-    
-    // Then calculate time remaining from NOW. This ensures the delay naturally counts down.
     nextPatientWait = Math.max(0, expectedStartMins - currentMins);
   } else {
     nextPatientWait = 15;
   }
 
-  // Calculate spread for the rest of the waiting line (assume 15 mins per patient)
   const queueSpreadMinutes = waiting.length > 1 ? (waiting.length - 1) * 15 : 0;
   let estimatedWait = nextPatientWait + queueSpreadMinutes;
 
-  // Set a realistic floor: if there are 3 people waiting, it will take at least 45 mins
-  // even if their scheduled times have already passed.
   const minWaitByLength = waiting.length * 15;
   estimatedWait = Math.max(estimatedWait, minWaitByLength);
 
@@ -94,26 +88,29 @@ const getDelayState = async (branch, effectiveDate) => {
   return { tableMissing: false, row: data || null };
 };
 
-const upsertDelayState = async ({ branch, effectiveDate, adminProfileId, delayMinutes, message }) => {
+const upsertDelayState = async ({ branch, effectiveDate, adminProfileId, delayMinutes, message, isReset }) => {
   const existing = await getDelayState(branch, effectiveDate);
+  
+  // LOGIC FIX: Reset to 0 if requested, otherwise accumulate existing delay
+  const calculatedTotal = isReset ? 0 : Number(existing.row?.total_delay_minutes || 0) + delayMinutes;
+
   if (existing.tableMissing) {
     return {
       tableMissing: true,
       delay: {
         branch,
         effectiveDate,
-        totalDelayMinutes: delayMinutes,
+        totalDelayMinutes: calculatedTotal,
         lastMessage: message || "",
       },
     };
   }
 
   if (existing.row) {
-    const nextTotal = Number(existing.row.total_delay_minutes || 0) + delayMinutes;
     const { data, error } = await supabaseAdmin
       .from("queue_delay_state")
       .update({
-        total_delay_minutes: nextTotal,
+        total_delay_minutes: calculatedTotal,
         last_message: message || existing.row.last_message || null,
         updated_by_admin_id: adminProfileId,
         updated_at: new Date().toISOString(),
@@ -141,7 +138,7 @@ const upsertDelayState = async ({ branch, effectiveDate, adminProfileId, delayMi
     .insert({
       branch,
       effective_date: effectiveDate,
-      total_delay_minutes: delayMinutes,
+      total_delay_minutes: calculatedTotal,
       last_message: message || null,
       updated_by_admin_id: adminProfileId,
     })
@@ -293,10 +290,12 @@ export const updateBookingQueueStatus = async (adminProfileId, bookingId, status
 };
 
 export const applyQueueDelay = async (adminProfileId, payload = {}) => {
+  const isReset = !!payload.reset;
   const delayMinutes = Number(payload.delayMinutes || 0);
   const message = String(payload.message || "").trim();
 
-  if (!Number.isFinite(delayMinutes) || delayMinutes <= 0) {
+  // If it's NOT a reset, ensure delay is positive
+  if (!isReset && (!Number.isFinite(delayMinutes) || delayMinutes <= 0)) {
     return {
       success: false,
       statusCode: 400,
@@ -325,13 +324,18 @@ export const applyQueueDelay = async (adminProfileId, payload = {}) => {
       adminProfileId,
       delayMinutes,
       message,
+      isReset,
     });
 
-    const defaultMessage = `Queue update: Estimated wait has been delayed by ${delayMinutes} minute${delayMinutes > 1 ? "s" : ""}.`;
+    // Determine what message is sent to users
+    const defaultMessage = isReset 
+      ? "Great news! The clinic is back on schedule." 
+      : `Queue update: Estimated wait has been delayed by ${delayMinutes} minute${delayMinutes > 1 ? "s" : ""}.`;
+
     const notifyResult = await insertDelayNotifications({
       bookings: affectedBookings,
       message: message || defaultMessage,
-      delayMinutes,
+      delayMinutes: isReset ? 0 : delayMinutes,
       adminProfileId,
       branch,
       effectiveDate,
@@ -342,7 +346,7 @@ export const applyQueueDelay = async (adminProfileId, payload = {}) => {
     return {
       success: true,
       statusCode: 200,
-      message: "Delay applied successfully",
+      message: isReset ? "Delay reset successfully" : "Delay applied successfully",
       data: {
         delay: normalizedQueue.data.delay,
         estimatedWaitMinutes: normalizedQueue.data.estimatedWaitMinutes,

@@ -148,6 +148,23 @@ export const getDentistPatientHistory = async (options = {}) => {
   }
 };
 
+export const getSecureImageBlob = async (imagePath) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/dentist/dashboard/image/${imagePath}`, {
+      method: "GET",
+      headers: baseHeaders(), 
+    });
+
+    if (!response.ok) throw new Error("Failed to fetch image");
+    
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  } catch (error) {
+    console.error("Error fetching secure image blob:", error);
+    return null;
+  }
+};
+
 export const createDentistProcedure = async (payload) => {
   try {
     const data = await fetchJson("/dentist/patients/procedures", {

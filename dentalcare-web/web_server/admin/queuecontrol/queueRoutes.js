@@ -21,11 +21,13 @@ router.patch("/status", requireAuth, requireRole("admin"), async (req, res) => {
 });
 
 router.post("/delay", requireAuth, requireRole("admin"), async (req, res) => {
-  const { delayMinutes, message } = req.body || {};
+  // ADDED: Destructure 'reset' from the body
+  const { delayMinutes, message, reset } = req.body || {};
 
   const result = await applyQueueDelay(req.user.profileId || req.user.id, {
     delayMinutes,
     message,
+    reset, // Pass it to the service
   });
 
   return res.status(result.statusCode || 500).json(result);
