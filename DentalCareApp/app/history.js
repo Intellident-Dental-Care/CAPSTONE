@@ -616,7 +616,9 @@ export default function History() {
 
                             <Text style={styles.aLine}>
                               <Text style={styles.aLabel}>    Answer: </Text>
-                              {item.answer}
+                                  {typeof item.answer === "object"
+                                      ? item.answer?.answer || JSON.stringify(item.answer)
+                                      : item.answer || "No answer"}
                             </Text>
                           </View>
                         ))}

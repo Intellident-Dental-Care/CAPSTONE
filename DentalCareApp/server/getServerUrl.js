@@ -26,9 +26,6 @@ function getServerDiscoveryUrls() {
       `http://${localIP}:5001`,
       "http://localhost:5001",
       "http://127.0.0.1:5001",
-      "http://192.168.1.1:5001",
-      "http://192.168.0.1:5001",
-      "http://10.0.0.1:5001",
     ],
     networkRange: {
       base: networkBase,

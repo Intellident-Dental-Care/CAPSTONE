@@ -15,7 +15,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { colors } from "../theme/colors";
 import { supabase } from "../../server/supabaseService";
 
-function PickerModal({ visible, title, options, onClose, onPick }) {
+function PickerModal({ visible, title, options, onClose, onPick, selectedValue }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
@@ -25,7 +25,12 @@ function PickerModal({ visible, title, options, onClose, onPick }) {
           <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
             {options.map((opt, index) => (
               <Pressable key={`${opt}-${index}`} style={styles.modalItem} onPress={() => onPick(opt)}>
-                <Text style={styles.modalItemText}>{opt}</Text>
+                <View style={styles.modalItemContent}>
+                  <Text style={styles.modalItemText}>{opt}</Text>
+                  {selectedValue && selectedValue.toLowerCase() === opt.toLowerCase() && (
+                    <Ionicons name="checkmark" size={18} color={colors.primary} />
+                  )}
+                </View>
               </Pressable>
             ))}
           </ScrollView>
@@ -75,6 +80,20 @@ export default function BookingBranchDoctor() {
     fetchDentists();
     fetchServices();
   }, []);
+
+  // Verify the auto-selected service exists in the services list
+  useEffect(() => {
+    if (incomingService && services.length > 0) {
+      const serviceExists = services.some(
+        (s) => s.toLowerCase() === incomingService.toLowerCase()
+      );
+      if (!serviceExists && incomingService !== service) {
+        // If service doesn't exist in list, clear it to let user select
+        console.warn(`Recommended service "${incomingService}" not found in available services`);
+        setService("");
+      }
+    }
+  }, [services, incomingService]);
 
   const fetchServices = async () => {
     try {
@@ -207,12 +226,21 @@ export default function BookingBranchDoctor() {
 
       <View style={{ height: 16 }} />
 
-      <Pressable style={styles.dropdown} onPress={() => setShowService(true)}>
-        <Text style={[styles.dropdownText, !service && { color: "#AAA" }]}>
-          {service || "Service"}
-        </Text>
-        <Ionicons name="chevron-down" size={16} color="#888" />
-      </Pressable>
+      <View>
+        <Pressable style={styles.dropdown} onPress={() => setShowService(true)}>
+          <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Text style={[styles.dropdownText, !service && { color: "#AAA" }]}>
+              {service || "Service"}
+            </Text>
+            {incomingService && service && service.toLowerCase() === incomingService.toLowerCase() && (
+              <View style={styles.aiRecommendedBadge}>
+                <Text style={styles.aiRecommendedBadgeText}>AI Recommended</Text>
+              </View>
+            )}
+          </View>
+          <Ionicons name="chevron-down" size={16} color="#888" />
+        </Pressable>
+      </View>
 
       <Pressable
         style={[styles.dropdown, { marginTop: 12 }]}
@@ -261,6 +289,7 @@ export default function BookingBranchDoctor() {
         visible={showService}
         title="Select Service"
         options={services}
+        selectedValue={service}
         onClose={() => setShowService(false)}
         onPick={(opt) => {
           setService(opt);
@@ -272,6 +301,7 @@ export default function BookingBranchDoctor() {
         visible={showBranch}
         title="Select Branch"
         options={branches}
+        selectedValue={branch}
         onClose={() => setShowBranch(false)}
         onPick={(opt) => {
           setBranch(opt);
@@ -285,6 +315,7 @@ export default function BookingBranchDoctor() {
         visible={showDoctor}
         title="Select Doctor"
         options={doctors.map((d) => d.name)}
+        selectedValue={doctor}
         onClose={() => setShowDoctor(false)}
         onPick={(opt) => {
           const selectedDentist = doctors.find((d) => d.name === opt);
@@ -356,6 +387,21 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
+  aiRecommendedBadge: {
+    backgroundColor: "#FFF1F6",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+
+  aiRecommendedBadgeText: {
+    fontSize: 9,
+    color: colors.primary,
+    fontWeight: "900",
+  },
+
   proceedBtn: {
     position: "absolute",
     right: 24,
@@ -405,9 +451,16 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F3F3F3",
   },
 
+  modalItemContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
   modalItemText: {
     fontSize: 12,
     color: "#444",
     fontWeight: "700",
+    flex: 1,
   },
 });

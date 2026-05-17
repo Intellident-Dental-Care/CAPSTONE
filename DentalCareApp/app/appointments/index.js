@@ -107,7 +107,7 @@ export default function AppointmentsScreen() {
       let dbQuery = supabase
         .from("bookings")
         .select(
-          "*, dentist_list(name, specialization), patient_preassessment(tooth_selected, description, answers)"
+          "*, dentist_list(name, specialization), patient_preassessment!preassessment_id(*)"
         )
         .order("appointment_date", { ascending: false });
 
@@ -173,11 +173,23 @@ export default function AppointmentsScreen() {
             } catch (e) {}
           }
 
-          if (
+          if (Array.isArray(parsedAnswers) && parsedAnswers.length > 0) {
+            // Answers are stored as array of {questionId, answer} objects
+            qaList = QUESTIONS.map((q, idx) => {
+              const answerObj = parsedAnswers.find(
+                (a) => a?.questionId === idx + 1 || a?.questionId === String(idx + 1)
+              );
+              return {
+                question: q,
+                answer: answerObj?.answer || "Not answered",
+              };
+            });
+          } else if (
             parsedAnswers &&
             typeof parsedAnswers === "object" &&
             Object.keys(parsedAnswers).length > 0
           ) {
+            // Fallback for old format where answers are indexed by position
             qaList = QUESTIONS.map((q, idx) => ({
               question: q,
               answer:

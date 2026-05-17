@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { colors } from "./theme/colors";
 import { startDeepLinkListener } from "../server/deepLinkHandler";
 import { getSession } from "./_storage/authStorage";
-import { restoreSessionFromStorage } from "../server/supabaseService";
+import { restoreSessionFromStorage, supabase } from "../server/supabaseService";
 
 export default function Index() {
   const router = useRouter();
@@ -23,9 +23,24 @@ export default function Index() {
           await restoreSessionFromStorage(session);
         }
 
-        setTimeout(() => {
+        // Add a small delay to ensure session is properly restored
+        setTimeout(async () => {
           if (session?.user || session?.session?.user) {
-            router.replace("/home");
+            // Verify the session is actually valid by checking with Supabase
+            // This ensures the restored session works properly
+            try {
+              const { data: { user }, error } = await supabase.auth.getUser();
+              if (user && !error) {
+                router.replace("/home");
+              } else {
+                // Session invalid, redirect to login
+                console.warn('Session invalid after restore:', error);
+                router.replace("/get-started");
+              }
+            } catch (err) {
+              console.error('User verification error:', err);
+              router.replace("/get-started");
+            }
           } else {
             router.replace("/get-started");
           }
