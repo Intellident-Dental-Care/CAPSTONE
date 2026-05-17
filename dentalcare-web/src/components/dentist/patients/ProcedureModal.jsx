@@ -25,7 +25,7 @@ export default function ProcedureModal({
   const [beforePhoto, setBeforePhoto] = useState(null);
   const [afterPhoto, setAfterPhoto] = useState(null);
 
-  // --- NEW 3D MODEL SYNC LOGIC ---
+  // --- 3D MODEL SYNC LOGIC ---
   const iframeRef = useRef(null);
   const [localTooth, setLocalTooth] = useState("Not specified");
 
@@ -53,6 +53,13 @@ export default function ProcedureModal({
       iframeRef.current.contentWindow.postMessage({ type: 'SELECT_TOOTH', tooth: tooth }, '*');
     }
   };
+
+  // Re-apply selection state message dispatch context if modal visibility toggles
+  useEffect(() => {
+    if (!open || !iframeRef.current) return;
+    if (!tooth || tooth === "Not specified") return;
+    iframeRef.current.contentWindow.postMessage({ type: 'SELECT_TOOTH', tooth: tooth }, '*');
+  }, [open, tooth]);
   // -------------------------------
 
   if (!open) return null;
@@ -83,8 +90,7 @@ export default function ProcedureModal({
       remarks,
       beforePhoto,
       afterPhoto,
-      // Pass the locally selected tooth, in case they changed it!
-      tooth: localTooth, 
+      tooth: localTooth, // Pass the locally selected tooth, in case they changed it!
     };
 
     await onSave?.(payload);
@@ -107,7 +113,7 @@ export default function ProcedureModal({
 
         <div className="procedure-content">
           <div className="procedure-left">
-            {/* Replaced static image with the interactive 3D model iframe */}
+            {/* Interactive 3D model iframe viewport panel layout context */}
             <div className="procedure-image-wrap" style={{ position: 'relative', width: '100%', height: '300px', overflow: 'hidden', borderRadius: '8px' }}>
               <iframe
                 ref={iframeRef}

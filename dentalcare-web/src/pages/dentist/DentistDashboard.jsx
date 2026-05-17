@@ -228,18 +228,28 @@ export default function DentistDashboard() {
   const maxWeeklyValue = Math.max(1, ...weeklyFlow.map((item) => item.value || 0));
 
   const handleOpenPreAssessment = (patient) => {
+    const resolvedBookingId = patient.bookingId || patient.id || null;
+    const resolvedPatientId = patient.patientId || null;
+
     setProcedurePatientContext({
-      patientId: patient.patientId || null,
-      bookingId: patient.bookingId || patient.id || null,
+      patientId: resolvedPatientId,
+      bookingId: resolvedBookingId,
     });
 
-    setSelectedPreAssessment(patient.preAssessment || {
+    // Explicitly seed properties into contextual scope packet for modal lifecycle transitions
+    setSelectedPreAssessment(patient.preAssessment ? {
+      ...patient.preAssessment,
+      bookingId: resolvedBookingId,
+      patientId: resolvedPatientId,
+    } : {
       tooth: "Not specified",
       uploadedPhotos: [],
       questions: [],
       suggestedTreatment: "Dental Appointment",
       suggestedPrice: "-",
-      description: "No description provided."
+      description: "No description provided.",
+      bookingId: resolvedBookingId,
+      patientId: resolvedPatientId,
     });
     setIsModalOpen(true);
   };
@@ -250,6 +260,11 @@ export default function DentistDashboard() {
   };
 
   const handleAddProcedure = (data) => {
+    // Re-assert target context securely to ensure payload mappings match
+    setProcedurePatientContext({
+      patientId: data?.patientId || null,
+      bookingId: data?.bookingId || null,
+    });
     setProcedureTarget(data);
     setIsProcedureModalOpen(true);
   };
@@ -275,7 +290,6 @@ export default function DentistDashboard() {
       tooth: payload?.tooth || null,
       procedure: payload?.service || "",
       remarks: payload?.remarks || "",
-      // File upload to storage is not wired yet; keep DB fields nullable for now.
       beforeImageUrl: null,
       afterImageUrl: null,
     });
@@ -286,7 +300,6 @@ export default function DentistDashboard() {
       return;
     }
 
-    // Refresh snapshot so newly saved procedure context is reflected as soon as possible.
     const fresh = await getDentistDashboardSnapshot({ forceRefresh: true });
     if (fresh?.success) {
       const payloadData = fresh.data || {};

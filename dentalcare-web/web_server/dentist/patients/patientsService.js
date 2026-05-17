@@ -60,37 +60,62 @@ const resolveQuestionText = (rawKey, questionnaireLookup) => {
   return key;
 };
 
+// FOOLPROOF PHOTO EXTRACTOR FOR HISTORY TAB
+const extractPhotos = (row) => {
+  const urls = new Set();
+  const rowStr = JSON.stringify(row || {});
+  const matches = rowStr.match(/https?:\/\/[^"\\'\s\]\}]+/g);
+  if (matches) {
+    matches.forEach(m => {
+      if (m.includes("patient-images")) urls.add(m);
+    });
+  }
+  return Array.from(urls);
+};
+
 const toPreAssessmentPayload = (row, fallbackService, questionnaireLookup = new Map()) => {
   if (!row) return null;
-  const answers = row.answers && typeof row.answers === "object" ? row.answers : null;
-  const questions = Array.isArray(answers)
-    ? answers.map((entry, index) => ({
-        question: entry?.question || `Question ${index + 1}`,
-        answer: entry?.answer || entry?.value || String(entry || ""),
-      }))
-    : answers && typeof answers === "object"
-      ? Object.entries(answers)
-          .filter(([key]) => !["uploadedPhotos", "photos", "tooth", "suggestedTreatment", "suggestedPrice"].includes(key))
-          .map(([key, value]) => ({
-            question: resolveQuestionText(key, questionnaireLookup),
-            answer: String(value ?? ""),
-          }))
-      : [];
+  let answers = null;
+  try {
+    answers = typeof row.answers === "string" ? JSON.parse(row.answers) : row.answers;
+  } catch (e) {
+    answers = row.answers;
+  }
 
-  const uploadedPhotos = Array.isArray(answers?.uploadedPhotos)
-    ? answers.uploadedPhotos
-    : Array.isArray(answers?.photos)
-      ? answers.photos
-      : [];
+  let questions = [];
+  if (Array.isArray(answers)) {
+    questions = answers.map((entry, index) => {
+      const qKey = entry.questionId ?? entry.question_id ?? (index + 1);
+      return {
+        question: resolveQuestionText(qKey, questionnaireLookup),
+        answer: String(entry?.answer || entry?.value || ""),
+      };
+    });
+  } else if (answers && typeof answers === "object") {
+    questions = Object.entries(answers)
+      .filter(([k]) => !["uploadedPhotos", "photos", "tooth", "suggestedTreatment", "suggestedPrice"].includes(k))
+      .map(([k, v]) => ({
+        question: resolveQuestionText(k, questionnaireLookup),
+        answer: String(typeof v === "object" ? (v?.answer || v?.value || "") : v ?? ""),
+      }));
+  }
+
+  const rawPhotos = extractPhotos(row);
+  const securePaths = [];
+  for (const url of rawPhotos) {
+    const pathMatch = url.match(/patient-images\/(.*)/);
+    if (pathMatch && pathMatch[1]) securePaths.push(pathMatch[1]);
+  }
 
   const selectedTooth = String(row.tooth_selected || answers?.tooth || "").trim();
 
   return {
     tooth: selectedTooth || "Not specified",
-    uploadedPhotos,
+    uploadedPhotos: securePaths,
     questions,
-    suggestedTreatment: row.description || answers?.suggestedTreatment || fallbackService || "Dental Appointment",
+    suggestedTreatment: String(row.ai_service || answers?.suggestedTreatment || fallbackService || "").trim() || "Consultation",
     suggestedPrice: answers?.suggestedPrice || "-",
+    description: String(row.description || "").trim() || "No description provided."
   };
 };
 
@@ -146,9 +171,10 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
   let preassessmentById = new Map();
 
   if (preassessmentIds.length) {
+    // ADDED columns needed for accurate parsing
     const preassessmentResult = await supabaseAdmin
       .from("patient_preassessment")
-      .select("id, answers, description, tooth_selected")
+      .select("id, answers, description, tooth_selected, uploaded_images, ai_service")
       .in("id", preassessmentIds);
     if (!preassessmentResult.error) {
       preassessmentById = new Map((preassessmentResult.data || []).map((row) => [row.id, row]));
@@ -208,18 +234,20 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
       ? current.dateOfVisit
       : booking.appointment_date;
 
+    const paPayload = preAssessmentsByBookingId.get(booking.id) || null;
+
     current.procedures.push({
       id: `booking-${booking.id}`,
       date: formatProcedureDate(booking.appointment_date, booking.appointment_time),
       procedure: booking.service || "Dental Appointment",
-      tooth: "Not specified",
+      tooth: paPayload?.tooth || "Not specified", // FIX: Replaced hardcoded "Not specified"
       dentist: dentistName,
       remarks: `Status: ${booking.status || "scheduled"}`,
       beforePhoto: null,
       afterPhoto: null,
       source: "booking",
       bookingId: booking.id,
-      preAssessment: preAssessmentsByBookingId.get(booking.id) || null,
+      preAssessment: paPayload,
     });
 
     grouped.set(groupKey, current);

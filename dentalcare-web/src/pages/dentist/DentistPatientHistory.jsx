@@ -157,7 +157,7 @@ export default function DentistPatientHistory() {
 
     const result = await createDentistProcedure({
       patientId,
-      bookingId: selectedProcedure?.bookingId || null,
+      bookingId: selectedProcedure?.bookingId || null, // Captures booking mapping payload explicitly
       tooth: payload?.tooth || null,
       procedure: payload?.service || "",
       remarks: payload?.remarks || "",
