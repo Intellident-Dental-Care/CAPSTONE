@@ -22,6 +22,7 @@ import superAdminPatientsRoutes from "./super_admin/patients/patientsRoutes.js";
 import superAdminServicesRoutes from "./super_admin/services/servicesRoutes.js";
 import superAdminFaqsRoutes from "./super_admin/faqs/faqsRoutes.js";
 import superAdminTermsRoutes from "./super_admin/terms/termsRoutes.js";
+import questionnaireRoutes from "./super_admin/questionnaire/questionnaireRoutes.js";
 
 import { getLocalIpAddress, getServerDiscoveryUrls } from "./shared/getServerUrl.js";
 import { verifyEmailTransport } from "./nodemailer/emailOtpService.js";
@@ -73,7 +74,7 @@ app.use("/api/super_admin/patients", superAdminPatientsRoutes);
 app.use("/api/super_admin/services", superAdminServicesRoutes);
 app.use("/api/super_admin/faqs", superAdminFaqsRoutes);
 app.use("/api/super_admin/terms", superAdminTermsRoutes);
-
+app.use("/api/super_admin/questionnaire", questionnaireRoutes);
 app.use((err, _req, res, _next) => {
   console.error("Unhandled server error:", err);
   res.status(500).json({ success: false, message: "Internal server error" });

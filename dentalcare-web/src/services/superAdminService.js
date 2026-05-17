@@ -119,3 +119,31 @@ export const saveSuperAdminTerms = async (terms) => {
     body: JSON.stringify({ terms }),
   });
 };
+
+//QUESTIONNAIRE 
+
+export const getSuperAdminQuestionnaire = async () => {
+  return await fetchJson("/super_admin/questionnaire", {
+    method: "GET",
+  });
+};
+
+export const createSuperAdminQuestionnaire = async (payload) => {
+  return await fetchJson("/super_admin/questionnaire", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const updateSuperAdminQuestionnaire = async (id, payload) => {
+  return await fetchJson(`/super_admin/questionnaire/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const deleteSuperAdminQuestionnaire = async (id) => {
+  return await fetchJson(`/super_admin/questionnaire/${id}`, {
+    method: "DELETE",
+  });
+};

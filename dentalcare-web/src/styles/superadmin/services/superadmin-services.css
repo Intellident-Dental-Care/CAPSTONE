@@ -512,3 +512,21 @@
     padding: 18px;
   }
 }
+
+/* ✅ ADDED CATEGORY BUTTON WRAPPER */
+.superadmin-services-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .superadmin-services-header-actions {
+    width: 100%;
+  }
+
+  .superadmin-services-header-actions button {
+    width: 100%;
+  }
+}

@@ -30,22 +30,34 @@ export default function SuperAdminServices() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
 
-  const categories = useMemo(() => {
-    if (services.length === 0) {
-      return [
-        "Consultation",
-        "Cleaning",
-        "Restoration",
-        "Orthodontics",
-        "Surgery",
-        "Pediatric Dentistry",
-        "Cosmetic Dentistry",
-      ];
-    }
+  // ✅ ADDED CATEGORY STATE
+  const [customCategories, setCustomCategories] = useState([]);
+  const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
 
-    const unique = [...new Set(services.map((s) => s.category).filter(Boolean))];
-    return unique.sort();
-  }, [services]);
+  const defaultCategories = [
+    "Consultation",
+    "Cleaning",
+    "Restoration",
+    "Orthodontics",
+    "Surgery",
+    "Pediatric Dentistry",
+    "Cosmetic Dentistry",
+  ];
+
+  const categories = useMemo(() => {
+    const serviceCategories = services
+      .map((service) => service.category)
+      .filter(Boolean);
+
+    const allCategories = [
+      ...defaultCategories,
+      ...serviceCategories,
+      ...customCategories,
+    ];
+
+    return [...new Set(allCategories)].sort();
+  }, [services, customCategories]);
 
   const [form, setForm] = useState({
     name: "",
@@ -147,6 +159,46 @@ export default function SuperAdminServices() {
     resetForm();
   };
 
+  // ✅ ADDED CATEGORY MODAL FUNCTIONS
+  const handleOpenAddCategoryModal = () => {
+    setNewCategory("");
+    setIsAddCategoryModalOpen(true);
+  };
+
+  const handleCloseAddCategoryModal = () => {
+    setNewCategory("");
+    setIsAddCategoryModalOpen(false);
+  };
+
+  const handleAddCategory = (e) => {
+    e.preventDefault();
+
+    const cleanedCategory = newCategory.trim();
+
+    if (!cleanedCategory) {
+      alert("Please enter a category name.");
+      return;
+    }
+
+    const categoryExists = categories.some(
+      (category) => category.toLowerCase() === cleanedCategory.toLowerCase()
+    );
+
+    if (categoryExists) {
+      alert("This category already exists.");
+      return;
+    }
+
+    setCustomCategories((prev) => [...prev, cleanedCategory]);
+
+    setForm((prev) => ({
+      ...prev,
+      category: cleanedCategory,
+    }));
+
+    handleCloseAddCategoryModal();
+  };
+
   const openAddServiceConfirmModal = (e) => {
     e.preventDefault();
 
@@ -164,7 +216,9 @@ export default function SuperAdminServices() {
       maxPrice <= 0 ||
       minPrice > maxPrice
     ) {
-      alert("Please enter valid service details. Maximum price must be higher than or equal to minimum price.");
+      alert(
+        "Please enter valid service details. Maximum price must be higher than or equal to minimum price."
+      );
       return;
     }
 
@@ -256,9 +310,7 @@ export default function SuperAdminServices() {
     if (type === "disable-single" || type === "disable-multiple") {
       setServices((prev) =>
         prev.map((service) =>
-          ids.includes(service.id)
-            ? { ...service, status: "Disabled" }
-            : service
+          ids.includes(service.id) ? { ...service, status: "Disabled" } : service
         )
       );
       setSelectedIds([]);
@@ -267,9 +319,7 @@ export default function SuperAdminServices() {
     if (type === "enable-single" || type === "enable-multiple") {
       setServices((prev) =>
         prev.map((service) =>
-          ids.includes(service.id)
-            ? { ...service, status: "Active" }
-            : service
+          ids.includes(service.id) ? { ...service, status: "Active" } : service
         )
       );
       setSelectedIds([]);
@@ -321,13 +371,24 @@ export default function SuperAdminServices() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                className="superadmin-services-primary-btn superadmin-services-add-open-btn"
-                onClick={handleOpenAddServiceModal}
-              >
-                Add Service
-              </button>
+              {/* ✅ ADDED CATEGORY BUTTON BESIDE ADD SERVICE */}
+              <div className="superadmin-services-header-actions">
+                <button
+                  type="button"
+                  className="superadmin-services-secondary-btn"
+                  onClick={handleOpenAddCategoryModal}
+                >
+                  Add Category
+                </button>
+
+                <button
+                  type="button"
+                  className="superadmin-services-primary-btn superadmin-services-add-open-btn"
+                  onClick={handleOpenAddServiceModal}
+                >
+                  Add Service
+                </button>
+              </div>
             </section>
 
             <section className="superadmin-services-list-card superadmin-services-list-flex">
@@ -468,6 +529,7 @@ export default function SuperAdminServices() {
         </div>
       </main>
 
+      {/* ✅ ADD SERVICE MODAL */}
       {isAddServiceModalOpen && (
         <div
           className="superadmin-services-modal-overlay"
@@ -594,6 +656,64 @@ export default function SuperAdminServices() {
         </div>
       )}
 
+      {/* ✅ ADDED CATEGORY MODAL */}
+      {isAddCategoryModalOpen && (
+        <div
+          className="superadmin-services-modal-overlay"
+          onClick={handleCloseAddCategoryModal}
+        >
+          <div
+            className="superadmin-services-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="superadmin-services-modal-top">
+              <div>
+                <h3>Add Category</h3>
+                <p>Create a new service category for the dropdown list.</p>
+              </div>
+
+              <button
+                type="button"
+                className="superadmin-services-modal-close"
+                onClick={handleCloseAddCategoryModal}
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleAddCategory}>
+              <div className="superadmin-services-field">
+                <label>Category Name</label>
+                <input
+                  type="text"
+                  placeholder="Example: Dental X-Ray"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                />
+              </div>
+
+              <div className="superadmin-services-modal-actions">
+                <button
+                  type="button"
+                  className="superadmin-services-modal-cancel"
+                  onClick={handleCloseAddCategoryModal}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="superadmin-services-modal-confirm"
+                >
+                  Add Category
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ CONFIRMATION MODAL */}
       {confirmModal.open && (
         <div
           className="superadmin-services-modal-overlay"

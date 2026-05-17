@@ -109,6 +109,10 @@
   transition: 0.2s ease;
 }
 
+.superadmin-tooth-action-btn:hover {
+  transform: translateY(-1px);
+}
+
 .superadmin-tooth-action-btn.edit-btn,
 .superadmin-tooth-action-btn.save-btn {
   background: linear-gradient(135deg, #ef4b84 0%, #e13f79 100%);
@@ -149,11 +153,46 @@
   width: 100%;
 }
 
+.superadmin-question-count {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: #d55386;
+  font-size: 0.82rem;
+  font-weight: 800;
+  background: #fde7ef;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
 .superadmin-tooth-question-content.no-number p {
   margin: 0;
-  color: #6f7788;
+  color: #495167;
   line-height: 1.7;
   font-size: 0.96rem;
+  font-weight: 700;
+}
+
+.superadmin-question-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.superadmin-question-option-chip {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #f2c9d8;
+  color: #d55386;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.superadmin-question-no-options {
+  color: #a0a6b5;
+  font-size: 0.88rem;
+  font-weight: 600;
 }
 
 .superadmin-tooth-question-edit-wrap {
@@ -192,9 +231,63 @@
   box-shadow: 0 0 0 4px rgba(240, 90, 150, 0.09);
 }
 
-.superadmin-tooth-remove-btn {
+.superadmin-options-edit-wrap {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.superadmin-option-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.superadmin-option-input-row input {
+  flex: 1;
+  min-height: 46px;
+  border: 1px solid #f2c9d8;
+  border-radius: 14px;
+  padding: 0 14px;
+  font-size: 0.95rem;
+  color: #3f4658;
+  background: #fff;
+  outline: none;
+}
+
+.superadmin-option-input-row input:focus {
+  border-color: #ee8cb3;
+  box-shadow: 0 0 0 4px rgba(240, 90, 150, 0.09);
+}
+
+.superadmin-option-remove-btn {
+  height: 44px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 12px;
+  background: #ffe8ef;
+  color: #d55386;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.superadmin-add-option-btn {
   align-self: flex-start;
   height: 42px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ef4b84 0%, #e13f79 100%);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.superadmin-tooth-remove-btn {
+  align-self: flex-start;
+  min-height: 42px;
   padding: 0 16px;
   border: none;
   border-radius: 14px;
@@ -276,6 +369,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
 .superadmin-shared-field {
@@ -374,6 +469,19 @@
 
   .superadmin-tooth-question-item.edit-mode {
     flex-direction: column;
+  }
+
+  .superadmin-option-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .superadmin-option-remove-btn {
+    width: 100%;
+  }
+
+  .superadmin-add-option-btn {
+    width: 100%;
   }
 
   .superadmin-tooth-remove-btn {
