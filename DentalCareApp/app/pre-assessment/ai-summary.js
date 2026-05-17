@@ -71,7 +71,6 @@ export default function AISummary() {
       const aiData = await aiResponse.json();
       
       const problem = aiData.detected_problem || "Normal";
-      // NEW: Extract the description from your Python backend
       const description = aiData.description || ""; 
 
       setDetectedProblem(problem);
@@ -88,18 +87,30 @@ export default function AISummary() {
         .limit(1)
         .single();
 
+      let finalServiceName = "Dental Consultation Required";
+      let finalPriceDisplay = "Price varies";
+
       if (data) {
-        setSuggestedService(data.name);
-        setSuggestedPrice(data.price_display);
+        finalServiceName = data.name;
+        finalPriceDisplay = data.price_display;
         dispatch({ type: "SET_SUGGESTED_SERVICE", payload: data.name });
-      } else {
-        setSuggestedService("Dental Consultation Required");
-        setSuggestedPrice("Price varies");
       }
+
+      setSuggestedService(finalServiceName);
+      setSuggestedPrice(finalPriceDisplay);
+
+      // Save the AI recommendation to the database
+      if (state.preassessmentId) {
+        await supabase
+          .from("patient_preassessment")
+          .update({ ai_service: finalServiceName })
+          .eq("id", state.preassessmentId);
+      }
+
     } catch (error) {
       console.error("AI Analysis Error: ", error);
       setDetectedProblem("Analysis Error");
-      setProblemDescription(""); // Clear description on error
+      setProblemDescription(""); 
       setSuggestedService("Unable to determine service");
       setSuggestedPrice("-");
     } finally {
