@@ -1,11 +1,3 @@
-/**
- * Frontend Authentication Service
- * Place this in: src/services/authService.js
- * 
- * This service handles all authentication API calls to the backend
- * and manages local storage of auth tokens
- */
-
 const RAW_API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
 const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, "");
 
@@ -740,33 +732,39 @@ class AuthService {
    * @param {string} otp - OTP code sent to email
    * @returns {Promise<object>} - { success, message, data: { resetToken } }
    */
-  static async forgotPasswordVerifyOtp(email, otp) {
-    const endpoints = buildAuthEndpointCandidates("/forgot-password/verify-otp");
+static async forgotPasswordVerifyOtp(email, otp, identity = null) {
+  const endpoints = buildAuthEndpointCandidates("/forgot-password/verify-otp");
 
-    try {
-      const response = await callFirstNon404(endpoints, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp }),
-      });
+  try {
+    const response = await callFirstNon404(endpoints, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: String(email || "").trim().toLowerCase(),
+        otp: String(otp || "").trim(),
+        role: identity?.role,
+        profileId: identity?.profileId,
+        userId: identity?.userId || identity?.profileId,
+      }),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (response.status === 404) {
-        return {
-          success: false,
-          message: "OTP verification endpoint not found. Please try again.",
-        };
-      }
-
-      return data;
-    } catch (error) {
+    if (response.status === 404) {
       return {
         success: false,
-        message: "Failed to verify OTP. Please try again.",
+        message: "OTP verification endpoint not found. Please try again.",
       };
     }
+
+    return data;
+  } catch (error) {
+    return {
+      success: false,
+      message: "Failed to verify OTP. Please try again.",
+    };
   }
+}
 
   /**
    * Reset password using reset token

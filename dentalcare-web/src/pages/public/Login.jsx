@@ -23,7 +23,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showVerifyModal, setShowVerifyModal] = useState(false);
-  const [verificationStep, setVerificationStep] = useState("profile");
   const [resendCooldown, setResendCooldown] = useState(0);
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -91,23 +90,21 @@ export default function Login() {
       newPassword: "",
       confirmPassword: ""
     });
-    setVerificationStep("profile");
     setShowVerifyModal(true);
   };
 
   useEffect(() => { AuthService.clearPendingVerification(); }, []);
 
   useEffect(() => {
-    if (verificationStep !== "otp" || resendCooldown <= 0) return;
+    if (resendCooldown <= 0) return;
     const timer = setInterval(() => {
       setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
     return () => clearInterval(timer);
-  }, [verificationStep, resendCooldown]);
+  }, [resendCooldown]);
 
   const handleCloseVerificationModal = () => {
     setShowVerifyModal(false);
-    setVerificationStep("profile");
     setProfileForm((prev) => ({ ...prev, otp: "" }));
     setResendCooldown(0);
     AuthService.clearPendingVerification();
@@ -152,7 +149,7 @@ export default function Login() {
     }
   };
 
-  const handleProfileSaveAndSendOtp = async () => {
+  const handleCompleteSetup = async () => {
     setError("");
     if (!profileForm.fullName || !profileForm.phone || !profileForm.contactDetail) {
       return setError("Full name, contact number, and email are required.");
@@ -165,6 +162,10 @@ export default function Login() {
       if (!profileForm.newPassword || !profileForm.confirmPassword) return setError("Please complete both password fields.");
       if (profileForm.newPassword !== profileForm.confirmPassword) return setError("Passwords mismatch");
       if (profileForm.newPassword.length < 8) return setError("Password must be at least 8 characters.");
+    }
+
+    if (!profileForm.otp || profileForm.otp.length !== 6) {
+      return setError("Please enter the 6-digit OTP sent to your email.");
     }
 
     setSavingProfile(true);
@@ -186,59 +187,34 @@ export default function Login() {
         return setError(saveResult?.message || "Failed to update profile.");
       }
 
-      if (saveResult?.otpSent) {
-        setVerificationStep("otp");
-        setResendCooldown(RESEND_COOLDOWN_SECONDS);
-        return;
-      }
-
       const pending = AuthService.getPendingVerification();
-      const otpResult = await AuthService.sendOtp({
+      const verifyResult = await AuthService.verifyOtp(profileForm.otp, {
         role: activeRole,
         profileId: pending?.profile?.id,
-        email: payload.contactDetail,
-        fullName: payload.fullName,
+        email: profileForm.contactDetail?.trim(),
       });
+      
+      if (!verifyResult?.success) return setError(verifyResult?.message || "Invalid OTP code.");
 
-      if (!otpResult?.success) {
-        return setError(otpResult?.message || "Failed to send OTP.");
+      setShowVerifyModal(false);
+
+      if (activeRole === "admin") {
+        await preloadAdminData();
+        const userProfile = verifyResult.data?.profile || AuthService.getCurrentUser() || {};
+        if (userProfile?.admin_type === "super_admin" || userProfile?.adminType === "super_admin") {
+          navigate("/superadmin/dashboard", { replace: true });
+        } else {
+          navigate("/admin/dashboard", { replace: true });
+        }
+      } else {
+        await preloadDentistData();
+        navigate("/dentist/dashboard", { replace: true });
       }
 
-      setVerificationStep("otp");
-      setResendCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
       setError("Setup failed");
     } finally {
       setSavingProfile(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    setError("");
-    if (!profileForm.otp || profileForm.otp.length !== 6) return setError("Enter the 6-digit OTP.");
-
-    const pending = AuthService.getPendingVerification();
-    const result = await AuthService.verifyOtp(profileForm.otp, {
-      role: activeRole,
-      profileId: pending?.profile?.id,
-      email: profileForm.contactDetail?.trim(),
-    });
-    
-    if (!result?.success) return setError(result?.message || "Invalid OTP code.");
-
-    setShowVerifyModal(false);
-
-    if (activeRole === "admin") {
-      await preloadAdminData();
-      const userProfile = result.data?.profile || AuthService.getCurrentUser() || {};
-      if (userProfile?.admin_type === "super_admin" || userProfile?.adminType === "super_admin") {
-        navigate("/superadmin/dashboard", { replace: true });
-      } else {
-        navigate("/admin/dashboard", { replace: true });
-      }
-    } else {
-      await preloadDentistData();
-      navigate("/dentist/dashboard", { replace: true });
     }
   };
 
@@ -288,7 +264,6 @@ export default function Login() {
               </div>
               <button 
                 type="submit" 
-
                 disabled={loading || isLockedOut} 
                 className="w-full rounded-2xl bg-gradient-to-r from-pink-500 to-rose-400 py-3 text-white font-bold uppercase tracking-widest disabled:opacity-60 disabled:cursor-not-allowed"
               >
@@ -306,12 +281,10 @@ export default function Login() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-2xl font-bold text-slate-900">
-                  {verificationStep === "profile" ? "Account Setup" : "Verify Your Email"}
+                  Account Setup
                 </h3>
                 <p className="text-sm text-slate-500 mt-1">
-                  {verificationStep === "profile" 
-                    ? "Enter your details to complete your profile." 
-                    : "Enter the OTP sent to your email to activate your account."}
+                  Enter your details to complete your profile.
                 </p>
               </div>
               <button
@@ -323,52 +296,48 @@ export default function Login() {
               </button>
             </div>
 
-            {verificationStep === "profile" ? (
-              <div className="mt-6 space-y-4">
-                <input type="text" placeholder="Full Name" value={profileForm.fullName} onChange={(e) => setProfileForm({...profileForm, fullName: e.target.value})} className="w-full rounded-xl border border-pink-100 px-3 py-2 outline-none focus:border-pink-300" />
-                
-                <div className="flex items-center gap-2 rounded-xl border border-pink-100 px-3 py-2 focus-within:border-pink-300">
-                  <span className="text-sm font-semibold text-pink-700">+63</span>
-                  <input type="tel" placeholder="9XX XXX XXXX" value={formatLocalPhone(profileForm.phone)} onChange={(e) => setProfileForm({...profileForm, phone: normalizePhoneNumber(e.target.value)})} className="w-full border-none bg-transparent outline-none text-sm" />
-                </div>
-
-                <select value={profileForm.gender} onChange={(e) => setProfileForm({...profileForm, gender: e.target.value})} className="w-full rounded-xl border border-pink-100 px-3 py-2 text-sm outline-none focus:border-pink-300">
-                  <option value="">Gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <input type="password" placeholder="New Password" value={profileForm.newPassword} onChange={(e) => setProfileForm({...profileForm, newPassword: e.target.value})} className="rounded-xl border border-pink-100 px-3 py-2 outline-none focus:border-pink-300" />
-                  <input type="password" placeholder="Confirm" value={profileForm.confirmPassword} onChange={(e) => setProfileForm({...profileForm, confirmPassword: e.target.value})} className="rounded-xl border border-pink-100 px-3 py-2 outline-none focus:border-pink-300" />
-                </div>
-                
-                <div className="grid grid-cols-3 gap-2">
-                  <select value={dobParts.month} onChange={(e) => setDobParts({...dobParts, month: e.target.value})} className="border border-pink-100 rounded-xl p-2 text-sm outline-none focus:border-pink-300">
-                    <option value="">Month</option>{monthOptions.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                  </select>
-                  <select value={dobParts.day} onChange={(e) => setDobParts({...dobParts, day: e.target.value})} className="border border-pink-100 rounded-xl p-2 text-sm outline-none focus:border-pink-300"><option value="">Day</option>{dayOptions.map(d => <option key={d} value={d}>{d}</option>)}</select>
-                  <select value={dobParts.year} onChange={(e) => setDobParts({...dobParts, year: e.target.value})} className="border border-pink-100 rounded-xl p-2 text-sm outline-none focus:border-pink-300"><option value="">Year</option>{yearOptions.map(y => <option key={y} value={y}>{y}</option>)}</select>
-                </div>
-                
-                <button onClick={handleProfileSaveAndSendOtp} disabled={savingProfile} className="w-full rounded-xl bg-pink-500 py-3 text-white font-bold uppercase shadow-lg transition active:scale-95 disabled:opacity-70">
-                  {savingProfile ? "Wait..." : "Save Profile & Send OTP"}
-                </button>
+            <div className="mt-6 space-y-4">
+              <input type="text" placeholder="Full Name" value={profileForm.fullName} onChange={(e) => setProfileForm({...profileForm, fullName: e.target.value})} className="w-full rounded-xl border border-pink-100 px-3 py-2 outline-none focus:border-pink-300" />
+              
+              <div className="flex items-center gap-2 rounded-xl border border-pink-100 px-3 py-2 focus-within:border-pink-300">
+                <span className="text-sm font-semibold text-pink-700">+63</span>
+                <input type="tel" placeholder="9XX XXX XXXX" value={formatLocalPhone(profileForm.phone)} onChange={(e) => setProfileForm({...profileForm, phone: normalizePhoneNumber(e.target.value)})} className="w-full border-none bg-transparent outline-none text-sm" />
               </div>
-            ) : (
-              <div className="mt-6 space-y-4">
-                {profileForm.contactDetail && (
-                  <p className="text-xs font-medium text-pink-700">
-                    OTP recipient: {profileForm.contactDetail}
-                  </p>
-                )}
-                <input type="text" maxLength={6} placeholder="Enter 6-digit OTP" value={profileForm.otp} onChange={(e) => setProfileForm({...profileForm, otp: e.target.value.replace(/\D/g, "")})} className="w-full rounded-xl border border-pink-200 bg-pink-50 px-3 py-2 font-bold tracking-[0.3em] outline-none text-center" />
-                
-                <button onClick={handleVerifyOtp} className="w-full rounded-xl bg-pink-500 py-3 text-white font-bold uppercase shadow-lg transition active:scale-95">
-                  Verify & Login
-                </button>
-                
+
+              <select value={profileForm.gender} onChange={(e) => setProfileForm({...profileForm, gender: e.target.value})} className="w-full rounded-xl border border-pink-100 px-3 py-2 text-sm outline-none focus:border-pink-300">
+                <option value="">Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+
+              <div className="grid grid-cols-2 gap-4">
+                <input type="password" placeholder="New Password" value={profileForm.newPassword} onChange={(e) => setProfileForm({...profileForm, newPassword: e.target.value})} className="rounded-xl border border-pink-100 px-3 py-2 outline-none focus:border-pink-300" />
+                <input type="password" placeholder="Confirm" value={profileForm.confirmPassword} onChange={(e) => setProfileForm({...profileForm, confirmPassword: e.target.value})} className="rounded-xl border border-pink-100 px-3 py-2 outline-none focus:border-pink-300" />
+              </div>
+              
+              <div className="grid grid-cols-3 gap-2">
+                <select value={dobParts.month} onChange={(e) => setDobParts({...dobParts, month: e.target.value})} className="border border-pink-100 rounded-xl p-2 text-sm outline-none focus:border-pink-300">
+                  <option value="">Month</option>{monthOptions.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                </select>
+                <select value={dobParts.day} onChange={(e) => setDobParts({...dobParts, day: e.target.value})} className="border border-pink-100 rounded-xl p-2 text-sm outline-none focus:border-pink-300"><option value="">Day</option>{dayOptions.map(d => <option key={d} value={d}>{d}</option>)}</select>
+                <select value={dobParts.year} onChange={(e) => setDobParts({...dobParts, year: e.target.value})} className="border border-pink-100 rounded-xl p-2 text-sm outline-none focus:border-pink-300"><option value="">Year</option>{yearOptions.map(y => <option key={y} value={y}>{y}</option>)}</select>
+              </div>
+
+              <input 
+                type="text" 
+                maxLength={6} 
+                placeholder="Enter 6-digit OTP" 
+                value={profileForm.otp} 
+                onChange={(e) => setProfileForm({...profileForm, otp: e.target.value.replace(/\D/g, "")})} 
+                className="w-full rounded-xl border border-pink-200 bg-pink-50 px-3 py-2 font-bold tracking-[0.3em] outline-none text-center" 
+              />
+              
+              <button onClick={handleCompleteSetup} disabled={savingProfile} className="w-full rounded-xl bg-pink-500 py-3 text-white font-bold uppercase shadow-lg transition active:scale-95 disabled:opacity-70">
+                {savingProfile ? "Wait..." : "SAVE PROFILE & VERIFY"}
+              </button>
+
+              <div className="text-center mt-2">
                 <button
                   type="button"
                   onClick={async () => {
@@ -382,12 +351,12 @@ export default function Login() {
                     setResendCooldown(RESEND_COOLDOWN_SECONDS);
                   }}
                   disabled={resendCooldown > 0}
-                  className="w-full rounded-xl border border-pink-200 px-4 py-2 text-sm font-semibold text-pink-600 disabled:opacity-60"
+                  className="text-xs font-semibold text-pink-600 disabled:opacity-60"
                 >
-                  {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : "Resend OTP"}
+                  {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : "Didn't receive it? Resend OTP"}
                 </button>
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}

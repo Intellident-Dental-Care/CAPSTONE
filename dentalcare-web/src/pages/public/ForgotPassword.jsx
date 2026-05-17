@@ -16,6 +16,7 @@ export default function ForgotPassword() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [resetIdentity, setResetIdentity] = useState(null);
 
   // Resend OTP cooldown timer
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function ForgotPassword() {
     e.preventDefault();
     setError("");
     setSuccess("");
+    
 
     if (!email) {
       setError("Email is required.");
@@ -56,6 +58,7 @@ export default function ForgotPassword() {
       }
 
       setSuccess("OTP sent to your email. Please check your inbox.");
+      setResetIdentity(result?.data || null);
       setStep("otp");
     } finally {
       setLoading(false);
@@ -67,14 +70,14 @@ export default function ForgotPassword() {
     setError("");
     setSuccess("");
 
-    if (!otp) {
+    if (!otp || otp.length !== 6) {
       setError("OTP is required.");
       return;
     }
 
     try {
       setLoading(true);
-      const result = await AuthService.forgotPasswordVerifyOtp(email, otp);
+      const result = await AuthService.forgotPasswordVerifyOtp(email, otp, resetIdentity);
 
       if (!result?.success) {
         setError(result?.message || "Failed to verify OTP");
@@ -204,7 +207,7 @@ export default function ForgotPassword() {
                   id="otp"
                   type="text"
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value.toUpperCase())}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                   placeholder="000000"
                   maxLength="6"
                   className="w-full px-4 py-3 rounded-lg border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent text-center text-2xl tracking-widest"
