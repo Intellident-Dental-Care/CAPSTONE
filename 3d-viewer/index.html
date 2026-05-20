@@ -172,10 +172,10 @@
         }
       });
 
-      function formatToothName(rawName, isRightSide) {
+      function formatToothName(rawName, isPatientRight) {
         const upperRaw = rawName.toUpperCase();
         const jaw = upperRaw.includes('_U') ? 'Upper' : 'Lower';
-        const side = isRightSide ? '(R)' : '(L)';
+        const side = isPatientRight ? '(R)' : '(L)';
 
         let cleanName = upperRaw.replace(/_[UL]$/, '').replace(/_/g, ' ');
         if (cleanName === 'INCISOR CENTRAL') cleanName = 'CENTRAL INCISOR';
@@ -270,8 +270,8 @@
         clearOverlays(); 
         highlightMesh(mesh, hitPoint);
         
-        const isRightSide = hitPoint.x > 0;
-        const prettyName = formatToothName(mesh.name, isRightSide);
+        const isPatientRight = hitPoint.x < 0; 
+        const prettyName = formatToothName(mesh.name, isPatientRight);
         
         statusEl.textContent = `Selected: ${prettyName}`;
         currentTarget.copy(hitPoint);
@@ -310,7 +310,7 @@
         }
 
         if (foundMesh) {
-            const fakeHitPoint = new THREE.Vector3(isRight ? 1 : -1, 0, 0);
+            const fakeHitPoint = new THREE.Vector3(isRight ? -1 : 1, 0, 0);
             clearOverlays();
             highlightMesh(foundMesh, fakeHitPoint);
             statusEl.textContent = `Selected: ${targetName}`;
