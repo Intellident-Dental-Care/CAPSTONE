@@ -1,10 +1,12 @@
 import * as Linking from 'expo-linking';
 import { supabase } from './supabaseService';
 import { AppState } from 'react-native';
+import { setDeepLinkServerIP } from './getClientSideUrl';
 
 let deepLinkSubscription = null;
 let appStateSubscription = null;
 let isListening = false;
+let detectedServerIP = null;
 
 export const startDeepLinkListener = () => {
   if (isListening) {
@@ -23,6 +25,18 @@ export const startDeepLinkListener = () => {
     if (!url || typeof url !== 'string') {
       console.log('⚠️ Invalid deep link format received');
       return;
+    }
+    
+    // Extract server IP from deep link (exp://10.173.37.14:8081)
+    try {
+      const match = url.match(/exp:\/\/([0-9.]+):/);
+      if (match && match[1]) {
+        detectedServerIP = match[1];
+        console.log('🎯 Extracted server IP from deep link:', detectedServerIP);
+        setDeepLinkServerIP(detectedServerIP);
+      }
+    } catch (e) {
+      console.log('Could not parse IP from deep link');
     }
     
     // Basic handling for non-OAuth deep links (email verification, password reset, etc.)
@@ -91,3 +105,5 @@ export const stopDeepLinkListener = () => {
 };
 
 export const isDeepLinkListening = () => isListening;
+
+export const getDetectedServerIP = () => detectedServerIP;

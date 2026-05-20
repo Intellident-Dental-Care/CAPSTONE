@@ -121,6 +121,13 @@ export default function Home() {
       }
 
       const baseUrl = await getServerUrl();
+      
+      if (!baseUrl) {
+        console.warn('[Home] No server URL available for recent visits');
+        setRecentVisits([]);
+        return;
+      }
+      
       let apiUrl = `${baseUrl}/api/patient-history?userId=${userId}`;
       
       // Add profileId only if it's a valid UUID
@@ -129,13 +136,14 @@ export default function Home() {
         apiUrl += `&profileId=${safeProfileId}`;
       }
 
-      console.log("fetchRecentVisits URL:", apiUrl);
+      console.log("[Home] Fetching recent visits from:", apiUrl);
 
       const res = await fetch(apiUrl, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
-        }
+        },
+        signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined,
       });
 
       // Check if response is OK
@@ -182,6 +190,13 @@ export default function Home() {
       }
 
       const baseUrl = await getServerUrl();
+      
+      if (!baseUrl) {
+        console.warn('[Home] No server URL available for treatment plan');
+        setTreatmentPlans([]);
+        return;
+      }
+      
       let apiUrl = `${baseUrl}/api/upcoming-treatments?userId=${userId}`;
       
       // Add profileId only if it's a valid UUID
@@ -190,13 +205,14 @@ export default function Home() {
         apiUrl += `&profileId=${safeProfileId}`;
       }
 
-      console.log("fetchTreatmentPlan URL:", apiUrl);
+      console.log("[Home] Fetching treatment plan from:", apiUrl);
 
       const res = await fetch(apiUrl, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
-        }
+        },
+        signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined,
       });
 
       // Check if response is OK

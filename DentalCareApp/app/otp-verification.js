@@ -81,10 +81,19 @@ export default function OtpVerification() {
 
     try {
       const serverUrl = await getServerUrl();
+      
+      if (!serverUrl) {
+        setSubmitting(false);
+        setError("Connection error. Please check your network.");
+        return;
+      }
+      
+      console.log('[OTP] Verifying OTP at:', serverUrl);
       const response = await fetch(`${serverUrl}/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, otp: otpCode }),
+        signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined,
       });
 
       if (response.ok) {

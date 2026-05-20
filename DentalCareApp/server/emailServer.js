@@ -49,6 +49,32 @@ transporter.verify((error, success) => {
   }
 });
 
+// === SERVER DISCOVERY ENDPOINT ===
+// This endpoint allows clients to discover the server's actual IP address
+app.get('/server-discovery', (req, res) => {
+  const serverUrl = `http://${LOCAL_IP}:${PORT}`;
+  console.log('[SERVER-DISCOVERY] Sending detected IP:', LOCAL_IP, 'URL:', serverUrl);
+  res.json({
+    success: true,
+    serverInfo: {
+      currentUrl: serverUrl,
+      ip: LOCAL_IP,
+      port: PORT,
+      timestamp: new Date().toISOString(),
+    }
+  });
+});
+
+// Network info endpoint for clients to get current server IP
+app.get('/network-info', (req, res) => {
+  res.json({
+    localIP: LOCAL_IP,
+    port: PORT,
+    serverUrl: `http://${LOCAL_IP}:${PORT}`,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Function to generate 6-digit OTP
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();

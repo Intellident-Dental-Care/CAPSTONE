@@ -64,6 +64,12 @@ export default function History() {
       if (!userId) return;
 
       const baseUrl = await getServerUrl();
+      
+      if (!baseUrl) {
+        console.warn('[History] No server URL available');
+        return;
+      }
+      
       let apiUrl = `${baseUrl}/api/patient-history?userId=${userId}`;
       
       // Add profileId only if it's a valid UUID
@@ -72,13 +78,14 @@ export default function History() {
         apiUrl += `&profileId=${safeProfileId}`;
       }
 
-      console.log("fetchHistoryData URL:", apiUrl);
+      console.log("[History] Fetching from:", apiUrl);
 
       const res = await fetch(apiUrl, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
-        }
+        },
+        signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined,
       });
 
       // Check if response is OK

@@ -122,8 +122,18 @@ export default function Signup() {
         return;
       }
 
+      // Get the server URL - if this fails, we're likely on a new network
       const url = serverUrl || (await getServerUrl());
+      
+      if (!url) {
+        setLoading(false);
+        setError(
+          "Unable to connect to email service. Please check your network and try again."
+        );
+        return;
+      }
 
+      console.log('[Signup] Sending verification to:', url);
       const emailResponse = await fetch(`${url}/send-verification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -132,9 +142,12 @@ export default function Signup() {
           fullName: cleanFullName,
           userId: signUpData.user?.id,
         }),
+        signal: AbortSignal.timeout ? AbortSignal.timeout(30000) : undefined,
       });
 
       if (!emailResponse.ok) {
+        const errorData = await emailResponse.text().catch(() => 'Unknown error');
+        console.error('[Signup] Email failed:', errorData);
         setLoading(false);
         setError(
           "Account created but failed to send verification email. Please try resending."

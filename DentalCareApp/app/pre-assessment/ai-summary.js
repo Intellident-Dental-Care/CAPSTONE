@@ -52,7 +52,17 @@ export default function AISummary() {
       if (!imageToAnalyze) throw new Error("No photo provided");
 
       const baseNodeUrl = await getServerUrl();
-      const AI_API_URL = baseNodeUrl.replace(/:[0-9]+/, ":8000") + "/analyze";
+      // Extract the IP from the base URL and use port 8000 for the AI server
+      let aiServerUrl = baseNodeUrl;
+      try {
+        const url = new URL(baseNodeUrl);
+        aiServerUrl = `http://${url.hostname}:8000`;
+        console.log('[AI] Using AI server URL:', aiServerUrl);
+      } catch (e) {
+        console.warn('[AI] Failed to parse base URL, using fallback:', e);
+        aiServerUrl = baseNodeUrl.replace(/:[0-9]+/, ":8000");
+      }
+      const AI_API_URL = aiServerUrl + "/analyze";
 
       const formData = new FormData();
       formData.append("file", {

@@ -45,8 +45,13 @@ export default function Tooth3D() {
           }
 
           // 2. BACKGROUND REFRESH: Silently check server for new data
-          const baseUrl = await getServerUrl(); 
-          const API_URL = `${baseUrl}/api/3d-timeline?userId=${userId}`; 
+          const baseUrl = await getServerUrl();
+          if (!baseUrl) {
+            console.warn('No server URL available for timeline fetch');
+            return;
+          }
+          const API_URL = `${baseUrl}/api/3d-timeline?userId=${userId}`;
+          console.log('[Timeline] Fetching from:', API_URL); 
 
           const response = await fetch(API_URL, {
             method: "GET",
