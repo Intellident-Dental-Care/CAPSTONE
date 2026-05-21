@@ -258,11 +258,6 @@ function DentistDetailsModal({ dentist, onClose, adminAssignedBranch }) {
 
 export default function AdminDentist() {
   const currentUser = AuthService.getCurrentUser() || {};
-  const isSuperAdmin = (currentUser?.admin_type || currentUser?.adminType) === "super_admin";
-
-  if (!isSuperAdmin) {
-    return <Navigate to="/admin/dashboard" replace />;
-  }
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDentist, setSelectedDentist] = useState(null);

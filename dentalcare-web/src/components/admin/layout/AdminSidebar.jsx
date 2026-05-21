@@ -98,16 +98,14 @@ export default function AdminSidebar() {
               Appointments
             </NavLink>
 
-            {isSuperAdmin ? (
-              <NavLink
-                to="/admin/dentists"
-                className={({ isActive }) =>
-                  `admin-menu-item ${isActive ? "active" : ""}`
-                }
-              >
-                Dentist
-              </NavLink>
-            ) : null}
+            <NavLink
+              to="/admin/dentists"
+              className={({ isActive }) =>
+                `admin-menu-item ${isActive ? "active" : ""}`
+              }
+            >
+              Dentist
+            </NavLink>
 
             <NavLink
               to="/admin/patients"
