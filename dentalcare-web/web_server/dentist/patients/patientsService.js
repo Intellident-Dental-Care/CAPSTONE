@@ -60,7 +60,6 @@ const resolveQuestionText = (rawKey, questionnaireLookup) => {
   return key;
 };
 
-// FOOLPROOF PHOTO EXTRACTOR FOR HISTORY TAB
 const extractPhotos = (row) => {
   const urls = new Set();
   const rowStr = JSON.stringify(row || {});
@@ -139,7 +138,7 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
       .from("patient_procedures")
       .select("id, patient_id, booking_id, tooth, procedure_name, remarks, before_image_url, after_image_url, created_at, updated_at")
       .eq("dentist_id", dentistProfileId)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: true }), // Ascending so newest log goes to top of array via unshift
     supabaseAdmin
       .from("user_profiles")
       .select("id, user_id, name, email"),
@@ -171,7 +170,6 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
   let preassessmentById = new Map();
 
   if (preassessmentIds.length) {
-    // ADDED columns needed for accurate parsing
     const preassessmentResult = await supabaseAdmin
       .from("patient_preassessment")
       .select("id, answers, description, tooth_selected, uploaded_images, ai_service")
@@ -191,7 +189,6 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
     }
   }
 
-  // --- SEPARATE PROFILES LOGIC ---
   const profilesByUser = new Map();
   for (const profile of profilesResult.data || []) {
     if (!profile?.user_id) continue;
@@ -202,6 +199,7 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
 
   const grouped = new Map();
 
+  // 1. Map all Bookings first
   for (const booking of bookingsResult.data || []) {
     if (normalize(booking.status) === "cancelled") continue;
 
@@ -209,17 +207,15 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
     const bookingPatientName = String(booking.patient_name || "").trim();
     const userProfiles = user ? (profilesByUser.get(user.id) || []) : [];
     
-    // Attempt to match the booking name to a specific sub-profile, otherwise default to main user
     const matchedProfile = userProfiles.find((p) => normalize(p.name) === normalize(bookingPatientName)) || null;
     const resolvedName = matchedProfile?.name || bookingPatientName || user?.full_name || "Unknown Patient";
     
-    // Group key is now UserID + Specific Profile Name (This separates Edward from Anak)
     const groupKey = booking.user_id ? `${booking.user_id}::${normalize(resolvedName)}` : `Guest::${normalize(resolvedName)}`;
 
     const current = grouped.get(groupKey) || {
       id: groupKey,
-      patientId: booking.user_id || null, // This is the UUID of the main account
-      profileName: resolvedName,          // This is "Edward" or "Anak"
+      patientId: booking.user_id || null, 
+      profileName: resolvedName,          
       name: resolvedName,
       gender: "-",
       age: user ? computeAge(user.dob) : 0,
@@ -240,7 +236,7 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
       id: `booking-${booking.id}`,
       date: formatProcedureDate(booking.appointment_date, booking.appointment_time),
       procedure: booking.service || "Dental Appointment",
-      tooth: paPayload?.tooth || "Not specified", // FIX: Replaced hardcoded "Not specified"
+      tooth: paPayload?.tooth || "Not specified", 
       dentist: dentistName,
       remarks: `Status: ${booking.status || "scheduled"}`,
       beforePhoto: null,
@@ -248,14 +244,15 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
       source: "booking",
       bookingId: booking.id,
       preAssessment: paPayload,
+      procedureLogs: [] // Initialize empty array to hold procedures added later
     });
 
     grouped.set(groupKey, current);
   }
 
+  // 2. Map all Procedures and group them UNDER their parent booking
   if (!proceduresResult.error) {
     for (const procedure of proceduresResult.data || []) {
-      // Find the booking this procedure belongs to, so we know WHICH profile it was for
       const originalBooking = (bookingsResult.data || []).find(b => b.id === procedure.booking_id);
       
       let groupKey = null;
@@ -263,7 +260,6 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
         const resolvedName = originalBooking.patient_name || userById.get(originalBooking.user_id)?.full_name || "Unknown Patient";
         groupKey = originalBooking.user_id ? `${originalBooking.user_id}::${normalize(resolvedName)}` : `Guest::${normalize(resolvedName)}`;
       } else {
-        // Fallback if procedure has no booking attached
         const user = userById.get(procedure.patient_id);
         groupKey = procedure.patient_id ? `${procedure.patient_id}::${normalize(user?.full_name || "Unknown")}` : null;
       }
@@ -271,7 +267,8 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
       if (!groupKey || !grouped.has(groupKey)) continue;
 
       const current = grouped.get(groupKey);
-      current.procedures.unshift({
+
+      const procLog = {
         id: `procedure-${procedure.id}`,
         date: formatProcedureDate(procedure.updated_at || procedure.created_at, null),
         procedure: procedure.procedure_name || "Procedure",
@@ -280,10 +277,27 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
         remarks: procedure.remarks || "-",
         beforePhoto: procedure.before_image_url || null,
         afterPhoto: procedure.after_image_url || null,
+      };
+
+      // If procedure is attached to a booking, push it into the booking's logs array instead of a new card
+      if (procedure.booking_id) {
+        const parentBooking = current.procedures.find(p => p.bookingId === procedure.booking_id && p.source === "booking");
+        if (parentBooking) {
+          parentBooking.procedureLogs = parentBooking.procedureLogs || [];
+          parentBooking.procedureLogs.unshift(procLog); // Adds newest log to the top of the array
+          continue; // Skips creating a new timeline card!
+        }
+      }
+
+      // If no parent booking, treat as standalone visit
+      current.procedures.unshift({
+        ...procLog,
         source: "procedure",
         bookingId: procedure.booking_id || null,
         preAssessment: procedure.booking_id ? (preAssessmentsByBookingId.get(procedure.booking_id) || null) : null,
+        procedureLogs: [procLog]
       });
+      
       grouped.set(groupKey, current);
     }
   }
@@ -305,8 +319,31 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
   };
 };
 
+
+const uploadBase64ToSupabase = async (bucket, path, base64Str) => {
+  const matches = base64Str.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+  if (!matches || matches.length !== 3) return null;
+  
+  const contentType = matches[1];
+  const buffer = Buffer.from(matches[2], 'base64');
+
+  const { error } = await supabaseAdmin.storage
+    .from(bucket)
+    .upload(path, buffer, {
+      contentType,
+      upsert: true
+    });
+
+  if (error) {
+    console.error("Supabase Upload Error:", error);
+    throw error;
+  }
+  
+  return path; 
+};
+
 export const createDentistProcedure = async (dentistProfileId, payload = {}) => {
-  const patientId = String(payload.patientId || "").trim(); // This is the MAIN user UUID
+  const patientId = String(payload.patientId || "").trim(); 
   const bookingId = payload.bookingId ? String(payload.bookingId).trim() : null;
   const procedureName = String(payload.procedure || payload.service || "").trim();
   const remarks = String(payload.remarks || "").trim();
@@ -320,6 +357,31 @@ export const createDentistProcedure = async (dentistProfileId, payload = {}) => 
     return { success: false, statusCode: 400, message: "Procedure is required" };
   }
 
+  let beforePath = null;
+  let afterPath = null;
+  
+  const folderBase = isUuid(bookingId) ? `booking_${bookingId}` : `manual_${patientId}`;
+
+  try {
+    if (payload.beforeImageBase64) {
+      beforePath = await uploadBase64ToSupabase(
+        'dentist-images', 
+        `${folderBase}/before/img_${Date.now()}.jpg`, 
+        payload.beforeImageBase64
+      );
+    }
+
+    if (payload.afterImageBase64) {
+      afterPath = await uploadBase64ToSupabase(
+        'dentist-images', 
+        `${folderBase}/after/img_${Date.now()}.jpg`, 
+        payload.afterImageBase64
+      );
+    }
+  } catch (err) {
+    return { success: false, statusCode: 500, message: "Failed to upload procedure photos", error: err.message };
+  }
+
   const row = {
     patient_id: patientId,
     dentist_id: dentistProfileId,
@@ -327,8 +389,8 @@ export const createDentistProcedure = async (dentistProfileId, payload = {}) => 
     tooth,
     procedure_name: procedureName,
     remarks: remarks || null,
-    before_image_url: null,
-    after_image_url: null,
+    before_image_url: beforePath, 
+    after_image_url: afterPath,   
   };
 
   const { data, error } = await supabaseAdmin

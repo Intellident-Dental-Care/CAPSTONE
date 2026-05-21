@@ -6,6 +6,7 @@ import profileImage from "../../assets/profile_sample.jpg";
 import {
   createDentistProcedure,
   getDentistPatientHistory,
+  getSecureDentistImageBlob
 } from "../../services/dentistService";
 
 import "../../styles/dentist/layout/sidebar.css";
@@ -16,11 +17,39 @@ import "../../styles/dentist/profile/profile-page.css";
 import "../../styles/dentist/shared/responsive.css";
 import "../../styles/dentist/patient-history/patient-history.css";
 
+// SECURE VIEWER COMPONENT FOR DENTIST PHOTOS
+const SecureDentistImage = ({ imagePath }) => {
+  const [blobUrl, setBlobUrl] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    const loadBlob = async () => {
+      const url = await getSecureDentistImageBlob(imagePath);
+      if (active && url) setBlobUrl(url);
+    };
+    loadBlob();
+    return () => {
+      active = false;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [imagePath]);
+
+  if (!blobUrl) return <span style={{ fontSize: '11px', color: '#888' }}>Loading secure image...</span>;
+
+  return (
+    <a href={blobUrl} target="_blank" rel="noopener noreferrer">
+      <img 
+        src={blobUrl} 
+        alt="Procedure"
+        style={{ width: "100%", height: "140px", objectFit: "cover", borderRadius: "8px", border: "1px solid #e0e0e0", cursor: "pointer" }} 
+      />
+    </a>
+  );
+};
+
 const formatStatus = (status) => {
   if (!status) return "Pending";
-
   const normalized = String(status).toLowerCase().replace(/_/g, " ");
-
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 };
 
@@ -52,6 +81,9 @@ export default function DentistPatientHistory() {
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [procedureModalOpen, setProcedureModalOpen] = useState(false);
   const [isProcedureSaving, setIsProcedureSaving] = useState(false);
+
+  // Controls dropdown visibility for the Procedure Details photos
+  const [showProcedurePhotos, setShowProcedurePhotos] = useState(false);
 
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedProcedure, setSelectedProcedure] = useState(null);
@@ -87,25 +119,16 @@ export default function DentistPatientHistory() {
 
     const loadHistory = async () => {
       const cached = await getDentistPatientHistory();
-
       if (!mounted) return;
-
-      if (cached?.success) {
-        applyHistoryPayload(cached.data || {});
-      }
+      if (cached?.success) applyHistoryPayload(cached.data || {});
 
       const fresh = await getDentistPatientHistory({ forceRefresh: true });
-
       if (!mounted || !fresh?.success) return;
-
       applyHistoryPayload(fresh.data || {});
     };
 
     loadHistory();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const filteredPatients = useMemo(() => {
@@ -121,14 +144,16 @@ export default function DentistPatientHistory() {
     });
   }, [patients, search, selectedBranch]);
 
+  // Updated filter to correctly account for logs grouped inside a booking
   const filteredTimeline = useMemo(() => {
     if (!selectedPatient?.procedures) return [];
-
     if (!selectedTooth) return selectedPatient.procedures;
 
-    return selectedPatient.procedures.filter(
-      (proc) => proc.tooth && proc.tooth.includes(selectedTooth)
-    );
+    return selectedPatient.procedures.filter((proc) => {
+      const matchesBookingTooth = proc.tooth && proc.tooth.includes(selectedTooth);
+      const matchesLogTooth = proc.procedureLogs && proc.procedureLogs.some(log => log.tooth && log.tooth.includes(selectedTooth));
+      return matchesBookingTooth || matchesLogTooth;
+    });
   }, [selectedPatient, selectedTooth]);
 
   const handleViewPatient = (patient) => {
@@ -140,6 +165,7 @@ export default function DentistPatientHistory() {
 
   const handleViewDetails = (procedure) => {
     setSelectedProcedure(procedure);
+    setShowProcedurePhotos(false);
     setDetailsModalOpen(true);
   };
 
@@ -157,12 +183,12 @@ export default function DentistPatientHistory() {
 
     const result = await createDentistProcedure({
       patientId,
-      bookingId: selectedProcedure?.bookingId || null, // Captures booking mapping payload explicitly
+      bookingId: selectedProcedure?.bookingId || null, 
       tooth: payload?.tooth || null,
       procedure: payload?.service || "",
       remarks: payload?.remarks || "",
-      beforeImageUrl: null,
-      afterImageUrl: null,
+      beforeImageBase64: payload?.beforeImageBase64 || null,
+      afterImageBase64: payload?.afterImageBase64 || null,
     });
 
     if (!result?.success) {
@@ -172,10 +198,7 @@ export default function DentistPatientHistory() {
     }
 
     const refreshed = await getDentistPatientHistory({ forceRefresh: true });
-
-    if (refreshed?.success) {
-      applyHistoryPayload(refreshed.data || {});
-    }
+    if (refreshed?.success) applyHistoryPayload(refreshed.data || {});
 
     setDetailsModalOpen(false);
     setHistoryModalOpen(false);
@@ -291,7 +314,6 @@ export default function DentistPatientHistory() {
           <div className="history-modal" onClick={(e) => e.stopPropagation()}>
             <div className="history-modal-header">
               <h2 className="history-modal-title">Booking History Overview</h2>
-
               <button
                 type="button"
                 className="history-modal-close"
@@ -307,31 +329,19 @@ export default function DentistPatientHistory() {
                   <iframe
                     src="https://intellident-3d-viewer.vercel.app/"
                     title="IntelliDent 3D Viewer"
-                    style={{
-                      width: "100%",
-                      height: "350px",
-                      border: "none",
-                    }}
+                    style={{ width: "100%", height: "350px", border: "none" }}
                   />
                 </div>
-
-                <h3 className="history-modal-record-label">
-                  Patient Dental Record
-                </h3>
-
+                <h3 className="history-modal-record-label">Patient Dental Record</h3>
                 <p className="history-modal-record-subtext">
-                  Select a booking history from the timeline to view complete
-                  details and pre-assessment information.
+                  Select a booking history from the timeline to view complete details and pre-assessment information.
                 </p>
               </div>
 
               <div className="history-modal-right">
                 <h2 className="history-timeline-title">
-                  {selectedTooth
-                    ? `Booking History • ${selectedTooth}`
-                    : "Booking History"}
+                  {selectedTooth ? `Booking History • ${selectedTooth}` : "Booking History"}
                 </h2>
-
                 <p className="history-timeline-subtitle">
                   Complete appointment and procedure history of the patient.
                 </p>
@@ -342,15 +352,9 @@ export default function DentistPatientHistory() {
                       const status = getRecordStatus(procedure);
 
                       return (
-                        <div
-                          className="history-timeline-card"
-                          key={procedure.id}
-                        >
+                        <div className="history-timeline-card" key={procedure.id}>
                           <div className="history-timeline-card-top">
-                            <span className="history-timeline-date">
-                              {procedure.date}
-                            </span>
-
+                            <span className="history-timeline-date">{procedure.date}</span>
                             <button
                               type="button"
                               className="history-view-details-btn"
@@ -363,32 +367,16 @@ export default function DentistPatientHistory() {
                           <div className="history-timeline-grid">
                             <p>
                               <span>Appointment:</span>{" "}
-                              <strong
-                                className={`history-status-badge ${getStatusClass(
-                                  status
-                                )}`}
-                              >
+                              <strong className={`history-status-badge ${getStatusClass(status)}`}>
                                 {status}
                               </strong>
                             </p>
-
-                            <p>
-                              <span>Procedure:</span> {procedure.procedure}
-                            </p>
-
-                            <p>
-                              <span>Tooth:</span> {procedure.tooth}
-                            </p>
-
-                            <p>
-                              <span>Dentist:</span> {procedure.dentist}
-                            </p>
-
+                            <p><span>Procedure:</span> {procedure.procedure}</p>
+                            <p><span>Tooth:</span> {procedure.tooth}</p>
+                            <p><span>Dentist:</span> {procedure.dentist}</p>
                             <p>
                               <span>Pre-Assessment:</span>{" "}
-                              {procedure.preAssessment
-                                ? "Available"
-                                : "No Pre-Assessment"}
+                              {procedure.preAssessment ? "Available" : "No Pre-Assessment"}
                             </p>
                           </div>
                         </div>
@@ -409,17 +397,10 @@ export default function DentistPatientHistory() {
       )}
 
       {detailsModalOpen && selectedProcedure && (
-        <div
-          className="history-detail-overlay"
-          onClick={() => setDetailsModalOpen(false)}
-        >
-          <div
-            className="history-detail-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="history-detail-overlay" onClick={() => setDetailsModalOpen(false)}>
+          <div className="history-detail-modal" onClick={(e) => e.stopPropagation()}>
             <div className="history-detail-header">
               <h2 className="history-detail-title">Patient History Details</h2>
-
               <button
                 type="button"
                 className="history-detail-close"
@@ -432,33 +413,20 @@ export default function DentistPatientHistory() {
             <div className="history-detail-content">
               <div className="history-detail-section">
                 <div className="history-detail-section-header">
-                  <h3 className="history-detail-section-title">
-                    Pre-Assessment Review
-                  </h3>
-
+                  <h3 className="history-detail-section-title">Pre-Assessment Review</h3>
                   <span className="history-detail-status">
-                    {selectedProcedure.preAssessment
-                      ? "Available"
-                      : "No Assessment"}
+                    {selectedProcedure.preAssessment ? "Available" : "No Assessment"}
                   </span>
                 </div>
 
                 {selectedProcedure.preAssessment ? (
                   <div className="history-detail-info-card history-preassessment-scroll">
-                    {selectedProcedure.preAssessment.questions?.map(
-                      (item, idx) => (
-                        <div key={idx} className="history-preassessment-item">
-                          <p>
-                            <span>Question {idx + 1}:</span> {item.question}
-                          </p>
-
-                          <p>
-                            <span>Answer:</span> {item.answer}
-                          </p>
-                        </div>
-                      )
-                    )}
-
+                    {selectedProcedure.preAssessment.questions?.map((item, idx) => (
+                      <div key={idx} className="history-preassessment-item">
+                        <p><span>Question {idx + 1}:</span> {item.question}</p>
+                        <p><span>Answer:</span> {item.answer}</p>
+                      </div>
+                    ))}
                     {selectedProcedure.preAssessment.suggestedTreatment && (
                       <div className="history-suggested-treatment">
                         <p>
@@ -471,49 +439,80 @@ export default function DentistPatientHistory() {
                 ) : (
                   <div className="history-no-assessment">
                     <div className="history-no-assessment-icon">🦷</div>
-
                     <div>
                       <h4>No Pre-Assessment Submitted</h4>
-
-                      <p>
-                        The patient proceeded directly to booking without
-                        submitting a pre-assessment form.
-                      </p>
+                      <p>The patient proceeded directly to booking without submitting a pre-assessment form.</p>
                     </div>
                   </div>
                 )}
               </div>
 
               <div className="history-detail-section">
-                <h3 className="history-detail-section-title">
-                  Procedure Details
-                </h3>
+                <h3 className="history-detail-section-title">Procedure Details</h3>
 
-                <div className="history-detail-info-card">
-                  <p>
-                    <span>Status:</span> {getRecordStatus(selectedProcedure)}
-                  </p>
+                {selectedProcedure.procedureLogs && selectedProcedure.procedureLogs.length > 0 ? (
+                  selectedProcedure.procedureLogs.map((log, idx) => (
+                    <div className="history-detail-info-card" key={log.id} style={{ marginBottom: "16px" }}>
+                      <h4 style={{ color: "#d81b60", marginBottom: "12px", borderBottom: "1px solid #efefef", paddingBottom: "8px", display: "flex", justifyContent: "space-between" }}>
+                        <span>Procedure Log #{selectedProcedure.procedureLogs.length - idx}</span>
+                        <span style={{ fontSize: "12px", color: "#888", fontWeight: "normal" }}>{log.date}</span>
+                      </h4>
+                      <p><span>Procedure:</span> {log.procedure}</p>
+                      <p><span>Tooth:</span> {log.tooth}</p>
+                      <p><span>Dentist:</span> {log.dentist}</p>
+                      <p><span>Remarks:</span> {log.remarks}</p>
 
-                  <p>
-                    <span>Date:</span> {selectedProcedure.date}
-                  </p>
+                      {(log.beforePhoto || log.afterPhoto) && (
+                        <div style={{ marginTop: '16px', borderTop: '1px solid #EFEFEF', paddingTop: '16px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setShowProcedurePhotos(!showProcedurePhotos)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#d81b60', 
+                              fontWeight: '600',
+                              fontSize: '13px',
+                              cursor: 'pointer',
+                              padding: '0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            {showProcedurePhotos ? 'Hide Procedure Photos ▴' : 'View Procedure Photos ▾'}
+                          </button>
 
-                  <p>
-                    <span>Procedure:</span> {selectedProcedure.procedure}
-                  </p>
-
-                  <p>
-                    <span>Tooth:</span> {selectedProcedure.tooth}
-                  </p>
-
-                  <p>
-                    <span>Dentist:</span> {selectedProcedure.dentist}
-                  </p>
-
-                  <p>
-                    <span>Remarks:</span> {selectedProcedure.remarks}
-                  </p>
-                </div>
+                          {showProcedurePhotos && (
+                            <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
+                              {log.beforePhoto && (
+                                <div style={{ flex: 1 }}>
+                                  <p style={{ fontSize: '11px', color: '#888', fontWeight: '800', marginBottom: '6px' }}>BEFORE</p>
+                                  <SecureDentistImage imagePath={log.beforePhoto} />
+                                </div>
+                              )}
+                              {log.afterPhoto && (
+                                <div style={{ flex: 1 }}>
+                                  <p style={{ fontSize: '11px', color: '#888', fontWeight: '800', marginBottom: '6px' }}>AFTER</p>
+                                  <SecureDentistImage imagePath={log.afterPhoto} />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="history-detail-info-card">
+                    <p><span>Status:</span> {getRecordStatus(selectedProcedure)}</p>
+                    <p><span>Date:</span> {selectedProcedure.date}</p>
+                    <p><span>Procedure:</span> {selectedProcedure.procedure}</p>
+                    <p><span>Tooth:</span> {selectedProcedure.tooth}</p>
+                    <p><span>Dentist:</span> {selectedProcedure.dentist}</p>
+                    <p><span>Remarks:</span> {selectedProcedure.remarks}</p>
+                  </div>
+                )}
               </div>
 
               <div className="history-detail-actions">
@@ -524,7 +523,6 @@ export default function DentistPatientHistory() {
                 >
                   Close
                 </button>
-
                 <button
                   type="button"
                   className="history-detail-add-btn"

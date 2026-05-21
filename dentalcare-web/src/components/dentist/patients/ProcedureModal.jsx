@@ -13,6 +13,14 @@ const SERVICE_OPTIONS = [
   "Consultation",
 ];
 
+// NEW: Helper function to convert the image file into a Base64 string for the backend
+const fileToBase64 = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.readAsDataURL(file);
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = (error) => reject(error);
+});
+
 export default function ProcedureModal({
   open,
   onClose,
@@ -24,6 +32,10 @@ export default function ProcedureModal({
   const [remarks, setRemarks] = useState("");
   const [beforePhoto, setBeforePhoto] = useState(null);
   const [afterPhoto, setAfterPhoto] = useState(null);
+
+  // NEW: State to hold the actual file objects securely before uploading
+  const [beforeFile, setBeforeFile] = useState(null);
+  const [afterFile, setAfterFile] = useState(null);
 
   // --- 3D MODEL SYNC LOGIC ---
   const iframeRef = useRef(null);
@@ -76,20 +88,26 @@ export default function ProcedureModal({
     const previewUrl = URL.createObjectURL(file);
 
     if (type === "before") {
-      setBeforePhoto(previewUrl);
+      setBeforePhoto(previewUrl); // Keeps your UI preview working
+      setBeforeFile(file);        // Saves the file for the backend
     } else {
-      setAfterPhoto(previewUrl);
+      setAfterPhoto(previewUrl);  // Keeps your UI preview working
+      setAfterFile(file);         // Saves the file for the backend
     }
   };
 
   const handleSave = async () => {
     if (isSaving) return;
 
+    // Convert the files to Base64 strings right before saving
+    const beforeImageBase64 = beforeFile ? await fileToBase64(beforeFile) : null;
+    const afterImageBase64 = afterFile ? await fileToBase64(afterFile) : null;
+
     const payload = {
       service: selectedService,
       remarks,
-      beforePhoto,
-      afterPhoto,
+      beforeImageBase64, // Passes base64 instead of local blob URLs
+      afterImageBase64,  // Passes base64 instead of local blob URLs
       tooth: localTooth, // Pass the locally selected tooth, in case they changed it!
     };
 
