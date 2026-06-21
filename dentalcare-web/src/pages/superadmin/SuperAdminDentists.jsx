@@ -766,9 +766,6 @@ export default function SuperAdminDentists() {
                 <tr>
                 <td>${index + 1}</td>
                   <td>${dentist.name || "Not set yet"}</td>
-                  <td>${dentist.dateOfBirth || "Not set yet"}</td>
-                  <td>${dentist.age || "Not set yet"}</td>
-                  <td>${dentist.sex || "Not set yet"}</td>
                   <td>${dentist.contactNumber || "Not set yet"}</td>
                   <td>${dentist.email || "-"}</td>
                   <td>${dentist.status || "-"}</td>
@@ -778,7 +775,7 @@ export default function SuperAdminDentists() {
             .join("")
         : `
           <tr>
-            <td colspan="8" style="text-align:center; padding:18px; color:#8a90a2;">
+            <td colspan="5" style="text-align:center; padding:18px; color:#8a90a2;">
               No dentist records found.
             </td>
           </tr>
@@ -942,14 +939,11 @@ export default function SuperAdminDentists() {
             tbody tr:nth-child(even) {
               background: #fffdfd;
             }
-            .col-no { width: 6%; }
-            .col-name { width: 16%; }
-            .col-dob { width: 12%; }
-            .col-age { width: 7%; }
-            .col-sex { width: 8%; }
-            .col-contact { width: 15%; }
-            .col-email { width: 24%; }
-            .col-status { width: 12%; }
+            .col-no { width: 8%; }
+            .col-name { width: 28%; }
+            .col-contact { width: 22%; }
+            .col-email { width: 28%; }
+            .col-status { width: 14%; }
             .footer-note {
               margin-top: 12px;
               font-size: 10px;
@@ -1082,9 +1076,6 @@ export default function SuperAdminDentists() {
                     <tr>
                       <th class="col-no">No.</th>
                       <th class="col-name">Name</th>
-                      <th class="col-dob">Date of Birth</th>
-                      <th class="col-age">Age</th>
-                      <th class="col-sex">Sex</th>
                       <th class="col-contact">Contact Number</th>
                       <th class="col-email">Email</th>
                       <th class="col-status">Status</th>
@@ -1578,9 +1569,6 @@ export default function SuperAdminDentists() {
                         />
                       </th>
                       <th>Name</th>
-                      <th>Date of Birth</th>
-                      <th>Age</th>
-                      <th>Sex</th>
                       <th>Contact Number</th>
                       <th>Email</th>
                       <th>Status</th>
@@ -1601,30 +1589,6 @@ export default function SuperAdminDentists() {
 
                         <td className="superadmin-dentists-name-cell">
                           {dentist.name || (
-                            <span className="superadmin-dentists-empty-text">
-                              Not set yet
-                            </span>
-                          )}
-                        </td>
-
-                        <td>
-                          {dentist.dateOfBirth || (
-                            <span className="superadmin-dentists-empty-text">
-                              Not set yet
-                            </span>
-                          )}
-                        </td>
-
-                        <td>
-                          {dentist.age || (
-                            <span className="superadmin-dentists-empty-text">
-                              Not set yet
-                            </span>
-                          )}
-                        </td>
-
-                        <td>
-                          {dentist.sex || (
                             <span className="superadmin-dentists-empty-text">
                               Not set yet
                             </span>
@@ -1683,7 +1647,7 @@ export default function SuperAdminDentists() {
 
                     {filteredDentists.length === 0 && (
                       <tr>
-                        <td colSpan="9">
+                        <td colSpan="6">
                           <div className="superadmin-dentists-empty-state">
                             No dentist records found.
                           </div>

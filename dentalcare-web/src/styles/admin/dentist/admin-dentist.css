@@ -480,3 +480,146 @@
     text-align: left;
   }
 }
+
+.dentist-action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dentist-leave-btn {
+  border: none;
+  background: #fff1f5;
+  color: #ff5c93;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.dentist-leave-btn:hover {
+  background: #ffe3ec;
+  transform: translateY(-1px);
+}
+
+.dentist-leave-modal {
+  width: min(560px, 95vw);
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 28px;
+  position: relative;
+  box-shadow: 0 24px 60px rgba(16, 24, 40, 0.18);
+  border: 1px solid #f2f2f2;
+}
+
+.dentist-leave-modal h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #2f2f39;
+}
+
+.leave-modal-subtitle {
+  margin: 8px 0 22px;
+  color: #8b8b96;
+  font-size: 14px;
+}
+
+.leave-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.leave-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leave-field.full {
+  grid-column: 1 / -1;
+}
+
+.leave-field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #8a8fa3;
+}
+
+.leave-field input,
+.leave-field textarea {
+  width: 100%;
+  border: 1px solid #f0c5d4;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 14px;
+  outline: none;
+  background: #fffafb;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.leave-field input {
+  height: 44px;
+}
+
+.leave-field textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.leave-field input:focus,
+.leave-field textarea:focus {
+  border-color: #ff76a8;
+  box-shadow: 0 0 0 4px rgba(255, 118, 168, 0.12);
+}
+
+.leave-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.leave-cancel-btn,
+.leave-submit-btn {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 14px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.leave-cancel-btn {
+  background: #f4f4f7;
+  color: #6b7280;
+}
+
+.leave-submit-btn {
+  background: linear-gradient(135deg, #ff7eaa, #ff5c93);
+  color: #ffffff;
+}
+
+.dentist-leave-info-card {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .leave-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .leave-modal-actions {
+    flex-direction: column;
+  }
+
+  .leave-cancel-btn,
+  .leave-submit-btn {
+    width: 100%;
+  }
+}

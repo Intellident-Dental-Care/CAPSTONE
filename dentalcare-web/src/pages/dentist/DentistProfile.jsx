@@ -57,25 +57,6 @@ const formatTime = (time) => {
   return `${hour12}:${minutes} ${suffix}`;
 };
 
-const calculateAge = (birthday) => {
-  if (!birthday) return "";
-
-  const today = new Date();
-  const birthDate = new Date(birthday);
-
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDifference = today.getMonth() - birthDate.getMonth();
-
-  if (
-    monthDifference < 0 ||
-    (monthDifference === 0 && today.getDate() < birthDate.getDate())
-  ) {
-    age--;
-  }
-
-  return age;
-};
-
 export default function DentistProfile() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -88,12 +69,7 @@ export default function DentistProfile() {
     fullName: "",
     email: "",
     phone: "",
-    age: "",
-    birthday: "",
     specialization: "",
-    licenseNumber: "",
-    about: "",
-    experience: "",
     schedules: buildScheduleState([]),
   });
 
@@ -101,24 +77,11 @@ export default function DentistProfile() {
     let mounted = true;
 
     const applyProfileData = (data = {}) => {
-      // Map DB 'birthdate' (timestamptz) to YYYY-MM-DD for the HTML date input
-      let formattedDate = "";
-      if (data.birthdate) {
-        formattedDate = data.birthdate.split("T")[0];
-      } else if (data.birthday) {
-        formattedDate = data.birthday.split("T")[0];
-      }
-
       setProfileForm({
         fullName: data.fullName || "",
         email: data.email || "",
         phone: data.phone || "",
-        age: formattedDate ? calculateAge(formattedDate) : data.age || "",
-        birthday: formattedDate, // Connected to DB 'birthdate'
         specialization: data.specialization || "",
-        licenseNumber: data.licenseNumber || "",
-        about: data.about || "", // Connected to DB 'about'
-        experience: data.experience_years || data.experience || "", // Connected to DB 'experience_years'
         schedules: buildScheduleState(data.schedules || []),
       });
 
@@ -162,15 +125,6 @@ export default function DentistProfile() {
   };
 
   const handleInputChange = (key, value) => {
-    if (key === "birthday") {
-      setProfileForm((prev) => ({
-        ...prev,
-        birthday: value,
-        age: calculateAge(value),
-      }));
-      return;
-    }
-
     setProfileForm((prev) => ({
       ...prev,
       [key]: value,
@@ -181,16 +135,10 @@ export default function DentistProfile() {
     setIsSaving(true);
     setSaveMessage("");
 
-    // Map local state to your exact Supabase column names
     const result = await updateDentistProfile({
       fullName: profileForm.fullName,
       phone: profileForm.phone,
-      birthdate: profileForm.birthday,          // Matches your DB 'birthdate' column
-      age: profileForm.age,
       specialization: profileForm.specialization,
-      licenseNumber: profileForm.licenseNumber,
-      about: profileForm.about,                 // Matches your DB 'about' column
-      experience_years: profileForm.experience, // Matches your DB 'experience_years' column
     });
 
     if (!result?.success) {
@@ -224,9 +172,9 @@ export default function DentistProfile() {
 
         <section className="profile-page">
           <div className="profile-card-page">
-            <h2 className="profile-section-title">Personal Information</h2>
+            <h2 className="profile-section-title">Profile Information</h2>
 
-            <div className="profile-form-grid three">
+            <div className="profile-form-grid two">
               <div className="profile-field">
                 <label>Full Name</label>
                 <input
@@ -249,7 +197,7 @@ export default function DentistProfile() {
               </div>
 
               <div className="profile-field">
-                <label>Phone Number</label>
+                <label>Contact Number</label>
                 <input
                   type="text"
                   value={profileForm.phone}
@@ -258,34 +206,7 @@ export default function DentistProfile() {
                   }
                 />
               </div>
-            </div>
 
-            <div className="profile-form-grid two">
-              <div className="profile-field">
-                <label>Birthday</label>
-                <input
-                  type="date"
-                  value={profileForm.birthday}
-                  onChange={(e) =>
-                    handleInputChange("birthday", e.target.value)
-                  }
-                />
-              </div>
-
-              <div className="profile-field">
-                <label>Age</label>
-                <input
-                  type="text"
-                  value={profileForm.age}
-                  disabled
-                  className="readonly-input"
-                />
-              </div>
-            </div>
-
-            <h2 className="profile-section-title">Professional Details</h2>
-
-            <div className="profile-form-grid two">
               <div className="profile-field">
                 <label>Specialization</label>
                 <input
@@ -293,47 +214,6 @@ export default function DentistProfile() {
                   value={profileForm.specialization}
                   onChange={(e) =>
                     handleInputChange("specialization", e.target.value)
-                  }
-                />
-              </div>
-
-              <div className="profile-field">
-                <label>License Number</label>
-                <input
-                  type="text"
-                  value={profileForm.licenseNumber}
-                  onChange={(e) =>
-                    handleInputChange("licenseNumber", e.target.value)
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="profile-form-grid one">
-              <div className="profile-field">
-                <label>About</label>
-                <textarea
-                  className="profile-textarea"
-                  rows="5"
-                  placeholder="Tell patients about yourself, your dental approach, and your goals as a dentist."
-                  value={profileForm.about}
-                  onChange={(e) =>
-                    handleInputChange("about", e.target.value)
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="profile-form-grid one">
-              <div className="profile-field">
-                <label>Experience</label>
-                <textarea
-                  className="profile-textarea"
-                  rows="5"
-                  placeholder="Enter your professional experience, trainings, certifications, and dental background."
-                  value={profileForm.experience}
-                  onChange={(e) =>
-                    handleInputChange("experience", e.target.value)
                   }
                 />
               </div>

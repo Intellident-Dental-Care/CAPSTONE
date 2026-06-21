@@ -13,8 +13,6 @@
   border-radius: 24px;
   padding: 28px;
   box-shadow: 0 10px 30px rgba(239, 75, 132, 0.06);
-  display: block;
-  height: auto;
 }
 
 .profile-section-title {
@@ -30,16 +28,8 @@
   margin-bottom: 28px;
 }
 
-.profile-form-grid.three {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 .profile-form-grid.two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.profile-form-grid.one {
-  grid-template-columns: 1fr;
 }
 
 .profile-field {
@@ -68,8 +58,7 @@
   transition: 0.2s ease;
 }
 
-.profile-field input:focus,
-.profile-textarea:focus {
+.profile-field input:focus {
   border-color: #ef4b84;
   box-shadow: 0 0 0 4px rgba(239, 75, 132, 0.1);
 }
@@ -78,27 +67,6 @@
   background: #f7f8fb !important;
   color: #9aa3b2 !important;
   cursor: not-allowed;
-}
-
-.profile-textarea {
-  width: 100%;
-  border: 1.5px solid #f1d3df;
-  border-radius: 16px;
-  padding: 16px;
-  resize: vertical;
-  min-height: 140px;
-  outline: none;
-  font-size: 14px;
-  color: #4b5563;
-  line-height: 1.7;
-  font-family: inherit;
-  background: #ffffff;
-  transition: 0.2s ease;
-  box-sizing: border-box;
-}
-
-.profile-textarea::placeholder {
-  color: #b0b7c3;
 }
 
 .schedule-grid-modern {
@@ -196,7 +164,6 @@
     padding: 20px;
   }
 
-  .profile-form-grid.three,
   .profile-form-grid.two,
   .schedule-grid-modern {
     grid-template-columns: 1fr;
