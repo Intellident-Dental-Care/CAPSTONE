@@ -11,21 +11,21 @@ import {
   Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Feather, AntDesign, FontAwesome } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
 import AuthAlert from "./components/authAlert";
 import { supabase } from "../server/supabaseService";
 import { getServerUrl } from "../server/getClientSideUrl";
 import { validateSignupInput } from "../server/Security/authentication/inputValidator";
-import { storeSession } from "./_storage/authStorage";
-import { handleGoogleLogin } from "../server/googleLogin";
-import { handleAppleLogin } from "../server/appleLogin";
-import { handleFacebookLogin } from "../server/facebookLogin";
+
 
 const { height: H } = Dimensions.get("window");
 const isSmallPhone = H < 760;
 
 export default function Signup() {
+
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+
   const router = useRouter();
 
   const [showPass, setShowPass] = useState(false);
@@ -92,6 +92,11 @@ export default function Signup() {
 
   const handleSignup = async () => {
     setError("");
+
+    if (!agreedToTerms) {
+      setError("Please agree to the Terms and Conditions.");
+      return;
+    }
 
     const validation = validateSignupInput({
       email,
@@ -178,66 +183,6 @@ export default function Signup() {
     }
   };
 
-  const handleSocialLogin = async (provider) => {
-    try {
-      setLoading(true);
-      setError("");
-
-      let user;
-
-      switch (provider) {
-        case "google":
-          setError("");
-          user = await handleGoogleLogin();
-          break;
-        case "apple":
-          user = await handleAppleLogin();
-          break;
-        case "facebook":
-          user = await handleFacebookLogin();
-          break;
-        default:
-          throw new Error("Unsupported provider");
-      }
-
-      if (user) {
-        const { data: userProfile } = await supabase
-          .from("users")
-          .select("full_name, onboarding_seen")
-          .eq("id", user.id)
-          .single();
-
-        await storeSession({
-          user,
-          session: await supabase.auth.getSession(),
-          fullName:
-            userProfile?.full_name ||
-            user.user_metadata?.full_name ||
-            user.email,
-        });
-
-        const destination =
-          provider === "google" && !userProfile?.onboarding_seen
-            ? "/onboarding"
-            : "/home";
-
-        Animated.parallel([
-          Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-          Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
-          Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
-        ]).start(() => {
-          router.back();
-          setTimeout(() => {
-            router.replace(destination);
-          }, 100);
-        });
-      }
-    } catch (error) {
-      setError(`${provider.charAt(0).toUpperCase() + provider.slice(1)} signup failed. Please try again.`);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <View style={styles.overlayRoot}>
@@ -340,6 +285,27 @@ export default function Signup() {
                 </Pressable>
               </View>
 
+              <View style={styles.termsRow}>
+                <Pressable
+                  style={[styles.termsCheckbox, agreedToTerms && styles.termsCheckboxActive]}
+                  onPress={() => setAgreedToTerms((prev) => !prev)}
+                >
+                  {agreedToTerms ? (
+                    <Ionicons name="checkmark" size={14} color="#fff" />
+                  ) : null}
+                </Pressable>
+
+                <Text style={styles.termsText}>
+                  I agree to the{" "}
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() => router.push("/profile/terms-and-conditions")}
+                  >
+                    Terms and Conditions
+                  </Text>
+                </Text>
+              </View>
+
               <AuthAlert message={error} />
 
               <View style={styles.rightRow}>
@@ -357,38 +323,6 @@ export default function Signup() {
                   {loading ? "Saving..." : "Get Started"}
                 </Text>
               </Pressable>
-
-              <View style={styles.dividerRow}>
-                <View style={styles.line} />
-                <Text style={styles.dividerText}>Sign up with</Text>
-                <View style={styles.line} />
-              </View>
-
-              <View style={styles.socialRow}>
-                <Pressable
-                  style={styles.socialBtn}
-                  onPress={() => handleSocialLogin("facebook")}
-                  disabled={loading}
-                >
-                  <FontAwesome name="facebook" size={17} color={colors.primary} />
-                </Pressable>
-
-                <Pressable
-                  style={styles.socialBtn}
-                  onPress={() => handleSocialLogin("google")}
-                  disabled={loading}
-                >
-                  <AntDesign name="google" size={17} color={colors.primary} />
-                </Pressable>
-
-                <Pressable
-                  style={styles.socialBtn}
-                  onPress={() => handleSocialLogin("twitter")}
-                  disabled={loading}
-                >
-                  <FontAwesome name="twitter" size={17} color={colors.primary} />
-                </Pressable>
-              </View>
 
               <View style={styles.bottomTextRow}>
                 <Text style={styles.bottomPlain}>Already have an account? </Text>
@@ -609,4 +543,38 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900",
   },
+
+ termsRow: {
+  marginTop: 12,
+  flexDirection: "row",
+  alignItems: "center", // centers text with checkbox
+},
+
+termsCheckbox: {
+  width: 22,
+  height: 22,
+  borderRadius: 6,
+  borderWidth: 1.5,
+  borderColor: colors.primary,
+  alignItems: "center",
+  justifyContent: "center",
+  marginRight: 10,
+},
+
+termsCheckboxActive: {
+  backgroundColor: colors.primary,
+},
+
+termsText: {
+  flex: 1,
+  fontSize: 11,
+  color: colors.textGray,
+  fontWeight: "600",
+},
+
+termsLink: {
+  color: colors.primary,
+  fontWeight: "900",
+  textDecorationLine: "underline",
+},
 });

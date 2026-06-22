@@ -11,16 +11,13 @@ import {
   Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Feather, AntDesign, FontAwesome } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
 import AuthAlert from "./components/authAlert";
 import { supabase } from "../server/supabaseService";
 import { storeSession } from "./_storage/authStorage";
 import { validateLoginInput } from "../server/Security/authentication/inputValidator";
 import bruteForceProtection from "../server/Security/authentication/bruteForceProtection";
-import { handleGoogleLogin } from "../server/googleLogin";
-import { handleAppleLogin } from "../server/appleLogin";
-import { handleFacebookLogin } from "../server/facebookLogin";
 import { cancelOverdueAppointments } from "../server/cancelOverdueAppointments";
 
 const { height: H } = Dimensions.get("window");
@@ -79,13 +76,7 @@ export default function Login() {
       Animated.timing(translateY, { toValue: H, duration: 220, useNativeDriver: true }),
       Animated.timing(logoAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
     ]).start(() => {
-      if (firstTimeOnboarding) {
-        router.replace("/onboarding");
-      } else if (needsPatientSetup) {
-        router.replace("/patient-first-setup");
-      } else {
-        router.replace("/home");
-      }
+      router.replace("/data-privacy");
     });
   };
 
@@ -301,38 +292,6 @@ export default function Login() {
                 </Text>
               </Pressable>
 
-              <View style={styles.dividerRow}>
-                <View style={styles.line} />
-                <Text style={styles.dividerText}>Sign in with</Text>
-                <View style={styles.line} />
-              </View>
-
-              <View style={styles.socialRow}>
-                <Pressable
-                  style={styles.socialBtn}
-                  onPress={() => handleSocialLogin("facebook")}
-                  disabled={loading}
-                >
-                  <FontAwesome name="facebook" size={17} color={colors.primary} />
-                </Pressable>
-
-                <Pressable
-                  style={styles.socialBtn}
-                  onPress={() => handleSocialLogin("google")}
-                  disabled={loading}
-                >
-                  <AntDesign name="google" size={17} color={colors.primary} />
-                </Pressable>
-
-                <Pressable
-                  style={styles.socialBtn}
-                  onPress={() => handleSocialLogin("twitter")}
-                  disabled={loading}
-                >
-                  <FontAwesome name="twitter" size={17} color={colors.primary} />
-                </Pressable>
-              </View>
-
               <View style={styles.bottomTextRow}>
                 <Text style={styles.bottomPlain}>Don’t have an account? </Text>
 
@@ -371,7 +330,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
     paddingHorizontal: 22,
-    paddingTop: isSmallPhone ? 16 : 20,
+    paddingTop: isSmallPhone ? 14 : 18,
     paddingBottom: isSmallPhone ? 12 : 18,
   },
 
@@ -390,21 +349,22 @@ const styles = StyleSheet.create({
   },
 
   logoSmall: {
-    width: isSmallPhone ? 110 : 130,
-    height: isSmallPhone ? 110 : 130,
+    width: isSmallPhone ? 120 : 135,
+    height: isSmallPhone ? 120 : 135,
     resizeMode: "contain",
     alignSelf: "center",
-    marginTop: isSmallPhone ? 4 : 8,
-    marginBottom: isSmallPhone ? 8 : 14,
+    marginTop: isSmallPhone ? 12 : 18,
+    marginBottom: isSmallPhone ? 0 : 4,
   },
 
   card: {
     flex: 1,
+    marginTop: isSmallPhone ? -4 : -8,
     backgroundColor: "#fff",
     borderRadius: 34,
     paddingHorizontal: 20,
-    paddingTop: isSmallPhone ? 18 : 24,
-    paddingBottom: isSmallPhone ? 14 : 20,
+    paddingTop: isSmallPhone ? 72 : 86,
+    paddingBottom: isSmallPhone ? 18 : 24,
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 16,
@@ -437,7 +397,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textDark,
     backgroundColor: "#FFF9FB",
-    marginTop: isSmallPhone ? 18 : 24,
+    marginTop: isSmallPhone ? 28 : 34,
   },
 
   inputPass: {
@@ -495,7 +455,7 @@ const styles = StyleSheet.create({
   },
 
   loginBtn: {
-    marginTop: isSmallPhone ? 18 : 24,
+    marginTop: isSmallPhone ? 22 : 28,
     height: isSmallPhone ? 48 : 52,
     borderRadius: 18,
     backgroundColor: colors.primary,
@@ -514,49 +474,8 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-  dividerRow: {
-    marginTop: isSmallPhone ? 16 : 22,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-
-  line: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#EFE4E8",
-  },
-
-  dividerText: {
-    fontSize: 10,
-    color: "#A0A0A0",
-  },
-
-  socialRow: {
-    marginTop: isSmallPhone ? 12 : 16,
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 14,
-  },
-
-  socialBtn: {
-    width: isSmallPhone ? 42 : 46,
-    height: isSmallPhone ? 42 : 46,
-    borderRadius: 23,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#F1E3EA",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-
   bottomTextRow: {
-    marginTop: isSmallPhone ? 12 : 16,
+    marginTop: isSmallPhone ? 18 : 22,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
