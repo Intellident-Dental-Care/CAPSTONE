@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import SuperAdminSidebar from "../../components/superadmin/layout/SuperAdminSidebar";
 import SuperAdminTopbar from "../../components/superadmin/layout/SuperAdminTopbar";
-import { getSuperAdminTerms, saveSuperAdminTerms } from "../../services/superAdminService";
+import {
+  getSuperAdminTerms,
+  saveSuperAdminTerms,
+} from "../../services/superAdminService";
 
 import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
@@ -9,9 +12,6 @@ import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
 import "../../styles/superadmin/shared/superadmin-responsive.css";
 import "../../styles/superadmin/shared/superadmin-terms-conditions.css";
-
-const stripLeadingNumber = (value) =>
-  String(value || "").replace(/^\s*\d+\.\s*/, "").trim();
 
 export default function SuperAdminTermsConditions() {
   const [sections, setSections] = useState([]);
@@ -29,18 +29,20 @@ export default function SuperAdminTermsConditions() {
   useEffect(() => {
     const fetchTerms = async () => {
       setIsLoading(true);
+
       const response = await getSuperAdminTerms();
-      
+
       if (response?.success && Array.isArray(response.data)) {
         const cleaned = response.data.map((item) => ({
           ...item,
-          title: stripLeadingNumber(item.title),
         }));
+
         setSections(cleaned);
         setDraftSections(cleaned);
       } else {
         console.error("Failed to load terms from database.");
       }
+
       setIsLoading(false);
     };
 
@@ -71,16 +73,16 @@ export default function SuperAdminTermsConditions() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    
+
     const response = await saveSuperAdminTerms(draftSections);
-    
+
     if (response?.success) {
       setSections(draftSections);
       setIsEditMode(false);
     } else {
       alert(response?.message || "Failed to save terms to the database.");
     }
-    
+
     setIsSaving(false);
   };
 
@@ -108,16 +110,16 @@ export default function SuperAdminTermsConditions() {
 
     const nextId =
       draftSections.length > 0
-        ? Math.max(...draftSections.map((item) => item.id)) + 1
+        ? Math.max(...draftSections.map((item) => Number(item.id) || 0)) + 1
         : 1;
 
     setDraftSections((prev) => [
       ...prev,
       {
         id: nextId,
-        title: stripLeadingNumber(newSection.title),
+        title: newSection.title.trim(),
         content: newSection.content.trim(),
-      },
+      }
     ]);
 
     handleCloseAddModal();
@@ -188,10 +190,16 @@ export default function SuperAdminTermsConditions() {
               </div>
 
               {isLoading ? (
-                <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>
+                <div
+                  style={{
+                    padding: "2rem",
+                    textAlign: "center",
+                    color: "#666",
+                  }}
+                >
                   Loading terms from database...
                 </div>
-              ) : (
+              ) : renderSections.length > 0 ? (
                 renderSections.map((section, index) => (
                   <div className="superadmin-terms-section" key={section.id}>
                     {isEditMode ? (
@@ -199,12 +207,12 @@ export default function SuperAdminTermsConditions() {
                         <div className="superadmin-terms-edit-top">
                           <input
                             type="text"
-                            value={`${index + 1}. ${section.title}`}
+                            value={section.title}
                             onChange={(e) =>
                               handleSectionChange(
                                 section.id,
                                 "title",
-                                stripLeadingNumber(e.target.value)
+                                e.target.value
                               )
                             }
                             className="superadmin-terms-input"
@@ -230,20 +238,25 @@ export default function SuperAdminTermsConditions() {
                             )
                           }
                           className="superadmin-terms-textarea"
-                          rows={5}
+                          rows={6}
                           placeholder="Enter section content"
                         />
                       </>
                     ) : (
                       <>
-                        <h3>
-                          {index + 1}. {section.title}
-                        </h3>
-                        <p>{section.content}</p>
+                        <h3>{section.title}</h3>
+
+                        <p className="superadmin-terms-paragraph">
+                          {section.content}
+                        </p>
                       </>
                     )}
                   </div>
                 ))
+              ) : (
+                <div className="superadmin-terms-empty-state">
+                  No terms and conditions added yet.
+                </div>
               )}
             </div>
           </div>

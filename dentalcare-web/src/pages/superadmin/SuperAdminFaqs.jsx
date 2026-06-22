@@ -17,9 +17,12 @@ import "../../styles/superadmin/shared/superadmin-responsive.css";
 const FAQ_CATEGORIES = [
   "General",
   "Appointments",
-  "Payments",
   "Services",
   "Accounts",
+  "Records",
+  "Pre-Assessment",
+  "Notifications",
+  "Privacy",
 ];
 
 export default function SuperAdminFaqs() {
