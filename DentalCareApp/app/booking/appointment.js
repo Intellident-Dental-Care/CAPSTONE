@@ -706,9 +706,6 @@ export default function BookingAppointment() {
 
       <View style={styles.tabsRow}>
         <Text style={[styles.tab, styles.tabActive]}>Schedules</Text>
-        <Text style={styles.tab}>About</Text>
-        <Text style={styles.tab}>Experiences</Text>
-        <Text style={styles.tab}>Specialization</Text>
       </View>
       <View style={styles.tabLine} />
 

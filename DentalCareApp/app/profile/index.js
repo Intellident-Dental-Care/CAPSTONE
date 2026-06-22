@@ -252,21 +252,29 @@ export default function Profile() {
           label="My Profile"
           onPress={() => router.push("/profile/my-profile")}
         />
-        <Row icon="settings-outline" label="Settings" onPress={() => {}} />
+
         <Row
-          icon="notifications-outline"
-          label="Notifications"
-          onPress={() => {}}
+          icon="document-text-outline"
+          label="Terms and Conditions"
+          onPress={() => router.push("/profile/terms-and-conditions")}
         />
+
         <Row
           icon="chatbubble-ellipses-outline"
           label="FAQ"
-          onPress={() => {}}
+          onPress={() => router.push("/profile/faq")}
         />
+
         <Row
           icon="information-circle-outline"
           label="About"
-          onPress={() => {}}
+          onPress={() => router.push("/profile/about")}
+        />
+
+        <Row
+          icon="log-out-outline"
+          label="Logout"
+          onPress={handleLogout}
         />
       </View>
 
