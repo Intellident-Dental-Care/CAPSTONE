@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   View,
@@ -7,9 +7,44 @@ import {
   Pressable,
   FlatList,
   TextInput,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/colors";
+import { getSignedProfileAvatarUrl } from "../../server/UserProfile/profileImageService";
+
+function ProfileAvatar({ profile }) {
+  const [avatarUrl, setAvatarUrl] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    (async () => {
+      const avatarRef = profile?.avatarUrl || profile?.avatar_url || "";
+      if (!avatarRef) {
+        if (isMounted) setAvatarUrl("");
+        return;
+      }
+
+      try {
+        const signedUrl = await getSignedProfileAvatarUrl(avatarRef);
+        if (isMounted) setAvatarUrl(signedUrl || avatarRef);
+      } catch (_) {
+        if (isMounted) setAvatarUrl(avatarRef);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [profile?.avatarUrl, profile?.avatar_url]);
+
+  if (!avatarUrl) {
+    return <Ionicons name="person" size={18} color={colors.primary} />;
+  }
+
+  return <Image source={{ uri: avatarUrl }} style={styles.profileAvatarImage} />;
+}
 
 export default function ProfileSwitcherModal({
   visible,
@@ -62,11 +97,7 @@ export default function ProfileSwitcherModal({
                 }}
               >
                 <View style={styles.profileIconWrap}>
-                  <Ionicons
-                    name={item.icon || "person"}
-                    size={18}
-                    color={colors.primary}
-                  />
+                  <ProfileAvatar profile={item} />
                 </View>
 
                 <View style={{ flex: 1 }}>
@@ -186,6 +217,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
+    overflow: "hidden",
+  },
+
+  profileAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 19,
   },
 
   profileName: {

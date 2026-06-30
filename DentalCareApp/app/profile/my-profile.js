@@ -9,20 +9,24 @@ import {
   Image,
   Alert,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import * as ImagePicker from "expo-image-picker";
 import { colors } from "../theme/colors";
 import { supabase } from "../../server/supabaseService";
+import { getSignedProfileAvatarUrl, uploadProfileAvatar } from "../../server/UserProfile/profileImageService";
 import {
   getSession,
   getCurrentActiveProfileForSession,
+  getProfilesByEmail,
   getPatientProfileByProfileId,
   updatePatientProfileByProfileId,
   updateProfileInAccount,
 } from "../_storage/authStorage";
-import { myProfileCache } from "../_storage/profileCache";
+import { myProfileCache, profileIndexCache } from "../_storage/profileCache";
 
 function calculateAge(dobValue) {
   if (!dobValue) return "";
@@ -65,7 +69,10 @@ export default function MyProfile() {
   const [dob, setDob] = useState(myProfileCache.dob);
   const [mobile, setMobile] = useState(normalizeMobile(myProfileCache.mobile));
   const [email, setEmail] = useState(myProfileCache.email);
+  const [avatarRef, setAvatarRef] = useState(myProfileCache.avatarUrl);
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const age = useMemo(() => calculateAge(dob), [dob]);
@@ -89,6 +96,15 @@ export default function MyProfile() {
       let resolvedEmail = sessionEmail;
       let resolvedDob = "";
       let resolvedMobile = "";
+      let resolvedAvatarRef = myProfileCache.avatarUrl || "";
+
+      const allProfiles = profileIndexCache.profiles.length
+        ? profileIndexCache.profiles
+        : await getProfilesByEmail(sessionEmail);
+
+      const isMainProfile = allProfiles[0]?.id
+        ? allProfiles[0].id === activeProfile.id
+        : allProfiles.length <= 1;
 
       try {
         const {
@@ -98,7 +114,7 @@ export default function MyProfile() {
         if (supabaseUser?.id) {
           const { data: userRow } = await supabase
             .from("users")
-            .select("full_name, email, dob, mobile")
+            .select("*")
             .eq("id", supabaseUser.id)
             .single();
 
@@ -107,6 +123,9 @@ export default function MyProfile() {
             resolvedEmail = userRow.email || sessionEmail;
             resolvedDob = userRow.dob || "";
             resolvedMobile = normalizeMobile(userRow.mobile || "");
+            if (!resolvedAvatarRef) {
+              resolvedAvatarRef = userRow.avatar_url || userRow.avatarUrl || "";
+            }
           }
         }
       } catch (_) {}
@@ -117,6 +136,7 @@ export default function MyProfile() {
         if (!resolvedName) resolvedName = patientProfile.fullName || activeProfile.name || "";
         if (!resolvedDob) resolvedDob = patientProfile.dob || "";
         if (!resolvedMobile) resolvedMobile = normalizeMobile(patientProfile.mobile || "");
+        if (!resolvedAvatarRef) resolvedAvatarRef = patientProfile.avatarUrl || "";
         if (!resolvedEmail || resolvedEmail === sessionEmail) {
           resolvedEmail = patientProfile.email || sessionEmail;
         }
@@ -128,6 +148,7 @@ export default function MyProfile() {
       setDob(resolvedDob);
       setMobile(resolvedMobile);
       setEmail(resolvedEmail);
+      setAvatarRef(resolvedAvatarRef);
 
       Object.assign(myProfileCache, {
         loaded: true,
@@ -137,9 +158,127 @@ export default function MyProfile() {
         dob: resolvedDob,
         mobile: resolvedMobile,
         email: resolvedEmail,
+        avatarUrl: resolvedAvatarRef,
       });
+
+      if (isMainProfile || profileIndexCache.selectedProfile?.id === activeProfile.id) {
+        profileIndexCache.selectedProfile = {
+          ...(profileIndexCache.selectedProfile || activeProfile),
+          avatarUrl: resolvedAvatarRef,
+        };
+      }
     })();
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    (async () => {
+      if (!avatarRef) {
+        if (isMounted) setAvatarUrl("");
+        return;
+      }
+
+      try {
+        const signedUrl = await getSignedProfileAvatarUrl(avatarRef);
+        if (isMounted) setAvatarUrl(signedUrl || avatarRef);
+      } catch (_) {
+        if (isMounted) setAvatarUrl(avatarRef);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [avatarRef]);
+
+  const pickProfileImage = async () => {
+    if (!profileId || avatarUploading) return;
+
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Permission required", "Please allow access to your photo library.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.8,
+        allowsEditing: true,
+        aspect: [1, 1],
+        base64: true,
+      });
+
+      if (result.canceled || !result.assets?.length) return;
+
+      const selectedAsset = result.assets[0];
+      const session = await getSession();
+      const accountEmail = (session?.user?.email || session?.email || "").trim().toLowerCase();
+      const currentProfiles = profileIndexCache.profiles.length
+        ? profileIndexCache.profiles
+        : accountEmail
+          ? await getProfilesByEmail(accountEmail)
+          : [];
+      const currentProfile = currentProfiles.find((item) => item.id === profileId) || null;
+      const isMainProfile = currentProfiles[0]?.id
+        ? currentProfiles[0].id === profileId
+        : currentProfiles.length <= 1;
+      const profileName = currentProfile?.name || fullName || "User";
+      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+
+      if (!supabaseUser?.id || !accountEmail) {
+        Alert.alert("Error", "No authenticated user was found.");
+        return;
+      }
+
+      setAvatarUploading(true);
+
+      const uploadResult = await uploadProfileAvatar({
+        uri: selectedAsset.uri,
+        base64: selectedAsset.base64,
+        userId: supabaseUser.id,
+        profileName,
+        isMainProfile,
+      });
+
+      if (!uploadResult.success) {
+        Alert.alert("Upload Failed", uploadResult.message || "Could not upload the selected image.");
+        return;
+      }
+
+      const nextAvatarRef = uploadResult.storagePath;
+
+      await updatePatientProfileByProfileId(profileId, {
+        avatarUrl: nextAvatarRef,
+      });
+
+      await updateProfileInAccount(accountEmail, {
+        id: profileId,
+        name: fullName,
+        avatarUrl: nextAvatarRef,
+      });
+
+      setAvatarRef(nextAvatarRef);
+
+      Object.assign(myProfileCache, {
+        avatarUrl: nextAvatarRef,
+      });
+
+      profileIndexCache.loaded = false;
+      if (profileIndexCache.selectedProfile?.id === profileId) {
+        profileIndexCache.selectedProfile = {
+          ...profileIndexCache.selectedProfile,
+          name: fullName,
+          avatarUrl: nextAvatarRef,
+        };
+      }
+    } catch (error) {
+      Alert.alert("Error", error?.message || "Failed to upload profile image.");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
 
   const onSave = async () => {
     if (!profileId) {
@@ -246,12 +385,24 @@ export default function MyProfile() {
         </View>
 
         <View style={styles.avatarWrap}>
-          <View style={styles.avatarCircle}>
-            <Image
-              source={require("../../assets/profile_sample.jpg")}
-              style={styles.avatarImg}
-            />
-          </View>
+          <Pressable style={styles.avatarCircle} onPress={pickProfileImage} disabled={avatarUploading}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+            ) : (
+              <Image
+                source={require("../../assets/profile_sample.jpg")}
+                style={styles.avatarImg}
+              />
+            )}
+
+            <View style={styles.avatarBadge}>
+              {avatarUploading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="camera" size={12} color="#fff" />
+              )}
+            </View>
+          </Pressable>
         </View>
       </View>
 
@@ -416,6 +567,20 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 3,
     borderColor: "#FFFFFF",
+  },
+
+  avatarBadge: {
+    position: "absolute",
+    right: 6,
+    bottom: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
   },
 
   avatarImg: {

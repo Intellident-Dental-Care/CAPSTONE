@@ -18,6 +18,7 @@ export const myProfileCache = {
   dob: "",
   mobile: "",
   email: "",
+  avatarUrl: "",
 };
 
 // Per-profile appointment cache: { [profileId]: { data, fetchedAt } }
@@ -53,6 +54,7 @@ export function clearAllProfileCaches() {
     dob: "",
     mobile: "",
     email: "",
+    avatarUrl: "",
   });
   // Clear all appointment cache entries
   Object.keys(appointmentCache).forEach((k) => delete appointmentCache[k]);

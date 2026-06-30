@@ -67,6 +67,9 @@ export const logoutUser = async () => {
     
     // Clear AsyncStorage session
     await AsyncStorage.removeItem(SESSION_KEY);
+    await AsyncStorage.removeItem(PROFILES_KEY);
+    await AsyncStorage.removeItem(ACTIVE_PROFILE_KEY);
+    await AsyncStorage.removeItem(PATIENT_PROFILES_KEY);
     console.log("✅ User logged out successfully");
   } catch (error) {
     console.error("Error during logout:", error);
@@ -219,6 +222,11 @@ export const deleteUser = async (email) => {
     const sessionData = await getSession();
     if (((sessionData?.user?.email || "").trim().toLowerCase()) === cleanEmail) {
       await logoutUser();
+    } else {
+      // Keep local email-keyed caches from reviving deleted profiles for reused emails.
+      await AsyncStorage.removeItem(PROFILES_KEY);
+      await AsyncStorage.removeItem(ACTIVE_PROFILE_KEY);
+      await AsyncStorage.removeItem(PATIENT_PROFILES_KEY);
     }
 
     return { success: true };
@@ -249,7 +257,7 @@ export const getProfilesByEmail = async (email) => {
       if (supabaseUser?.id) {
         const { data } = await supabase
           .from("user_profiles")
-          .select("id, name, icon, email, needs_patient_setup")
+          .select("*")
           .eq("user_id", supabaseUser.id)
           .order("created_at", { ascending: true });
         if (data?.length) {
@@ -259,6 +267,7 @@ export const getProfilesByEmail = async (email) => {
             icon: p.icon || "person",
             email: p.email || cleanEmail,
             needsPatientSetup: p.needs_patient_setup,
+            avatarUrl: p.avatar_url || p.avatarUrl || "",
           }));
           parsed[cleanEmail] = supaProfiles;
           await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(parsed));
@@ -523,17 +532,23 @@ export const savePatientProfileByProfileId = async (profileId, payload) => {
     try {
       const { data: { user: supabaseUser } } = await supabase.auth.getUser();
       if (supabaseUser?.id) {
+        const syncPayload = {
+          full_name: payload.fullName || null,
+          dob: payload.dob || null,
+          age: payload.age || null,
+          mobile: payload.mobile || null,
+          email: payload.email || null,
+          medical_history: payload.medicalHistory || {},
+          needs_patient_setup: false,
+        };
+
+        if (payload.avatarUrl !== undefined) {
+          syncPayload.avatar_url = payload.avatarUrl || null;
+        }
+
         await supabase
           .from("user_profiles")
-          .update({
-            full_name: payload.fullName || null,
-            dob: payload.dob || null,
-            age: payload.age || null,
-            mobile: payload.mobile || null,
-            email: payload.email || null,
-            medical_history: payload.medicalHistory || {},
-            needs_patient_setup: false,
-          })
+          .update(syncPayload)
           .eq("id", cleanProfileId)
           .eq("user_id", supabaseUser.id);
       }
@@ -562,7 +577,7 @@ export const getPatientProfileByProfileId = async (profileId) => {
       if (supabaseUser?.id) {
         const { data } = await supabase
           .from("user_profiles")
-          .select("id, full_name, dob, age, mobile, email, medical_history")
+          .select("*")
           .eq("id", cleanProfileId)
           .eq("user_id", supabaseUser.id)
           .single();
@@ -575,6 +590,7 @@ export const getPatientProfileByProfileId = async (profileId) => {
             mobile: data.mobile || "",
             email: data.email || "",
             medicalHistory: data.medical_history || {},
+            avatarUrl: data.avatar_url || data.avatarUrl || "",
           };
           // Write back to local cache
           profiles[cleanProfileId] = mapped;
@@ -613,16 +629,22 @@ export const updatePatientProfileByProfileId = async (profileId, updates) => {
     try {
       const { data: { user: supabaseUser } } = await supabase.auth.getUser();
       if (supabaseUser?.id) {
+        const syncPayload = {
+          full_name: updates.fullName || null,
+          dob: updates.dob || null,
+          age: updates.age || null,
+          mobile: updates.mobile || null,
+          email: updates.email || null,
+          medical_history: updates.medicalHistory || existing.medicalHistory || {},
+        };
+
+        if (updates.avatarUrl !== undefined) {
+          syncPayload.avatar_url = updates.avatarUrl || null;
+        }
+
         await supabase
           .from("user_profiles")
-          .update({
-            full_name: updates.fullName || null,
-            dob: updates.dob || null,
-            age: updates.age || null,
-            mobile: updates.mobile || null,
-            email: updates.email || null,
-            medical_history: updates.medicalHistory || existing.medicalHistory || {},
-          })
+          .update(syncPayload)
           .eq("id", cleanProfileId)
           .eq("user_id", supabaseUser.id);
       }

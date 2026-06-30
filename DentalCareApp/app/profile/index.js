@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, Pressable, Alert } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { View, Text, StyleSheet, Pressable, Alert, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -20,6 +20,7 @@ import {
   clearAllProfileCaches,
 } from "../_storage/profileCache";
 import ProfileSwitcherModal from "../components/ProfileSwitcherModal";
+import { getSignedProfileAvatarUrl } from "../../server/UserProfile/profileImageService";
 
 export default function Profile() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function Profile() {
   const [selectedProfile, setSelectedProfile] = useState(profileIndexCache.selectedProfile);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [loggedInEmail, setLoggedInEmail] = useState(profileIndexCache.loggedInEmail);
+  const [avatarUrl, setAvatarUrl] = useState("");
 
   const loadProfiles = async (force = false) => {
     // Skip the full fetch only if cached data is complete.
@@ -128,6 +130,29 @@ export default function Profile() {
       loadProfiles();
     }, [])
   );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    (async () => {
+      const avatarRef = selectedProfile?.avatarUrl || "";
+      if (!avatarRef) {
+        if (isMounted) setAvatarUrl("");
+        return;
+      }
+
+      try {
+        const signedUrl = await getSignedProfileAvatarUrl(avatarRef);
+        if (isMounted) setAvatarUrl(signedUrl || avatarRef);
+      } catch (_) {
+        if (isMounted) setAvatarUrl(avatarRef);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedProfile?.avatarUrl]);
 
   const handleSelectProfile = async (profile) => {
     try {
@@ -237,7 +262,11 @@ export default function Profile() {
 
       <View style={styles.userRow}>
         <View style={styles.avatarBig}>
-          <Ionicons name="person" size={18} color={colors.primary} />
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+          ) : (
+            <Ionicons name="person" size={18} color={colors.primary} />
+          )}
         </View>
 
         <View style={{ flex: 1 }}>
@@ -368,6 +397,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "#F8D4E0",
+  },
+
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 27,
   },
 
   userName: {
