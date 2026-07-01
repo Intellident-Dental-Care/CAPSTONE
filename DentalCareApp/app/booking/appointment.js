@@ -35,6 +35,13 @@ function toISODate(d) {
   return `${y}-${m}-${day}`;
 }
 
+// Get standard local date string YYYY-MM-DD
+function getLocalDateStr() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().split("T")[0];
+}
+
 function getCurrentMinutesOfDay() {
   const now = new Date();
   return now.getHours() * 60 + now.getMinutes();
@@ -107,7 +114,11 @@ function buildBlockedSlotsByDelay({
   return blocked;
 }
 
-function buildSlotsForDate(scheduleRows, isoDate) {
+// Updated function to block out the calendar if on leave
+function buildSlotsForDate(scheduleRows, isoDate, leaves = []) {
+  const isLeave = (leaves || []).some(l => isoDate >= l.start_date && isoDate <= l.end_date);
+  if (isLeave) return []; // Returns empty array, which will hide the date from calendar completely
+
   const weekday = getWeekdayFromISO(isoDate);
   if (weekday === null) return [];
 
@@ -140,7 +151,7 @@ function buildSlotsForDate(scheduleRows, isoDate) {
   });
 }
 
-function buildAvailableDates(scheduleRows, horizonDays = 45, maxDates = 10) {
+function buildAvailableDates(scheduleRows, leaves, horizonDays = 45, maxDates = 10) {
   const allowedDays = new Set(
     (scheduleRows || []).map((row) => Number(row.day_of_week))
   );
@@ -158,7 +169,8 @@ function buildAvailableDates(scheduleRows, horizonDays = 45, maxDates = 10) {
     if (!allowedDays.has(d.getDay())) continue;
 
     const iso = toISODate(d);
-    const hasBookableSlots = buildSlotsForDate(scheduleRows, iso).length > 0;
+    // Modified to pass in leave history to block future calendar dates
+    const hasBookableSlots = buildSlotsForDate(scheduleRows, iso, leaves).length > 0;
     if (!hasBookableSlots) continue;
 
     out.push({ iso, label: formatMonthDay(d) });
@@ -179,7 +191,6 @@ function isMissingServiceColumnError(error) {
   return error?.code === "PGRST204" && message.includes("'service' column");
 }
 
-// Convert 12-hour format to 24-hour format for database storage
 function convertTo24Hour(time12h) {
   const [time, modifier] = time12h.split(' ');
   let [hours, minutes] = time.split(':');
@@ -195,7 +206,6 @@ function convertTo24Hour(time12h) {
   return `${pad2(hours)}:${minutes}:00`;
 }
 
-// Convert 24-hour format to 12-hour format for display
 function convertTo12Hour(time24h) {
   if (!time24h) return '';
   
@@ -220,6 +230,7 @@ export default function BookingAppointment() {
   const [showAlert, setShowAlert] = useState(false);
   const [dentistData, setDentistData] = useState(null);
   const [dentistSchedules, setDentistSchedules] = useState([]);
+  const [dentistLeaves, setDentistLeaves] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
   const [bookedTimeSlots, setBookedTimeSlots] = useState([]);
@@ -244,9 +255,10 @@ export default function BookingAppointment() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [pickedDate, setPickedDate] = useState(today);
 
+  // Updated to pass leaves in
   const availableSlots = useMemo(
-    () => buildSlotsForDate(dentistSchedules, selectedISO),
-    [dentistSchedules, selectedISO]
+    () => buildSlotsForDate(dentistSchedules, selectedISO, dentistLeaves),
+    [dentistSchedules, selectedISO, dentistLeaves]
   );
 
   const slotDurationMinutes = useMemo(() => {
@@ -317,7 +329,8 @@ export default function BookingAppointment() {
   }, [selectedISO, branch]);
 
   useEffect(() => {
-    const nextDates = buildAvailableDates(dentistSchedules, 45, 10);
+    // Generate dates passing the leave dependency so they get removed
+    const nextDates = buildAvailableDates(dentistSchedules, dentistLeaves, 45, 10);
     setDatePills(nextDates);
 
     if (!nextDates.length) {
@@ -333,7 +346,7 @@ export default function BookingAppointment() {
     setSelectedISO(nextDates[0].iso);
     setSelectedLabel(nextDates[0].label);
     setPickedDate(new Date(`${nextDates[0].iso}T00:00:00`));
-  }, [dentistSchedules, selectedISO]);
+  }, [dentistSchedules, dentistLeaves, selectedISO]);
 
   useEffect(() => {
     const allTimes = [...timesMorning, ...timesAfternoon];
@@ -363,6 +376,8 @@ export default function BookingAppointment() {
     
     try {
       setLoading(true);
+      const todayStr = getLocalDateStr();
+
       let dentistQuery = supabase.from("dentist_list").select("*");
       dentistQuery = selectedDoctorId
         ? dentistQuery.eq("id", selectedDoctorId)
@@ -381,11 +396,20 @@ export default function BookingAppointment() {
 
       if (scheduleError) throw scheduleError;
 
+      // Fetch all upcoming leaves for this doctor to block the calendar
+      const { data: leaveData } = await supabase
+        .from("dentist_leave")
+        .select("start_date, end_date")
+        .eq("dentist_id", data.id)
+        .gte("end_date", todayStr);
+
       setDentistData(data);
       setDentistSchedules(scheduleData || []);
+      setDentistLeaves(leaveData || []);
     } catch (err) {
       console.error('Error fetching dentist:', err);
       setDentistSchedules([]);
+      setDentistLeaves([]);
       Alert.alert("Error", "Failed to load dentist schedule.");
     } finally {
       setLoading(false);
@@ -396,7 +420,6 @@ export default function BookingAppointment() {
     if (!dentistData || !selectedISO || !branch) return;
 
     try {
-      // Safely fetch ALL bookings for this date and branch to bypass DB case-sensitivity issues
       const { data, error } = await supabase
         .from('bookings')
         .select('id, appointment_time, branch, dentist_id, appointment_date, status')
@@ -406,16 +429,13 @@ export default function BookingAppointment() {
 
       if (error) throw error;
 
-      // Filter statuses in javascript to ensure 'Pending', 'pending', 'PENDING' all get caught
       const activeBookings = (data || []).filter(booking => {
-        // If we are rescheduling our own slot, it shouldn't block us from choosing the same time
         if (isEditMode && booking.id === existingBookingId) return false;
         
         const status = (booking.status || '').toLowerCase();
         return ['pending', 'confirmed', 'in_treatment', 'in treatment', 'in-treatment'].includes(status);
       });
 
-      // Convert times securely
       const bookedTimes = activeBookings.map(booking => {
         return convertTo12Hour(booking.appointment_time);
       }).filter(Boolean);
@@ -458,14 +478,14 @@ export default function BookingAppointment() {
     );
 
     const iso = toISODate(date);
-    const hasBookableSlots = buildSlotsForDate(dentistSchedules, iso).length > 0;
+    const hasBookableSlots = buildSlotsForDate(dentistSchedules, iso, dentistLeaves).length > 0;
 
     if (!branchHasSchedule || !hasBookableSlots) {
       Alert.alert(
-        "No Schedule",
+        "Unavailable",
         iso === toISODate(new Date())
           ? "No available times left for today. Please choose another date."
-          : "This dentist is not available at this branch on the selected day."
+          : "This dentist is currently on leave or has no availability at this branch on the selected day."
       );
       if (Platform.OS === "ios") setShowCalendar(false);
       return;
@@ -520,7 +540,6 @@ export default function BookingAppointment() {
     try {
       const user = await getCurrentUser();
 
-      // Get active profile for patient name and profile_id
       const activeProfile = await getCurrentActiveProfileForSession();
       const patientProfile = activeProfile
         ? await getPatientProfileByProfileId(activeProfile.id)
@@ -531,7 +550,6 @@ export default function BookingAppointment() {
 
       const time24h = convertTo24Hour(selectedTime);
 
-      // --- 100% BULLETPROOF DUPLICATE CHECK ---
       const { data: existingBookings } = await supabase
         .from('bookings')
         .select('id, appointment_time, status')
@@ -539,14 +557,12 @@ export default function BookingAppointment() {
         .eq('appointment_date', selectedISO)
         .eq('branch', branch);
 
-      // Safely check for time conflicts using JS matching to bypass time-zone/format bugs
       const isSlotTaken = (existingBookings || []).some(b => {
         if (isEditMode && b.id === existingBookingId) return false;
         
         const st = (b.status || '').toLowerCase();
         const isActiveStatus = ['pending', 'confirmed', 'in_treatment', 'in treatment', 'in-treatment'].includes(st);
         
-        // Convert the DB time securely so 09:30:00 matches "9:30 AM" perfectly
         const dbTime12h = convertTo12Hour(b.appointment_time);
         
         return isActiveStatus && dbTime12h === selectedTime;
@@ -559,7 +575,6 @@ export default function BookingAppointment() {
         return;
       }
 
-      // Check if this specific profile/user already has a booking with this doctor on this date
       let dupQuery = supabase
         .from('bookings')
         .select('id, status')
@@ -584,7 +599,6 @@ export default function BookingAppointment() {
         return;
       }
 
-      // Pre-assessment is optional. Link it only when a valid UUID is provided.
       const safePreassessmentId = isUuid(preassessmentId) ? preassessmentId : null;
 
       const bookingData = {
@@ -597,13 +611,12 @@ export default function BookingAppointment() {
         appointment_date: selectedISO,
         appointment_time: time24h,
         preassessment_id: safePreassessmentId,
-        status: 'pending' // Enforced lowercase insertion
+        status: 'pending' 
       };
 
       let error;
 
       if (isEditMode && existingBookingId) {
-        // UPDATE existing booking (reschedule)
         const updateData = {
           appointment_date: selectedISO,
           appointment_time: time24h,
@@ -617,12 +630,10 @@ export default function BookingAppointment() {
 
         error = updateError;
       } else {
-        // CREATE new booking
         const { error: insertError } = await supabase
           .from('bookings')
           .insert([bookingData]);
 
-        // Backward compatibility: some DBs still don't have bookings.service.
         if (isMissingServiceColumnError(insertError)) {
           const { service: _unusedService, ...legacyBookingData } = bookingData;
           const retry = await supabase
@@ -636,7 +647,6 @@ export default function BookingAppointment() {
 
       if (error) throw error;
 
-      // Invalidate cached appointment cards/lists so Home and Appointments refresh immediately.
       const cacheKey = profileId || '__no_profile__';
       clearAppointmentCacheForProfile(cacheKey);
       delete appointmentsListCache[cacheKey];

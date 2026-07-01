@@ -40,6 +40,13 @@ function PickerModal({ visible, title, options, onClose, onPick, selectedValue }
   );
 }
 
+// Get standard local date string YYYY-MM-DD
+function getLocalDateStr() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().split("T")[0];
+}
+
 export default function BookingBranchDoctor() {
   const router = useRouter();
 
@@ -81,15 +88,12 @@ export default function BookingBranchDoctor() {
     fetchServices();
   }, []);
 
-  // Verify the auto-selected service exists in the services list
   useEffect(() => {
     if (incomingService && services.length > 0) {
       const serviceExists = services.some(
         (s) => s.toLowerCase() === incomingService.toLowerCase()
       );
       if (!serviceExists && incomingService !== service) {
-        // If service doesn't exist in list, clear it to let user select
-        console.warn(`Recommended service "${incomingService}" not found in available services`);
         setService("");
       }
     }
@@ -114,10 +118,12 @@ export default function BookingBranchDoctor() {
   const fetchDentists = async () => {
     try {
       setLoading(true);
+      const todayStr = getLocalDateStr();
 
       const [
         { data: dentists, error: dentistsError },
         { data: schedules, error: schedulesError },
+        { data: leavesData }
       ] = await Promise.all([
         supabase
           .from("dentist_list")
@@ -128,10 +134,22 @@ export default function BookingBranchDoctor() {
           .from("dentist_schedule")
           .select("dentist_id, branch, day_of_week")
           .eq("is_active", true),
+        supabase
+          .from("dentist_leave")
+          .select("dentist_id, start_date, end_date")
+          .gte("end_date", todayStr)
       ]);
 
       if (dentistsError) throw dentistsError;
       if (schedulesError) throw schedulesError;
+
+      // Filter via Javascript to prevent timezone skipping
+      const onLeaveSet = new Set();
+      (leavesData || []).forEach(l => {
+        if (l.start_date <= todayStr && l.end_date >= todayStr) {
+          onLeaveSet.add(l.dentist_id);
+        }
+      });
 
       const dentistMap = new Map((dentists || []).map((d) => [d.id, d]));
       const branchGroups = {};
@@ -141,7 +159,8 @@ export default function BookingBranchDoctor() {
         const branchName = row.branch?.trim();
         const dentist = dentistMap.get(row.dentist_id);
 
-        if (!branchName || !dentist) return;
+        // Hide if missing branch/dentist data OR if dentist is currently on leave
+        if (!branchName || !dentist || onLeaveSet.has(dentist.id)) return;
 
         if (!branchGroups[branchName]) branchGroups[branchName] = [];
         if (!seenByBranch[branchName]) seenByBranch[branchName] = new Set();
@@ -170,6 +189,9 @@ export default function BookingBranchDoctor() {
   };
 
   useEffect(() => {
+    // If the data is still loading, do nothing
+    if (Object.keys(doctorsByBranch).length === 0) return;
+
     if (!branch || !doctor) {
       setDoctorId("");
       return;
@@ -179,7 +201,13 @@ export default function BookingBranchDoctor() {
       (d) => d.name === doctor
     );
 
-    setDoctorId(selected?.id || "");
+    if (selected) {
+      setDoctorId(selected.id);
+    } else {
+      // If a doctor was auto-passed (e.g. from AI Summary) but is secretly on leave, clear them out
+      setDoctor("");
+      setDoctorId("");
+    }
   }, [branch, doctor, doctorsByBranch]);
 
   const doctors = useMemo(() => {
@@ -187,7 +215,8 @@ export default function BookingBranchDoctor() {
     return doctorsByBranch[branch] || [];
   }, [branch, doctorsByBranch]);
 
-  const canProceed = !!(service && branch && doctor);
+  // Make sure they have a valid doctor ID before proceeding
+  const canProceed = !!(service && branch && doctor && doctorId);
 
   if (loading) {
     return (

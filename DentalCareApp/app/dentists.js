@@ -21,11 +21,10 @@ import { profileIndexCache } from "./_storage/profileCache";
 
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-// Cache with TTL (5 minutes)
 let dentistsCache = null;
 let scheduleCache = null;
 let cacheTimestamp = 0;
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 function isCacheValid() {
   return dentistsCache && scheduleCache && (Date.now() - cacheTimestamp) < CACHE_TTL_MS;
@@ -39,6 +38,20 @@ function formatTime12(time24) {
   const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
   const suffix = hour24 >= 12 ? "PM" : "AM";
   return `${hour12}:${m} ${suffix}`;
+}
+
+// Format the leave date perfectly
+function formatLeaveDate(isoString) {
+  if (!isoString) return "";
+  const d = new Date(`${isoString}T00:00:00`);
+  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
+// Get standard local date string YYYY-MM-DD
+function getLocalDateStr() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().split("T")[0];
 }
 
 function formatDays(dayNumbers) {
@@ -106,11 +119,9 @@ function getEarliestAvailabilityAndBranch(branches) {
   return { availabilityText: "No upcoming schedule", earliestBranch: branches[0]?.branch || "" };
 }
 
-// Resolver for allowing the main account to have a NULL profile_id
 async function getValidProfileId(userId, activeProfile) {
-  if (!activeProfile?.id) return null; // Main account
+  if (!activeProfile?.id) return null; 
 
-  // 1. Check if the ID exists in user_profiles
   const { data: pExists } = await supabase
     .from("user_profiles")
     .select("id")
@@ -119,7 +130,6 @@ async function getValidProfileId(userId, activeProfile) {
 
   if (pExists) return activeProfile.id;
 
-  // 2. If it fails, check by profile name
   const { data: nMatch } = await supabase
     .from("user_profiles")
     .select("id")
@@ -129,7 +139,6 @@ async function getValidProfileId(userId, activeProfile) {
 
   if (nMatch) return nMatch.id;
 
-  // 3. If neither matches, it means this is the main account, so return null
   return null; 
 }
 
@@ -147,9 +156,16 @@ function DentistCard({ item, liked, onToggleLike, onBook }) {
       <View style={styles.info}>
         <View style={styles.topRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.name} numberOfLines={1}>
-              {String(item.name || "")}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={[styles.name, { paddingRight: 0, flexShrink: 1 }]} numberOfLines={1}>
+                {String(item.name || "")}
+              </Text>
+              {item.isOnLeave && (
+                <View style={styles.onLeaveBadge}>
+                  <Text style={styles.onLeaveText}>On Leave</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.role}>{String(item.specialty || "")}</Text>
           </View>
 
@@ -176,9 +192,12 @@ function DentistCard({ item, liked, onToggleLike, onBook }) {
           </Text>
         </View>
 
-        <Pressable style={styles.bookBtn} onPress={onBook}>
-          <Text style={styles.bookText}>BOOK NOW</Text>
-        </Pressable>
+        {/* Hide booking button completely if on leave */}
+        {!item.isOnLeave && (
+          <Pressable style={styles.bookBtn} onPress={onBook}>
+            <Text style={styles.bookText}>BOOK NOW</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -197,7 +216,7 @@ export default function Dentists() {
   const [flowModalVisible, setFlowModalVisible] = useState(false);
   const [selectedDentist, setSelectedDentist] = useState(null);
   const isMountedRef = useRef(true);
-  const currentProfileIdRef = useRef(undefined); // use undefined so null registers as a valid switch
+  const currentProfileIdRef = useRef(undefined);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -235,7 +254,6 @@ export default function Dentists() {
       const { data: bookmarks, error } = await query;
 
       if (error) {
-        console.log("Error loading dentist bookmarks:", error.message);
         if (isMountedRef.current) setLikedMap({});
         return;
       }
@@ -247,10 +265,8 @@ export default function Dentists() {
 
       if (isMountedRef.current) {
         setLikedMap(bookmarkMap);
-        console.log("Loaded dentist bookmarks for profile:", profileId === null ? "Main Account" : profileId);
       }
     } catch (err) {
-      console.error("Error loading bookmarks:", err);
       if (isMountedRef.current) setLikedMap({});
     }
   };
@@ -267,19 +283,13 @@ export default function Dentists() {
       const profileId = await getValidProfileId(userId, activeProfile);
 
       if (isBookmarked) {
-        const { error } = await supabase
+        await supabase
           .from("dentist_bookmarks")
           .insert({
             user_id: userId,
-            profile_id: profileId, // explicitly allowed to be null
+            profile_id: profileId,
             dentist_id: dentistId
           });
-
-        if (error && error.code !== "23505") { 
-          console.error("Error saving dentist bookmark:", error);
-        } else {
-          console.log("Saved dentist bookmark");
-        }
       } else {
         let query = supabase
           .from("dentist_bookmarks")
@@ -293,13 +303,7 @@ export default function Dentists() {
           query = query.is("profile_id", null);
         }
 
-        const { error } = await query;
-
-        if (error) {
-          console.error("Error deleting dentist bookmark:", error);
-        } else {
-          console.log("Deleted dentist bookmark");
-        }
+        await query;
       }
     } catch (err) {
       console.error("Error managing bookmarks:", err);
@@ -320,6 +324,8 @@ export default function Dentists() {
       if (!isMountedRef.current) return;
       setLoading(true);
 
+      const todayStr = getLocalDateStr();
+
       const { data: dentistRows, error: dentistsError } = await supabase
         .from("dentist_list")
         .select("*")
@@ -331,6 +337,22 @@ export default function Dentists() {
         .from("dentist_schedule")
         .select("*")
         .eq("is_active", true);
+
+      if (schedulesError) throw schedulesError;
+
+      // Match the Web Logic perfectly: Fetch leaves that end on or after today, filter via JS
+      const { data: leavesData } = await supabase
+        .from("dentist_leave")
+        .select("dentist_id, start_date, end_date")
+        .gte("end_date", todayStr);
+
+      const onLeaveMap = new Map();
+      (leavesData || []).forEach(l => {
+        // Javascript check to bypass database timezone bugs
+        if (l.start_date <= todayStr && l.end_date >= todayStr) {
+          onLeaveMap.set(l.dentist_id, l.end_date);
+        }
+      });
 
       const dentistMap = new Map((dentistRows || []).map((d) => [d.id, d]));
       const groupedByDentistBranch = new Map();
@@ -359,31 +381,39 @@ export default function Dentists() {
 
       const mapped = [];
       Array.from(groupedByDentistBranch.values()).forEach((entry) => {
+        const leaveEndDate = onLeaveMap.get(entry.dentist.id);
+        const isOnLeave = !!leaveEndDate;
         const daysText = formatDays(entry.rows.map((r) => r.day_of_week));
+
         mapped.push({
           id: `${entry.dentist.id}-${entry.branch}`,
           dentistId: entry.dentist.id,
           name: entry.dentist.name,
           branch: entry.branch,
           specialty: entry.dentist.specialization || "Dentist",
-          specialties: `Days in Branch | ${daysText}`,
-          availability: getEarliestAvailability(entry.rows, entry.branch),
+          specialties: isOnLeave ? "Branches | None" : `Days in Branch | ${daysText}`,
+          availability: isOnLeave ? `On leave until ${formatLeaveDate(leaveEndDate)}` : getEarliestAvailability(entry.rows, entry.branch),
           photo: null,
+          isOnLeave,
         });
       });
 
       const dentistsWithSchedules = new Set(Array.from(groupedByDentistBranch.values()).map(e => e.dentist.id));
       dentistRows.forEach((dentist) => {
         if (!dentistsWithSchedules.has(dentist.id)) {
+          const leaveEndDate = onLeaveMap.get(dentist.id);
+          const isOnLeave = !!leaveEndDate;
+
           mapped.push({
             id: `${dentist.id}-basic`,
             dentistId: dentist.id,
             name: dentist.name,
             specialty: dentist.specialization || "Dentist",
-            specialties: `Experience: ${dentist.experience_years || "0"} years`,
-            availability: "Schedule not available",
+            specialties: isOnLeave ? "Branches | None" : `Experience: ${dentist.experience_years || "0"} years`,
+            availability: isOnLeave ? `On leave until ${formatLeaveDate(leaveEndDate)}` : "Schedule not available",
             branch: "Main",
             photo: null,
+            isOnLeave,
           });
         }
       });
@@ -415,17 +445,21 @@ export default function Dentists() {
       });
 
       const mergedMapped = Array.from(dentistGrouped.values()).map((entry) => {
+        const leaveEndDate = onLeaveMap.get(entry.dentist.id);
+        const isOnLeave = !!leaveEndDate;
         const branchNames = entry.branches.map((b) => b.branch).join(", ");
         const { availabilityText, earliestBranch } = getEarliestAvailabilityAndBranch(entry.branches);
+
         return {
           id: `${entry.dentist.id}-merged`,
           dentistId: entry.dentist.id,
           name: entry.dentist.name,
           branch: earliestBranch || "Main",
           specialty: entry.dentist.specialization || "Dentist",
-          specialties: `Branches | ${branchNames}`,
-          availability: availabilityText,
+          specialties: isOnLeave ? "Branches | None" : `Branches | ${branchNames}`,
+          availability: isOnLeave ? `On leave until ${formatLeaveDate(leaveEndDate)}` : availabilityText,
           photo: null,
+          isOnLeave,
         };
       });
 
@@ -926,6 +960,21 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: colors.primary,
     paddingRight: 8,
+  },
+
+  onLeaveBadge: {
+    backgroundColor: "#FFF9E6",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: "#FFC107",
+  },
+  
+  onLeaveText: {
+    fontSize: 9,
+    color: "#FFC107",
+    fontWeight: "900",
   },
 
   role: {

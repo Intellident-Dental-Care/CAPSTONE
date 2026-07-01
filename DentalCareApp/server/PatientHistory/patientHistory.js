@@ -21,6 +21,7 @@ const QUESTIONS = [
   "Have you had a filling or dental treatment on this tooth before?",
 ];
 
+
 router.get("/", async (req, res) => {
   try {
     const { userId, profileId } = req.query;
