@@ -13,6 +13,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/colors";
 import { getSignedProfileAvatarUrl } from "../../server/UserProfile/profileImageService";
 
+// Cache for avatar URLs to avoid re-fetching signed URLs for same paths
+const avatarUrlCache = {};
+
 function ProfileAvatar({ profile }) {
   const [avatarUrl, setAvatarUrl] = useState("");
 
@@ -26,10 +29,19 @@ function ProfileAvatar({ profile }) {
         return;
       }
 
+      // Check cache first
+      if (avatarUrlCache[avatarRef]) {
+        if (isMounted) setAvatarUrl(avatarUrlCache[avatarRef]);
+        return;
+      }
+
       try {
         const signedUrl = await getSignedProfileAvatarUrl(avatarRef);
-        if (isMounted) setAvatarUrl(signedUrl || avatarRef);
+        const urlToUse = signedUrl || avatarRef;
+        avatarUrlCache[avatarRef] = urlToUse;
+        if (isMounted) setAvatarUrl(urlToUse);
       } catch (_) {
+        avatarUrlCache[avatarRef] = avatarRef;
         if (isMounted) setAvatarUrl(avatarRef);
       }
     })();

@@ -22,6 +22,9 @@ import {
 import ProfileSwitcherModal from "../components/ProfileSwitcherModal";
 import { getSignedProfileAvatarUrl } from "../../server/UserProfile/profileImageService";
 
+// Cache for signed avatar URLs to avoid re-fetching for same paths
+const profileIndexAvatarUrlCache = {};
+
 export default function Profile() {
   const router = useRouter();
 
@@ -141,10 +144,19 @@ export default function Profile() {
         return;
       }
 
+      // Check cache first
+      if (profileIndexAvatarUrlCache[avatarRef]) {
+        if (isMounted) setAvatarUrl(profileIndexAvatarUrlCache[avatarRef]);
+        return;
+      }
+
       try {
         const signedUrl = await getSignedProfileAvatarUrl(avatarRef);
-        if (isMounted) setAvatarUrl(signedUrl || avatarRef);
+        const urlToUse = signedUrl || avatarRef;
+        profileIndexAvatarUrlCache[avatarRef] = urlToUse;
+        if (isMounted) setAvatarUrl(urlToUse);
       } catch (_) {
+        profileIndexAvatarUrlCache[avatarRef] = avatarRef;
         if (isMounted) setAvatarUrl(avatarRef);
       }
     })();

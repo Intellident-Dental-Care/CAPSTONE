@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { updateAdminProfile } from "../../../services/adminService";
+import { useEffect, useRef, useState } from "react";
+import { updateAdminProfile, uploadAdminProfileAvatar, loadAdminAvatarObjectUrl } from "../../../services/adminService";
 
 export default function AdminProfileModal({ open, onClose, profile, onProfileUpdated }) {
+  const fileInputRef = useRef(null);
   const [form, setForm] = useState({
     fullName: "",
     dob: "",
@@ -9,6 +10,9 @@ export default function AdminProfileModal({ open, onClose, profile, onProfileUpd
     phone: "",
     email: "",
   });
+  const [avatarPath, setAvatarPath] = useState("");
+  const [avatarSrc, setAvatarSrc] = useState("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -20,21 +24,112 @@ export default function AdminProfileModal({ open, onClose, profile, onProfileUpd
       phone: profile.phone || "",
       email: profile.email || "",
     });
+    
+    // Load avatar path from localStorage if it exists
+    const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+    setAvatarPath(userData.avatarPath || userData.avatarUrl || "");
   }, [profile]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadAvatar = async () => {
+      if (!avatarPath) {
+        setAvatarSrc("");
+        return;
+      }
+
+      try {
+        const resolved = await loadAdminAvatarObjectUrl(avatarPath);
+        if (active) setAvatarSrc(resolved || "");
+      } catch {
+        if (active) setAvatarSrc("");
+      }
+    };
+
+    loadAvatar();
+
+    return () => {
+      active = false;
+    };
+  }, [avatarPath]);
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    setUploadingAvatar(true);
+
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("Failed to read image file"));
+        reader.readAsDataURL(file);
+      });
+
+      const result = await uploadAdminProfileAvatar({
+        avatarBase64: base64,
+        fileName: file.name,
+      });
+
+      if (!result?.success) {
+        console.error("Avatar upload failed:", result?.message || "Unknown error");
+        alert(result?.message || "Failed to upload avatar. Please check database schema.");
+        return;
+      }
+
+      if (!result?.data) {
+        console.error("No data returned from avatar upload");
+        alert("Avatar uploaded but profile data not returned");
+        return;
+      }
+
+      const avatarPath = result.data.avatarUrl || result.data.avatarPath || "";
+      setAvatarPath(avatarPath);
+
+      // Update localStorage with avatar path
+      const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+      userData.avatarPath = avatarPath;
+      userData.avatarUrl = avatarPath;
+      localStorage.setItem("user_data", JSON.stringify(userData));
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
-    const result = await updateAdminProfile({
-      fullName: form.fullName,
-      dob: form.dob,
-      gender: form.gender,
-      phone: form.phone,
-      email: form.email,
-      contactDetail: form.email,
-    });
-    setSaving(false);
+    try {
+      const result = await updateAdminProfile({
+        fullName: form.fullName,
+        dob: form.dob,
+        gender: form.gender,
+        phone: form.phone,
+        email: form.email,
+        contactDetail: form.email,
+      });
 
-    if (result?.success && result?.data && onProfileUpdated) {
+      if (!result?.success) {
+        console.error("Profile update failed:", result?.message || "Unknown error");
+        alert(result?.message || "Failed to update profile");
+        setSaving(false);
+        return;
+      }
+
+      if (!result?.data) {
+        console.error("No data returned from profile update");
+        setSaving(false);
+        return;
+      }
+
+      if (result?.success && result?.data && onProfileUpdated) {
       const normalizedProfile = {
         ...result.data,
         fullName: result.data.fullName || result.data.full_name || form.fullName,
@@ -42,6 +137,8 @@ export default function AdminProfileModal({ open, onClose, profile, onProfileUpd
         email: result.data.email || form.email,
         phone: result.data.phone || result.data.phone_number || form.phone,
         phone_number: result.data.phone_number || result.data.phone || form.phone,
+        avatarUrl: result.data.avatarUrl || result.data.avatar_url || avatarPath || "",
+        avatar_url: result.data.avatar_url || result.data.avatarUrl || avatarPath || "",
       };
 
       onProfileUpdated(normalizedProfile);
@@ -52,10 +149,18 @@ export default function AdminProfileModal({ open, onClose, profile, onProfileUpd
         full_name: normalizedProfile.full_name,
         email: normalizedProfile.email,
         phone_number: normalizedProfile.phone_number,
+        avatarUrl: normalizedProfile.avatarUrl,
+        avatar_url: normalizedProfile.avatar_url,
       }));
 
       window.dispatchEvent(new CustomEvent("auth:user-updated", { detail: normalizedProfile }));
       onClose();
+      }
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      alert("An error occurred while saving. Check console for details.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -80,13 +185,20 @@ export default function AdminProfileModal({ open, onClose, profile, onProfileUpd
 
         <div className="admin-profile-image-wrapper">
           <img
-            src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&q=80"
+            src={avatarSrc || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&q=80"}
             alt="Profile"
             className="admin-profile-modal-image"
           />
-          <button type="button" className="admin-profile-image-edit-btn">
+          <button type="button" className="admin-profile-image-edit-btn" onClick={handleAvatarClick} disabled={uploadingAvatar}>
             ✎
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={handleAvatarChange}
+          />
         </div>
 
         <div className="admin-profile-section">

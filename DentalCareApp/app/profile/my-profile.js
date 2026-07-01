@@ -28,6 +28,9 @@ import {
 } from "../_storage/authStorage";
 import { myProfileCache, profileIndexCache } from "../_storage/profileCache";
 
+// Cache for signed avatar URLs to avoid re-fetching for same paths
+const myProfileAvatarUrlCache = {};
+
 function calculateAge(dobValue) {
   if (!dobValue) return "";
 
@@ -179,10 +182,19 @@ export default function MyProfile() {
         return;
       }
 
+      // Check cache first
+      if (myProfileAvatarUrlCache[avatarRef]) {
+        if (isMounted) setAvatarUrl(myProfileAvatarUrlCache[avatarRef]);
+        return;
+      }
+
       try {
         const signedUrl = await getSignedProfileAvatarUrl(avatarRef);
-        if (isMounted) setAvatarUrl(signedUrl || avatarRef);
+        const urlToUse = signedUrl || avatarRef;
+        myProfileAvatarUrlCache[avatarRef] = urlToUse;
+        if (isMounted) setAvatarUrl(urlToUse);
       } catch (_) {
+        myProfileAvatarUrlCache[avatarRef] = avatarRef;
         if (isMounted) setAvatarUrl(avatarRef);
       }
     })();

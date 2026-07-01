@@ -1,13 +1,23 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import logo from "../../../assets/logo.png";
 import adminProfile from "../../../assets/profile_sample.jpg";
 import AuthService from "../../../services/authService";
+import { loadAdminAvatarObjectUrl } from "../../../services/adminService";
+
+// Persistent cache across component remounts
+const sidebarAvatarCache = {
+  path: "",
+  src: "",
+};
 
 export default function AdminSidebar() {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => AuthService.getCurrentUser() || {});
+  const [avatarSrc, setAvatarSrc] = useState(sidebarAvatarCache.src);
+  const loadingRef = useRef(false);
+
 
   useEffect(() => {
     const syncFromStorage = () => {
@@ -29,6 +39,60 @@ export default function AdminSidebar() {
     return () => {
       window.removeEventListener("storage", syncFromStorage);
       window.removeEventListener("auth:user-updated", handleUserUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    const reloadAvatar = async () => {
+      const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+      const avatarPath = userData?.avatarPath || userData?.avatarUrl || "";
+
+      // If path hasn't changed and we have a cached src, use it
+      if (avatarPath === sidebarAvatarCache.path && sidebarAvatarCache.src) {
+        setAvatarSrc(sidebarAvatarCache.src);
+        return;
+      }
+
+      if (!avatarPath) {
+        sidebarAvatarCache.path = "";
+        sidebarAvatarCache.src = "";
+        setAvatarSrc("");
+        return;
+      }
+
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+
+      try {
+        const resolved = await loadAdminAvatarObjectUrl(avatarPath);
+        sidebarAvatarCache.path = avatarPath;
+        sidebarAvatarCache.src = resolved || "";
+        setAvatarSrc(resolved || "");
+      } catch {
+        setAvatarSrc("");
+      } finally {
+        loadingRef.current = false;
+      }
+    };
+
+    reloadAvatar();
+
+    // Listen for avatar updates from modal - only reload if path actually changed
+    const handleAvatarUpdated = () => {
+      const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+      const newAvatarPath = userData?.avatarPath || userData?.avatarUrl || "";
+      
+      if (newAvatarPath && sidebarAvatarCache.path !== newAvatarPath) {
+        reloadAvatar();
+      }
+    };
+
+    window.addEventListener("auth:user-updated", handleAvatarUpdated);
+    window.addEventListener("storage", handleAvatarUpdated);
+
+    return () => {
+      window.removeEventListener("auth:user-updated", handleAvatarUpdated);
+      window.removeEventListener("storage", handleAvatarUpdated);
     };
   }, []);
 
@@ -64,7 +128,7 @@ export default function AdminSidebar() {
           </div>
 
           <div className="admin-profile-card">
-            <img src={adminProfile} alt="Admin" />
+            <img src={avatarSrc || adminProfile} alt="Admin" />
             <h3>Hello, {displayName}</h3>
             <p>{displayRole}</p>
           </div>

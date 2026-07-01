@@ -35,7 +35,7 @@ const PORT = Number(process.env.EMAIL_SERVER_PORT || 5001);
 const LOCAL_IP = getLocalIpAddress();
 
 app.use(cors({ origin: "*", credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: "15mb" }));
 
 app.get("/health", (_req, res) => {
   res.status(200).json({ success: true, status: "healthy", timestamp: new Date().toISOString() });

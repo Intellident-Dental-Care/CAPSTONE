@@ -1,5 +1,11 @@
 import { supabaseAdmin } from "../../shared/supabaseClient.js";
 
+const ADMIN_AVATAR_BUCKET = "profile-uploads";
+
+const getAvatarStoragePath = (adminId) => `user_${String(adminId || "").trim()}/profile_main`;
+
+const sanitizeFileName = (value) => String(value || "avatar.jpg").replace(/[^a-zA-Z0-9._-]/g, "_");
+
 const safeParseNotes = (value) => {
   if (!value) return {};
   if (typeof value === "object") return value;
@@ -19,6 +25,7 @@ export const getAdminProfileById = async (adminId) => {
     .single();
 
   if (error || !data) {
+    console.error("Error fetching admin profile:", error);
     return { success: false, statusCode: 404, message: "Admin profile not found" };
   }
 
@@ -40,6 +47,55 @@ export const getAdminProfileById = async (adminId) => {
       isActive: !!data.is_active,
       isVerified: !!data.is_verified,
       updatedAt: data.updated_at || null,
+    },
+  };
+};
+
+const uploadBase64ToSupabase = async (bucket, path, base64Str) => {
+  const matches = String(base64Str || "").match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+  if (!matches || matches.length !== 3) return null;
+
+  const contentType = matches[1];
+  const buffer = Buffer.from(matches[2], "base64");
+
+  const { error } = await supabaseAdmin.storage
+    .from(bucket)
+    .upload(path, buffer, {
+      contentType,
+      upsert: true,
+    });
+
+  if (error) {
+    console.error("Admin avatar upload error:", error);
+    throw error;
+  }
+
+  return path;
+};
+
+export const updateAdminAvatarById = async (adminId, payload = {}) => {
+  const avatarBase64 = String(payload.avatarBase64 || "").trim();
+  const fileName = sanitizeFileName(payload.fileName || "avatar.jpg");
+
+  if (!avatarBase64) {
+    return { success: false, statusCode: 400, message: "Image data is required" };
+  }
+
+  const avatarPath = `${getAvatarStoragePath(adminId)}/avatar_${Date.now()}_${fileName}`;
+
+  const storedPath = await uploadBase64ToSupabase(ADMIN_AVATAR_BUCKET, avatarPath, avatarBase64);
+
+  if (!storedPath) {
+    return { success: false, statusCode: 400, message: "Invalid image data" };
+  }
+
+  // Return success with the storage path - frontend will store this in localStorage
+  return {
+    success: true,
+    statusCode: 200,
+    data: {
+      avatarUrl: storedPath,
+      avatarPath: storedPath,
     },
   };
 };
