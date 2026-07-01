@@ -347,3 +347,63 @@ export const isSuperAdmin = () => {
   const user = AuthService.getCurrentUser();
   return user?.admin_type === "super_admin" || user?.adminType === "super_admin";
 };
+
+// Dentist Leave Management
+export const setDentistLeave = async (dentistId, startDate, endDate, reason) => {
+  try {
+    const data = await fetchJson("/admin/dentists/leave", {
+      method: "POST",
+      body: JSON.stringify({ dentistId, startDate, endDate, reason }),
+    });
+
+    if (data?.success) {
+      adminCache.dentists = null; // Clear cache to fetch updated data
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error setting dentist leave:", error);
+    return { success: false, message: "Failed to set leave" };
+  }
+};
+
+export const cancelDentistLeave = async (leaveId) => {
+  try {
+    const data = await fetchJson(`/admin/dentists/leave/${leaveId}`, {
+      method: "DELETE",
+    });
+
+    if (data?.success) {
+      adminCache.dentists = null; // Clear cache
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error canceling leave:", error);
+    return { success: false, message: "Failed to cancel leave" };
+  }
+};
+
+export const getDentistLeaves = async (dentistId) => {
+  try {
+    const data = await fetchJson(`/admin/dentists/leaves/${dentistId}`, { method: "GET" });
+    return data;
+  } catch (error) {
+    console.error("Error fetching dentist leaves:", error);
+    return { success: false, message: "Failed to fetch leaves", data: [] };
+  }
+};
+
+export const checkLeaveConflict = async (dentistId, startDate, endDate) => {
+  try {
+    const data = await fetchJson("/admin/dentists/check-leave-conflict", {
+      method: "POST",
+      body: JSON.stringify({ dentistId, startDate, endDate }),
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error checking leave conflict:", error);
+    return { success: false, message: "Failed to check leave conflict" };
+  }
+};

@@ -230,6 +230,17 @@
   color: #dc4c64;
 }
 
+.dentist-badge.on-leave {
+  background: #fff2f2;
+  color: #dc4c64;
+}
+
+.leave-indicator {
+  font-size: 10px;
+  opacity: 0.8;
+  margin-left: 4px;
+}
+
 .dentist-view-btn {
   border: none;
   background: linear-gradient(135deg, #ff7eaa, #ff5c93);
@@ -527,6 +538,17 @@
   font-size: 14px;
 }
 
+.leave-error-message {
+  background: #fee;
+  border-left: 4px solid #dc4c64;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  color: #dc4c64;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .leave-form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -603,6 +625,12 @@
 .leave-submit-btn {
   background: linear-gradient(135deg, #ff7eaa, #ff5c93);
   color: #ffffff;
+}
+
+.leave-submit-btn:disabled,
+.leave-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .dentist-leave-info-card {

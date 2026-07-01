@@ -2,7 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import AdminSidebar from "../../components/admin/layout/AdminSidebar";
 import AdminTopbar from "../../components/admin/layout/AdminTopbar";
 import AuthService from "../../services/authService";
-import { getAdminDentists, getAdminProfile } from "../../services/adminService";
+import {
+  getAdminDentists,
+  getAdminProfile,
+  setDentistLeave,
+  cancelDentistLeave,
+  getDentistLeaves,
+  checkLeaveConflict,
+} from "../../services/adminService";
 
 import "../../styles/admin/dentist/admin-dentist.css";
 import "../../styles/admin/dashboard/admin-layout.css";
@@ -12,6 +19,36 @@ import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
 
 const defaultAssignedBranch = "General Trias";
+
+// Helper function to check if dentist is currently on leave
+function getDentistOnLeaveInfo(dentist) {
+  if (!dentist.leave || !Array.isArray(dentist.leave) || dentist.leave.length === 0) {
+    return { isOnLeave: false, leaveData: null };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (const leave of dentist.leave) {
+    const startDate = new Date(leave.start_date);
+    const endDate = new Date(leave.end_date);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+
+    if (today >= startDate && today <= endDate) {
+      return { isOnLeave: true, leaveData: leave };
+    }
+  }
+
+  return { isOnLeave: false, leaveData: null };
+}
+
+function calculateLeaveDuration(startDate, endDate) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+  return days;
+}
 
 const initialNotifications = [
   {
@@ -46,8 +83,11 @@ function formatDate(dateString) {
   });
 }
 
-function DentistDetailsModal({ dentist, onClose, adminAssignedBranch }) {
+function DentistDetailsModal({ dentist, onClose, adminAssignedBranch, onSetLeave }) {
   if (!dentist) return null;
+
+  const { isOnLeave, leaveData } = getDentistOnLeaveInfo(dentist);
+  const displayStatus = isOnLeave ? "On Leave" : dentist.status;
 
   return (
     <div className="dentist-details-overlay" onClick={onClose}>
@@ -66,11 +106,11 @@ function DentistDetailsModal({ dentist, onClose, adminAssignedBranch }) {
             <p>{dentist.specialty}</p>
 
             <span
-              className={`dentist-badge ${dentist.status
+              className={`dentist-badge ${displayStatus
                 .toLowerCase()
                 .replace(/\s+/g, "-")}`}
             >
-              {dentist.status}
+              {displayStatus}
             </span>
           </div>
         </div>
@@ -105,40 +145,39 @@ function DentistDetailsModal({ dentist, onClose, adminAssignedBranch }) {
 
             <div className="dentist-info-row">
               <span>Status</span>
-              <strong>{dentist.status}</strong>
+              <strong>{displayStatus}</strong>
             </div>
 
-            <div className="dentist-info-row">
-              <span>Assigned Branch View</span>
-              <strong>{dentist.currentBranchToday || adminAssignedBranch}</strong>
-            </div>
+            {isOnLeave && leaveData ? (
+              <>
+                <div className="dentist-info-row">
+                  <span>Leave Date</span>
+                  <strong>
+                    {formatDate(leaveData.start_date)} - {formatDate(leaveData.end_date)}
+                  </strong>
+                </div>
 
-            <div className="dentist-info-row">
-              <span>Today's Schedule</span>
-              <strong>{dentist.currentScheduleToday || "No Schedule Today"}</strong>
-            </div>
+                <div className="dentist-info-row">
+                  <span>Duration</span>
+                  <strong>
+                    {calculateLeaveDuration(leaveData.start_date, leaveData.end_date)} days
+                  </strong>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="dentist-info-row">
+                  <span>Assigned Branch View</span>
+                  <strong>{dentist.currentBranchToday || adminAssignedBranch}</strong>
+                </div>
+
+                <div className="dentist-info-row">
+                  <span>Today's Schedule</span>
+                  <strong>{dentist.currentScheduleToday || "No Schedule Today"}</strong>
+                </div>
+              </>
+            )}
           </div>
-
-          {dentist.leave ? (
-            <div className="dentist-info-card dentist-leave-info-card">
-              <h4>Leave Information</h4>
-
-              <div className="dentist-info-row">
-                <span>Start Date</span>
-                <strong>{formatDate(dentist.leave.startDate)}</strong>
-              </div>
-
-              <div className="dentist-info-row">
-                <span>End Date</span>
-                <strong>{formatDate(dentist.leave.endDate)}</strong>
-              </div>
-
-              <div className="dentist-info-row">
-                <span>Reason</span>
-                <strong>{dentist.leave.reason}</strong>
-              </div>
-            </div>
-          ) : null}
 
           <div className="dentist-info-card dentist-schedule-card">
             <h4>Schedule in All Branches</h4>
@@ -168,6 +207,8 @@ function DentistLeaveModal({
   setLeaveForm,
   onClose,
   onSubmit,
+  isSubmitting,
+  errorMessage,
 }) {
   if (!dentist) return null;
 
@@ -183,6 +224,10 @@ function DentistLeaveModal({
         <p className="leave-modal-subtitle">
           Set leave schedule for <strong>{dentist.name}</strong>.
         </p>
+
+        {errorMessage && (
+          <div className="leave-error-message">{errorMessage}</div>
+        )}
 
         <div className="leave-form-grid">
           <div className="leave-field">
@@ -230,12 +275,20 @@ function DentistLeaveModal({
         </div>
 
         <div className="leave-modal-actions">
-          <button className="leave-cancel-btn" onClick={onClose}>
+          <button
+            className="leave-cancel-btn"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
             Cancel
           </button>
 
-          <button className="leave-submit-btn" onClick={onSubmit}>
-            Save Leave
+          <button
+            className="leave-submit-btn"
+            onClick={onSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Saving..." : "Save Leave"}
           </button>
         </div>
       </div>
@@ -261,6 +314,9 @@ export default function AdminDentist() {
     endDate: "",
     reason: "",
   });
+
+  const [isSubmittingLeave, setIsSubmittingLeave] = useState(false);
+  const [leaveErrorMessage, setLeaveErrorMessage] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -331,54 +387,82 @@ export default function AdminDentist() {
 
   const handleOpenLeaveModal = (dentist) => {
     setSelectedLeaveDentist(dentist);
+    const { isOnLeave, leaveData } = getDentistOnLeaveInfo(dentist);
 
     setLeaveForm({
-      startDate: dentist.leave?.startDate || "",
-      endDate: dentist.leave?.endDate || "",
-      reason: dentist.leave?.reason || "",
+      startDate: isOnLeave && leaveData ? leaveData.start_date : "",
+      endDate: isOnLeave && leaveData ? leaveData.end_date : "",
+      reason: isOnLeave && leaveData ? leaveData.reason : "",
     });
+
+    setLeaveErrorMessage("");
   };
 
-  const handleSubmitLeave = () => {
+  const handleSubmitLeave = async () => {
+    setLeaveErrorMessage("");
+
     if (!leaveForm.startDate || !leaveForm.endDate || !leaveForm.reason.trim()) {
-      alert("Please complete the leave date range and reason.");
+      setLeaveErrorMessage("Please complete the leave date range and reason.");
       return;
     }
 
     if (new Date(leaveForm.endDate) < new Date(leaveForm.startDate)) {
-      alert("End date cannot be earlier than start date.");
+      setLeaveErrorMessage("End date cannot be earlier than start date.");
       return;
     }
 
-    setDentists((prev) =>
-      prev.map((dentist) =>
-        dentist.id === selectedLeaveDentist.id
-          ? {
-              ...dentist,
-              status: "Leave",
-              leave: {
-                startDate: leaveForm.startDate,
-                endDate: leaveForm.endDate,
-                reason: leaveForm.reason,
-              },
+    setIsSubmittingLeave(true);
+
+    try {
+      // Check for conflicts
+      const conflictCheck = await checkLeaveConflict(
+        selectedLeaveDentist.id,
+        leaveForm.startDate,
+        leaveForm.endDate
+      );
+
+      if (!conflictCheck.success) {
+        setLeaveErrorMessage(conflictCheck.message || "Failed to set leave");
+        setIsSubmittingLeave(false);
+        return;
+      }
+
+      // Set the leave
+      const result = await setDentistLeave(
+        selectedLeaveDentist.id,
+        leaveForm.startDate,
+        leaveForm.endDate,
+        leaveForm.reason
+      );
+
+      if (result.success) {
+        // Reload dentists to get updated leave info
+        const dentistsResult = await getAdminDentists();
+        if (dentistsResult.success && Array.isArray(dentistsResult.data)) {
+          setDentists(dentistsResult.data);
+
+          // Update selected dentist if it's the same one
+          if (selectedDentist?.id === selectedLeaveDentist.id) {
+            const updated = dentistsResult.data.find(
+              (d) => d.id === selectedDentist.id
+            );
+            if (updated) {
+              setSelectedDentist(updated);
             }
-          : dentist
-      )
-    );
+          }
+        }
 
-    if (selectedDentist?.id === selectedLeaveDentist.id) {
-      setSelectedDentist((prev) => ({
-        ...prev,
-        status: "Leave",
-        leave: {
-          startDate: leaveForm.startDate,
-          endDate: leaveForm.endDate,
-          reason: leaveForm.reason,
-        },
-      }));
+        setSelectedLeaveDentist(null);
+        setLeaveForm({ startDate: "", endDate: "", reason: "" });
+      } else {
+        setLeaveErrorMessage(result.message || "Failed to set leave");
+      }
+    } catch (error) {
+      console.error("Error submitting leave:", error);
+      setLeaveErrorMessage("An error occurred. Please try again.");
+    } finally {
+      setIsSubmittingLeave(false);
     }
-
-    setSelectedLeaveDentist(null);
   };
 
   return (
@@ -455,6 +539,8 @@ export default function AdminDentist() {
                 <tbody>
                   {filteredDentists.length > 0 ? (
                     filteredDentists.map((dentist) => {
+                      const { isOnLeave, leaveData } = getDentistOnLeaveInfo(dentist);
+                      const displayStatus = isOnLeave ? "On Leave" : dentist.status;
                       const visibleBranch =
                         dentist.currentBranchToday || adminAssignedBranch;
 
@@ -466,11 +552,11 @@ export default function AdminDentist() {
                           <td>{dentist.phone}</td>
                           <td>
                             <span
-                              className={`dentist-badge ${dentist.status
+                              className={`dentist-badge ${displayStatus
                                 .toLowerCase()
                                 .replace(/\s+/g, "-")}`}
                             >
-                              {dentist.status}
+                              {displayStatus}
                             </span>
                           </td>
 
@@ -487,7 +573,7 @@ export default function AdminDentist() {
                                 className="dentist-leave-btn"
                                 onClick={() => handleOpenLeaveModal(dentist)}
                               >
-                                Set Leave
+                                {isOnLeave ? "Update Leave" : "Set Leave"}
                               </button>
                             </div>
                           </td>
@@ -512,6 +598,7 @@ export default function AdminDentist() {
         dentist={selectedDentist}
         onClose={() => setSelectedDentist(null)}
         adminAssignedBranch={adminAssignedBranch}
+        onSetLeave={handleOpenLeaveModal}
       />
 
       <DentistLeaveModal
@@ -520,6 +607,8 @@ export default function AdminDentist() {
         setLeaveForm={setLeaveForm}
         onClose={() => setSelectedLeaveDentist(null)}
         onSubmit={handleSubmitLeave}
+        isSubmitting={isSubmittingLeave}
+        errorMessage={leaveErrorMessage}
       />
     </div>
   );
