@@ -35,7 +35,6 @@ function toISODate(d) {
   return `${y}-${m}-${day}`;
 }
 
-// Get standard local date string YYYY-MM-DD
 function getLocalDateStr() {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -114,10 +113,14 @@ function buildBlockedSlotsByDelay({
   return blocked;
 }
 
-// Updated function to block out the calendar if on leave
 function buildSlotsForDate(scheduleRows, isoDate, leaves = []) {
-  const isLeave = (leaves || []).some(l => isoDate >= l.start_date && isoDate <= l.end_date);
-  if (isLeave) return []; // Returns empty array, which will hide the date from calendar completely
+  const isLeave = (leaves || []).some(l => {
+    const start = String(l.start_date).split('T')[0];
+    const end = String(l.end_date).split('T')[0];
+    return isoDate >= start && isoDate <= end;
+  });
+
+  if (isLeave) return []; 
 
   const weekday = getWeekdayFromISO(isoDate);
   if (weekday === null) return [];
@@ -169,7 +172,6 @@ function buildAvailableDates(scheduleRows, leaves, horizonDays = 45, maxDates = 
     if (!allowedDays.has(d.getDay())) continue;
 
     const iso = toISODate(d);
-    // Modified to pass in leave history to block future calendar dates
     const hasBookableSlots = buildSlotsForDate(scheduleRows, iso, leaves).length > 0;
     if (!hasBookableSlots) continue;
 
@@ -255,7 +257,6 @@ export default function BookingAppointment() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [pickedDate, setPickedDate] = useState(today);
 
-  // Updated to pass leaves in
   const availableSlots = useMemo(
     () => buildSlotsForDate(dentistSchedules, selectedISO, dentistLeaves),
     [dentistSchedules, selectedISO, dentistLeaves]
@@ -329,7 +330,6 @@ export default function BookingAppointment() {
   }, [selectedISO, branch]);
 
   useEffect(() => {
-    // Generate dates passing the leave dependency so they get removed
     const nextDates = buildAvailableDates(dentistSchedules, dentistLeaves, 45, 10);
     setDatePills(nextDates);
 
@@ -396,7 +396,6 @@ export default function BookingAppointment() {
 
       if (scheduleError) throw scheduleError;
 
-      // Fetch all upcoming leaves for this doctor to block the calendar
       const { data: leaveData } = await supabase
         .from("dentist_leave")
         .select("start_date, end_date")
@@ -520,14 +519,13 @@ export default function BookingAppointment() {
     }
 
     if (!availableSlots.includes(selectedTime)) {
-
-          if (unbookableSlots.has(selectedTime)) {
-            Alert.alert(
-              "Unavailable",
-              "Selected time is unavailable due to current queue delay or existing booking."
-            );
-            return;
-          }
+      if (unbookableSlots.has(selectedTime)) {
+        Alert.alert(
+          "Unavailable",
+          "Selected time is unavailable due to current queue delay or existing booking."
+        );
+        return;
+      }
       Alert.alert(
         "Unavailable Time",
         "The selected time is not available for this dentist at this branch."
@@ -550,6 +548,7 @@ export default function BookingAppointment() {
 
       const time24h = convertTo24Hour(selectedTime);
 
+      // Check if slot is taken by another user
       const { data: existingBookings } = await supabase
         .from('bookings')
         .select('id, appointment_time, status')
@@ -575,10 +574,11 @@ export default function BookingAppointment() {
         return;
       }
 
+      // **NEW: Check if this specific profile/user already has ANY booking on this date**
+      // We removed the `.eq('dentist_id', dentistData.id)` condition.
       let dupQuery = supabase
         .from('bookings')
         .select('id, status')
-        .eq('dentist_id', dentistData.id)
         .eq('appointment_date', selectedISO);
 
       dupQuery = profileId
@@ -590,11 +590,14 @@ export default function BookingAppointment() {
       const hasActiveExisting = (userExistingBookings || []).some(b => {
         if (isEditMode && b.id === existingBookingId) return false;
         const st = (b.status || '').toLowerCase();
-        return ['pending', 'confirmed'].includes(st);
+        return ['pending', 'confirmed', 'in_treatment', 'in treatment', 'in-treatment'].includes(st);
       });
 
       if (hasActiveExisting) {
-        Alert.alert('Booking Exists', 'You already have a booking with this doctor on this date.');
+        Alert.alert(
+          'Existing Booking Found', 
+          'You already have an appointment scheduled on this date. Multiple bookings on the same day are not allowed.'
+        );
         setBooking(false);
         return;
       }
