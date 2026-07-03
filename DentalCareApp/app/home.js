@@ -36,11 +36,13 @@ import {
   fetchCurrentQueueForAppointment,
   formatAppointmentDate,
   formatAppointmentTime,
-} from "../server/upcomingAppointment";
+} from "./services/upcomingAppointment";
 import { getServerUrl } from "../server/getClientSideUrl";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import ProfileSwitcherModal from "./components/ProfileSwitcherModal";
+import { fetchUpcomingTreatments } from "./services/upcomingTreatments";
+import { fetchPatientHistory } from "./services/patientHistory";
 
 function isUuid(value) {
   if (!value) return false;
@@ -113,62 +115,18 @@ export default function Home() {
   const fetchRecentVisits = useCallback(async (session, profile = null) => {
     try {
       const userId = session?.user?.id || session?.id;
-      const token = session?.session?.access_token || session?.access_token || "";
-
       if (!userId) {
         setRecentVisits([]);
         return;
       }
 
-      const baseUrl = await getServerUrl();
+      const result = await fetchPatientHistory(userId, isUuid(profile?.id) ? profile.id : null);
       
-      if (!baseUrl) {
-        console.warn('[Home] No server URL available for recent visits');
-        setRecentVisits([]);
-        return;
-      }
-      
-      let apiUrl = `${baseUrl}/api/patient-history?userId=${userId}`;
-      
-      // Add profileId only if it's a valid UUID
-      const safeProfileId = isUuid(profile?.id) ? profile.id : null;
-      if (safeProfileId) {
-        apiUrl += `&profileId=${safeProfileId}`;
-      }
-
-      console.log("[Home] Fetching recent visits from:", apiUrl);
-
-      const res = await fetch(apiUrl, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined,
-      });
-
-      // Check if response is OK
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("fetchRecentVisits error response:", res.status, text);
-        setRecentVisits([]);
-        return;
-      }
-
-      const result = await res.json();
       if (result.success && result.data) {
-        // Flatten all items from all months and get the 3 most recent
-        const allItems = [];
-        result.data.forEach(monthGroup => {
-          if (monthGroup.items && Array.isArray(monthGroup.items)) {
-            allItems.push(...monthGroup.items);
-          }
-        });
-        
-        // Sort by date (most recent first) and take top 3
+        const allItems = result.data.flatMap(monthGroup => monthGroup.items || []);
         const recent = allItems
           .sort((a, b) => new Date(b.date) - new Date(a.date))
           .slice(0, 3);
-        
         setRecentVisits(recent);
       } else {
         setRecentVisits([]);
@@ -182,50 +140,14 @@ export default function Home() {
   const fetchTreatmentPlan = useCallback(async (session, profile = null) => {
     try {
       const userId = session?.user?.id || session?.id;
-      const token = session?.session?.access_token || session?.access_token || "";
-
       if (!userId) {
         setTreatmentPlans([]);
         return;
       }
 
-      const baseUrl = await getServerUrl();
+      const result = await fetchUpcomingTreatments(userId, isUuid(profile?.id) ? profile.id : null);
       
-      if (!baseUrl) {
-        console.warn('[Home] No server URL available for treatment plan');
-        setTreatmentPlans([]);
-        return;
-      }
-      
-      let apiUrl = `${baseUrl}/api/upcoming-treatments?userId=${userId}`;
-      
-      // Add profileId only if it's a valid UUID
-      const safeProfileId = isUuid(profile?.id) ? profile.id : null;
-      if (safeProfileId) {
-        apiUrl += `&profileId=${safeProfileId}`;
-      }
-
-      console.log("[Home] Fetching treatment plan from:", apiUrl);
-
-      const res = await fetch(apiUrl, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined,
-      });
-
-      // Check if response is OK
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("fetchTreatmentPlan error response:", res.status, text);
-        setTreatmentPlans([]);
-        return;
-      }
-
-      const result = await res.json();
       if (result.success && Array.isArray(result.data)) {
-        // Filter only treatment-type bookings and sort by date
         const treatments = result.data
           .filter(t => t.type === "Treatment" || t.service_type === "Treatment")
           .sort((a, b) => new Date(a.appointment_date || a.date) - new Date(b.appointment_date || b.date));

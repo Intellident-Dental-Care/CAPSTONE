@@ -1,6 +1,6 @@
-import { supabase } from './supabaseService';
-import { getCurrentUser } from './supabaseService';
-import { cancelOverdueAppointments } from './cancelOverdueAppointments';
+import { supabase } from '../../server/supabaseService';
+import { getCurrentUser } from '../../server/supabaseService';
+import { cancelOverdueAppointments } from '../../server/cancelOverdueAppointments';
 
 function getLocalISODate() {
   const d = new Date();

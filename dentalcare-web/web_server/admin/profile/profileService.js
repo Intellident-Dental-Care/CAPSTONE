@@ -1,15 +1,12 @@
 import { supabaseAdmin } from "../../shared/supabaseClient.js";
 
 const ADMIN_AVATAR_BUCKET = "profile-uploads";
-
 const getAvatarStoragePath = (adminId) => `user_${String(adminId || "").trim()}/profile_main`;
-
 const sanitizeFileName = (value) => String(value || "avatar.jpg").replace(/[^a-zA-Z0-9._-]/g, "_");
 
 const safeParseNotes = (value) => {
   if (!value) return {};
   if (typeof value === "object") return value;
-
   try {
     return JSON.parse(value);
   } catch {
@@ -17,10 +14,11 @@ const safeParseNotes = (value) => {
   }
 };
 
+// Updated to query and return profile_photo_url from the table
 export const getAdminProfileById = async (adminId) => {
   const { data, error } = await supabaseAdmin
     .from("admin_list")
-    .select("id, full_name, email, phone_number, admin_type, branch, notes, is_active, is_verified, updated_at")
+    .select("id, full_name, email, phone_number, admin_type, branch, notes, profile_photo_url, is_active, is_verified, updated_at")
     .eq("id", adminId)
     .single();
 
@@ -44,6 +42,9 @@ export const getAdminProfileById = async (adminId) => {
       dob: notes.dob || "",
       gender: notes.gender || "",
       contactDetail: notes.contactDetail || data.email || "",
+      // Added fallback chain to prioritize the database column field
+      avatarUrl: data.profile_photo_url || "",
+      avatarPath: data.profile_photo_url || "",
       isActive: !!data.is_active,
       isVerified: !!data.is_verified,
       updatedAt: data.updated_at || null,
@@ -73,6 +74,7 @@ const uploadBase64ToSupabase = async (bucket, path, base64Str) => {
   return path;
 };
 
+// Added persistent DB update block to store the bucket path inside your table editor column
 export const updateAdminAvatarById = async (adminId, payload = {}) => {
   const avatarBase64 = String(payload.avatarBase64 || "").trim();
   const fileName = sanitizeFileName(payload.fileName || "avatar.jpg");
@@ -82,14 +84,26 @@ export const updateAdminAvatarById = async (adminId, payload = {}) => {
   }
 
   const avatarPath = `${getAvatarStoragePath(adminId)}/avatar_${Date.now()}_${fileName}`;
-
   const storedPath = await uploadBase64ToSupabase(ADMIN_AVATAR_BUCKET, avatarPath, avatarBase64);
 
   if (!storedPath) {
     return { success: false, statusCode: 400, message: "Invalid image data" };
   }
 
-  // Return success with the storage path - frontend will store this in localStorage
+  // Persist path link directly to profile_photo_url column inside admin_list table
+  const { error: dbUpdateError } = await supabaseAdmin
+    .from("admin_list")
+    .update({ 
+      profile_photo_url: storedPath,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", adminId);
+
+  if (dbUpdateError) {
+    console.error("Failed to persist avatar URL string to admin_list:", dbUpdateError);
+    return { success: false, statusCode: 500, message: "Avatar uploaded but failed to save reference link." };
+  }
+
   return {
     success: true,
     statusCode: 200,
@@ -108,11 +122,9 @@ export const updateAdminProfileById = async (adminId, payload) => {
   if (typeof payload.fullName === "string") {
     updates.full_name = payload.fullName.trim();
   }
-
   if (typeof payload.phone === "string") {
     updates.phone_number = payload.phone.trim();
   }
-
   if (typeof payload.email === "string" && payload.email.trim()) {
     updates.email = payload.email.trim().toLowerCase();
   }

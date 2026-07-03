@@ -75,6 +75,8 @@ export const clearAdminCache = () => {
   adminCache.loadedAt = null;
 };
 
+// Inside your frontend adminService.js file
+
 export const preloadAdminData = async () => {
   try {
     const [profileResult, appointmentsResult, dentistsResult, patientsResult, queueResult, dashboardResult] =
@@ -87,7 +89,18 @@ export const preloadAdminData = async () => {
         fetchJson("/admin/dashboard/snapshot", { method: "GET" }),
       ]);
 
-    if (profileResult?.success) adminCache.profile = profileResult.data;
+    if (profileResult?.success && profileResult.data) {
+      adminCache.profile = profileResult.data;
+      
+      const dbPath = profileResult.data.avatarPath || profileResult.data.avatarUrl || "";
+      if (dbPath) {
+        const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+        userData.avatarPath = dbPath;
+        userData.avatarUrl = dbPath;
+        localStorage.setItem("user_data", JSON.stringify(userData));
+      }
+    }
+    
     if (appointmentsResult?.success) adminCache.appointments = appointmentsResult.data;
     if (dentistsResult?.success) adminCache.dentists = dentistsResult.data;
     if (patientsResult?.success) adminCache.patients = patientsResult.data;

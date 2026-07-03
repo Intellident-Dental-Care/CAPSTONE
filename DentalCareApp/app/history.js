@@ -15,6 +15,7 @@ import { WebView } from "react-native-webview";
 import { colors } from "./theme/colors";
 import ProfileSwitcherModal from "./components/ProfileSwitcherModal";
 import { getServerUrl } from "../server/getClientSideUrl";
+import { fetchPatientHistory } from "./services/patientHistory";
 import {
   getSession,
   logoutUser,
@@ -55,52 +56,27 @@ export default function History() {
   const [selectedHistory, setSelectedHistory] = useState(null);
   const [historyDetailsVisible, setHistoryDetailsVisible] = useState(false);
 
-  const fetchHistoryData = async (profile = null) => {
-    try {
-      const session = await getSession();
-      const userId = session?.user?.id || session?.id; 
-      const token = session?.session?.access_token || session?.access_token || "";
+const fetchHistoryData = async (profile = null) => {
+  try {
+    const session = await getSession();
+    const userId = session?.user?.id || session?.id;
 
-      if (!userId) return;
+    if (!userId) return;
 
-      const baseUrl = await getServerUrl();
-      
-      if (!baseUrl) {
-        console.warn('[History] No server URL available');
-        return;
-      }
-      
-      let apiUrl = `${baseUrl}/api/patient-history?userId=${userId}`;
-      
-      // Add profileId only if it's a valid UUID
-      const safeProfileId = isUuid(profile?.id) ? profile.id : null;
-      if (safeProfileId) {
-        apiUrl += `&profileId=${safeProfileId}`;
-      }
+    console.log("[History] Fetching directly from Supabase...");
 
-      console.log("[History] Fetching from:", apiUrl);
-
-      const res = await fetch(apiUrl, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined,
-      });
-
-      // Check if response is OK
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("fetchHistoryData error response:", res.status, text);
-        return;
-      }
-      
-      const result = await res.json();
-      if (result.success) {
-        setHistoryData(result.data);
-      }
-    } catch (error) {
-      console.log("Failed to load history:", error);
+    // Call the service directly
+    const result = await fetchPatientHistory(userId, isUuid(profile?.id) ? profile.id : null);
+    
+    if (result.success) {
+      setHistoryData(result.data);
+    } else {
+      console.error("fetchHistoryData service error:", result.message);
+      setHistoryData([]);
+    }
+  } catch (error) {
+    console.log("Failed to load history:", error);
+    setHistoryData([]);
     }
   };
 

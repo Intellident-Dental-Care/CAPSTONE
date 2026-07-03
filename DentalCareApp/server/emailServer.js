@@ -27,12 +27,8 @@ app.use(express.json());
 // 2. API ROUTERS (Registered First)
 // ==========================================
 const timelineRoute = require('./HistoryModel/3DTimeline');
-const historyRoute = require('./PatientHistory/patientHistory');
-const upcomingTreatmentsRoute = require('./upcomingTreatments');
 
 app.use('/api/3d-timeline', timelineRoute);
-app.use('/api/patient-history', historyRoute);
-app.use('/api/upcoming-treatments', upcomingTreatmentsRoute);
 
 // ==========================================
 // 3. EMAIL TRANSPORTER SETUP
@@ -337,4 +333,21 @@ app.listen(PORT, '0.0.0.0', () => {
   
   console.log(`Email server ready to receive requests!`);
   console.log(`If client can't find server, try: http://${LOCAL_IP}:${PORT}/test in browser`);
+});
+
+
+// Handle unexpected crashes so the port doesn't hang
+process.on('uncaughtException', (err) => {
+  console.error('There was an uncaught error:', err);
+  process.exit(1); 
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
+process.on('SIGINT', () => {
+  console.log('Shutting down server gracefully...');
+  process.exit(0);
 });
