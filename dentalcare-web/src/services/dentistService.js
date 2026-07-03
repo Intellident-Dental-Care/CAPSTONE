@@ -200,3 +200,23 @@ export const createDentistProcedure = async (payload) => {
     return { success: false, message: "Failed to save procedure" };
   }
 };
+
+export const fetchUnreadDentistNotifications = async () => {
+  try {
+    const data = await fetchJson("/dentist/notifications", { method: "GET" });
+    return data;
+  } catch (error) {
+    console.error("Error fetching dentist notifications:", error);
+    return { success: false, message: "Failed to fetch notifications", data: [] };
+  }
+};
+
+export const markDentistNotificationsAsRead = async () => {
+  try {
+    const data = await fetchJson("/dentist/notifications/mark-read", { method: "PATCH" });
+    return data; 
+  } catch (error) {
+    console.error("Error marking dentist notifications as read:", error);
+    return { success: false, message: "Failed to clear notifications" };
+  }
+};

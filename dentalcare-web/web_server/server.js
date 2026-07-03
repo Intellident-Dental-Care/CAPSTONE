@@ -16,6 +16,7 @@ import dentistDashboardRoutes from "./dentist/dashboard/dashboardRoutes.js";
 import dentistScheduleRoutes from "./dentist/schedule/scheduleRoutes.js";
 import dentistProfileRoutes from "./dentist/profile/profileRoutes.js";
 import dentistPatientsRoutes from "./dentist/patients/patientsRoutes.js";
+import dentistNotificationRoutes from "./dentist/notification/notificationRoutes.js";
 
 import superAdminDashboardRoutes from "./super_admin/dashboard/dashboardRoutes.js";
 import superAdminAdminsRoutes from "./super_admin/admins/adminsRoutes.js";
@@ -68,6 +69,7 @@ app.use("/api/dentist/dashboard", dentistDashboardRoutes);
 app.use("/api/dentist/schedule", dentistScheduleRoutes);
 app.use("/api/dentist/profile", dentistProfileRoutes);
 app.use("/api/dentist/patients", dentistPatientsRoutes);
+app.use("/api/dentist/notifications", dentistNotificationRoutes);
 
 // --- Register New Super Admin API Routes ---
 app.use("/api/super_admin/dashboard", superAdminDashboardRoutes);

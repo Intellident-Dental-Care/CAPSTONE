@@ -684,7 +684,7 @@ export default function Home() {
                   sub={`Scheduled for ${dateStr}`}
                   status={treatment.status || "Confirmed"}
                   rightA="VIEW DETAILS"
-                  rightB={treatment.status === "confirmed" || treatment.status === "pending" ? "RESCHEDULE" : "BOOK NOW"}
+                  rightB={['Confirmed', 'Pending'].includes(treatment.status) ? "RESCHEDULE" : "BOOK NOW"}
                   onViewDetails={() => openDetailModal({
                     doctor: treatment.dentist_name || treatment.doctor || "Assigned Dentist",
                     title: treatment.service || treatment.title || "Dental Treatment",
@@ -700,7 +700,7 @@ export default function Home() {
                     procedure: treatment.procedure_name || treatment.service || "-",
                   })}
                   onPrimaryAction={() => {
-                    if (treatment.status === "confirmed" || treatment.status === "pending") {
+                    if (['Confirmed', 'Pending'].includes(treatment.status)) {
                       handleReschedule(treatment);
                     } else {
                       openFlowModal();
