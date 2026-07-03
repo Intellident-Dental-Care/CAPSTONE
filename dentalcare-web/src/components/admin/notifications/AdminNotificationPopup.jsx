@@ -51,11 +51,12 @@ export default function AdminNotificationPopup({
                 <div className="admin-notification-dot" />
 
                 <div className="admin-notification-text">
-                  <p>{item.title || "New Appointment Request:"}</p>
-                  <span>{item.message || "John Doe for Consultation"}</span>
+                  {/* Removed all fallback "||" strings here */}
+                  <p>{item.title}</p>
+                  <span>{item.message}</span>
                 </div>
 
-                <small>{item.time || "2 mins ago"}</small>
+                <small>{item.time}</small>
               </div>
             ))
           ) : (

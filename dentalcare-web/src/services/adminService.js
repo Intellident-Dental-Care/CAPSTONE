@@ -407,3 +407,23 @@ export const checkLeaveConflict = async (dentistId, startDate, endDate) => {
     return { success: false, message: "Failed to check leave conflict" };
   }
 };
+
+export const fetchUnreadNotifications = async () => {
+  try {
+    const data = await fetchJson("/admin/notifications", { method: "GET" });
+    return data; 
+  } catch (error) {
+    console.error("Error fetching notifications:", error);
+    return { success: false, message: "Failed to fetch notifications", data: [] };
+  }
+};
+
+export const markNotificationsAsRead = async () => {
+  try {
+    const data = await fetchJson("/admin/notifications/mark-read", { method: "PATCH" });
+    return data; 
+  } catch (error) {
+    console.error("Error marking notifications as read:", error);
+    return { success: false, message: "Failed to clear notifications" };
+  }
+};

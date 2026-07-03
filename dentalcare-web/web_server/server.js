@@ -10,6 +10,8 @@ import profileRoutes from "./admin/profile/profileRoutes.js";
 import appointmentsRoutes from "./admin/appointments/appointmentsRoutes.js";
 import dentistsRoutes from "./admin/dentists/dentistsRoutes.js";
 import patientsRoutes from "./admin/patients/patientsRoutes.js";
+import notificationRoutes from "./admin/notifications/notificationRoutes.js";
+
 import dentistDashboardRoutes from "./dentist/dashboard/dashboardRoutes.js";
 import dentistScheduleRoutes from "./dentist/schedule/scheduleRoutes.js";
 import dentistProfileRoutes from "./dentist/profile/profileRoutes.js";
@@ -60,6 +62,7 @@ app.use("/api/admin/profile", profileRoutes);
 app.use("/api/admin/appointments", appointmentsRoutes);
 app.use("/api/admin/dentists", dentistsRoutes);
 app.use("/api/admin/patients", patientsRoutes);
+app.use("/api/admin/notifications", notificationRoutes);
 
 app.use("/api/dentist/dashboard", dentistDashboardRoutes);
 app.use("/api/dentist/schedule", dentistScheduleRoutes);

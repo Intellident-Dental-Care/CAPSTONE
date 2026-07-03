@@ -4,11 +4,14 @@ const nodemailer = require('nodemailer');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const { getLocalIpAddress, getServerDiscoveryUrls } = require('./getServerUrl');
+const os = require('os');
 
 const app = express();
 const PORT = process.env.EMAIL_SERVER_PORT || 5001;
 
-// Initialize Supabase client
+// ==========================================
+// 1. INITIALIZATION & MIDDLEWARE
+// ==========================================
 const supabase = createClient(
   process.env.EXPO_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -17,21 +20,27 @@ const supabase = createClient(
 const LOCAL_IP = getLocalIpAddress();
 console.log('Detected local IP:', LOCAL_IP);
 
-app.use(cors({
-  origin: '*', 
-  credentials: true
-}));
+app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json());
 
+// ==========================================
+// 2. API ROUTERS (Registered First)
+// ==========================================
 const timelineRoute = require('./HistoryModel/3DTimeline');
+const historyRoute = require('./PatientHistory/patientHistory');
+const upcomingTreatmentsRoute = require('./upcomingTreatments');
+
 app.use('/api/3d-timeline', timelineRoute);
+app.use('/api/patient-history', historyRoute);
+app.use('/api/upcoming-treatments', upcomingTreatmentsRoute);
 
-
+// ==========================================
+// 3. EMAIL TRANSPORTER SETUP
+// ==========================================
 console.log('Email server starting...');
 console.log('EMAIL_USER configured:', !!process.env.EMAIL_USER);
 console.log('EMAIL_PASS configured:', !!process.env.EMAIL_PASS);
 
-// Create transporter using environment variables
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -40,7 +49,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Test transporter connection
 transporter.verify((error, success) => {
   if (error) {
     console.log('Email transporter verification failed:', error);
@@ -49,33 +57,9 @@ transporter.verify((error, success) => {
   }
 });
 
-// === SERVER DISCOVERY ENDPOINT ===
-// This endpoint allows clients to discover the server's actual IP address
-app.get('/server-discovery', (req, res) => {
-  const serverUrl = `http://${LOCAL_IP}:${PORT}`;
-  console.log('[SERVER-DISCOVERY] Sending detected IP:', LOCAL_IP, 'URL:', serverUrl);
-  res.json({
-    success: true,
-    serverInfo: {
-      currentUrl: serverUrl,
-      ip: LOCAL_IP,
-      port: PORT,
-      timestamp: new Date().toISOString(),
-    }
-  });
-});
-
-// Network info endpoint for clients to get current server IP
-app.get('/network-info', (req, res) => {
-  res.json({
-    localIP: LOCAL_IP,
-    port: PORT,
-    serverUrl: `http://${LOCAL_IP}:${PORT}`,
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// Function to generate 6-digit OTP
+// ==========================================
+// 4. OTP & VERIFICATION ROUTES
+// ==========================================
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -91,11 +75,9 @@ app.post('/send-verification', async (req, res) => {
 
   try {
     const otp = generateOTP();
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
-    
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); 
     console.log('Generated OTP:', otp, 'Expires at:', otpExpiresAt);
 
-    // First, check if user exists in users table
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id')
@@ -105,33 +87,25 @@ app.post('/send-verification', async (req, res) => {
     let upsertError;
 
     if (checkError && checkError.code === 'PGRST116') {
-      // User doesn't exist, so INSERT a new user record
       console.log('User profile does not exist. Creating new user record.');
-      const { error: insertError } = await supabase
-        .from('users')
-        .insert({
-          id: userId,
-          email: email,
-          full_name: fullName,
-          verification_otp: otp,
-          otp_expires_at: otpExpiresAt.toISOString(),
-          is_verified: false,
-          created_at: new Date().toISOString()
-        });
+      const { error: insertError } = await supabase.from('users').insert({
+        id: userId,
+        email: email,
+        full_name: fullName,
+        verification_otp: otp,
+        otp_expires_at: otpExpiresAt.toISOString(),
+        is_verified: false,
+        created_at: new Date().toISOString()
+      });
       upsertError = insertError;
     } else if (!checkError && existingUser) {
-      // User exists, so UPDATE the OTP fields
       console.log('User profile exists. Updating OTP.');
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({
-          verification_otp: otp,
-          otp_expires_at: otpExpiresAt.toISOString()
-        })
-        .eq('id', userId);
+      const { error: updateError } = await supabase.from('users').update({
+        verification_otp: otp,
+        otp_expires_at: otpExpiresAt.toISOString()
+      }).eq('id', userId);
       upsertError = updateError;
     } else {
-      // Some other error occurred
       upsertError = checkError;
     }
 
@@ -158,18 +132,13 @@ app.post('/send-verification', async (req, res) => {
     const info = await transporter.sendMail(mailOptions);
     console.log('OTP email sent successfully:', info.messageId);
     
-    res.json({ 
-      success: true, 
-      message: 'Verification code sent to your email', 
-      messageId: info.messageId 
-    });
+    res.json({ success: true, message: 'Verification code sent to your email', messageId: info.messageId });
   } catch (error) {
     console.error('Email sending error:', error);
     res.status(500).json({ error: 'Failed to send verification code', details: error.message });
   }
 });
 
-// Add endpoint to resend OTP
 app.post('/resend-otp', async (req, res) => {
   console.log('Received OTP resend request:', req.body);
   const { email, fullName, userId } = req.body;
@@ -182,10 +151,8 @@ app.post('/resend-otp', async (req, res) => {
   try {
     const otp = generateOTP();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); 
-    
     console.log('Generated new OTP:', otp, 'Expires at:', otpExpiresAt);
 
-    // Check if user exists, if not create it
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id')
@@ -195,30 +162,23 @@ app.post('/resend-otp', async (req, res) => {
     let updateError;
 
     if (checkError && checkError.code === 'PGRST116') {
-      // User doesn't exist, create it
       console.log('User profile does not exist. Creating new user record for resend.');
-      const { error: insertError } = await supabase
-        .from('users')
-        .insert({
-          id: userId,
-          email: email,
-          full_name: fullName,
-          verification_otp: otp,
-          otp_expires_at: otpExpiresAt.toISOString(),
-          is_verified: false,
-          created_at: new Date().toISOString()
-        });
+      const { error: insertError } = await supabase.from('users').insert({
+        id: userId,
+        email: email,
+        full_name: fullName,
+        verification_otp: otp,
+        otp_expires_at: otpExpiresAt.toISOString(),
+        is_verified: false,
+        created_at: new Date().toISOString()
+      });
       updateError = insertError;
     } else if (!checkError && existingUser) {
-      // User exists, update OTP
       console.log('User profile exists. Updating OTP for resend.');
-      const { error: uError } = await supabase
-        .from('users')
-        .update({
-          verification_otp: otp,
-          otp_expires_at: otpExpiresAt.toISOString()
-        })
-        .eq('id', userId);
+      const { error: uError } = await supabase.from('users').update({
+        verification_otp: otp,
+        otp_expires_at: otpExpiresAt.toISOString()
+      }).eq('id', userId);
       updateError = uError;
     } else {
       updateError = checkError;
@@ -247,18 +207,13 @@ app.post('/resend-otp', async (req, res) => {
     const info = await transporter.sendMail(mailOptions);
     console.log('New OTP email sent successfully:', info.messageId);
     
-    res.json({ 
-      success: true, 
-      message: 'New verification code sent to your email', 
-      messageId: info.messageId 
-    });
+    res.json({ success: true, message: 'New verification code sent to your email', messageId: info.messageId });
   } catch (error) {
     console.error('Resend OTP error:', error);
     res.status(500).json({ error: 'Failed to resend verification code', details: error.message });
   }
 });
 
-// Add endpoint to verify OTP
 app.post('/verify-otp', async (req, res) => {
   const { userId, otp } = req.body;
 
@@ -296,14 +251,11 @@ app.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ error: 'Verification code has expired' });
     }
 
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({
-        is_verified: true,
-        verification_otp: null,
-        otp_expires_at: null
-      })
-      .eq('id', userId);
+    const { error: updateError } = await supabase.from('users').update({
+      is_verified: true,
+      verification_otp: null,
+      otp_expires_at: null
+    }).eq('id', userId);
 
     if (updateError) {
       console.error('Failed to update user verification status:', updateError);
@@ -319,15 +271,19 @@ app.post('/verify-otp', async (req, res) => {
   }
 });
 
+// ==========================================
+// 5. SERVER UTILITY & DISCOVERY ROUTES
+// ==========================================
 app.get('/server-discovery', (req, res) => {
   const discoveryInfo = getServerDiscoveryUrls();
-  console.log('Server discovery request received from:', req.ip);
+  const serverUrl = `http://${LOCAL_IP}:${PORT}`;
+  console.log('[SERVER-DISCOVERY] Sending detected IP:', LOCAL_IP, 'URL:', serverUrl);
   
   res.json({
     success: true,
     serverInfo: {
       currentIP: LOCAL_IP,
-      currentUrl: `http://${LOCAL_IP}:${PORT}`,
+      currentUrl: serverUrl,
       port: PORT,
       timestamp: new Date().toISOString(),
       requestFrom: req.ip,
@@ -336,36 +292,31 @@ app.get('/server-discovery', (req, res) => {
   });
 });
 
-app.get('/test', (req, res) => {
-  console.log('Test request received from:', req.ip);
-  res.json({ 
-    message: 'Email server is working!', 
-    server: `${LOCAL_IP}:${PORT}`,
-    timestamp: new Date().toISOString()
-  });
-});
-
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'healthy', 
-    server: `${LOCAL_IP}:${PORT}`,
-    timestamp: new Date().toISOString()
+app.get('/network-info', (req, res) => {
+  res.json({
+    localIP: LOCAL_IP,
+    port: PORT,
+    serverUrl: `http://${LOCAL_IP}:${PORT}`,
+    timestamp: new Date().toISOString(),
   });
 });
 
 app.get('/server-info', (req, res) => {
-  res.json({ 
-    ip: LOCAL_IP, 
-    port: PORT,
-    emailServerUrl: `http://${LOCAL_IP}:${PORT}`
-  });
+  res.json({ ip: LOCAL_IP, port: PORT, emailServerUrl: `http://${LOCAL_IP}:${PORT}` });
 });
 
-const historyRoute = require('./PatientHistory/patientHistory');
-const upcomingTreatmentsRoute = require('./upcomingTreatments');
-app.use('/api/patient-history', historyRoute);
-app.use('/api/upcoming-treatments', upcomingTreatmentsRoute);
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', server: `${LOCAL_IP}:${PORT}`, timestamp: new Date().toISOString() });
+});
 
+app.get('/test', (req, res) => {
+  console.log('Test request received from:', req.ip);
+  res.json({ message: 'Email server is working!', server: `${LOCAL_IP}:${PORT}`, timestamp: new Date().toISOString() });
+});
+
+// ==========================================
+// 6. SERVER LISTENER
+// ==========================================
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Email server running on port ${PORT}`);
   console.log(`Server accessible at: http://${LOCAL_IP}:${PORT}`);
@@ -374,7 +325,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Health check: http://${LOCAL_IP}:${PORT}/health`);
   console.log(`Network interfaces detected:`);
   
-  const os = require('os');
   const interfaces = os.networkInterfaces();
   for (const interfaceName in interfaces) {
     const networkInterface = interfaces[interfaceName];
