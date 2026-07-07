@@ -7,6 +7,8 @@ const dentistCache = {
   scheduleByKey: new Map(),
   profile: null,
   patientHistory: null,
+  loadedAt: null,
+  avatarBlobCache: {},
 };
 
 const baseHeaders = () => ({
@@ -29,24 +31,95 @@ const fetchJson = async (path, options = {}) => {
   return data;
 };
 
+export const getDentistCache = () => ({ ...dentistCache });
+
 export const clearDentistCache = () => {
   dentistCache.dashboard = null;
   dentistCache.scheduleByKey = new Map();
   dentistCache.profile = null;
   dentistCache.patientHistory = null;
+  dentistCache.loadedAt = null;
+  dentistCache.avatarBlobCache = {};
+};
+
+export const buildDentistAvatarImageUrl = (avatarPath) => {
+  const cleanPath = String(avatarPath || "").trim();
+
+  if (!cleanPath) return "";
+  if (cleanPath.startsWith("blob:") || cleanPath.startsWith("data:") || cleanPath.startsWith("http")) {
+    return cleanPath;
+  }
+
+  return `${API_BASE_URL}/dentist/profile/image?path=${encodeURIComponent(cleanPath)}`;
+};
+
+export const loadDentistAvatarObjectUrl = async (avatarPath) => {
+  const imageUrl = buildDentistAvatarImageUrl(avatarPath);
+
+  if (!imageUrl) return "";
+  if (imageUrl.startsWith("blob:") || imageUrl.startsWith("data:")) return imageUrl;
+
+  // Check if blob is already cached (Identical to Admin)
+  if (dentistCache.avatarBlobCache[avatarPath]) {
+    return URL.createObjectURL(dentistCache.avatarBlobCache[avatarPath]);
+  }
+
+  const response = await fetch(imageUrl, {
+    method: "GET",
+    headers: baseHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to load dentist avatar");
+  }
+
+  const blob = await response.blob();
+  // Cache the blob data natively, not the URL
+  dentistCache.avatarBlobCache[avatarPath] = blob;
+  return URL.createObjectURL(blob);
 };
 
 export const preloadDentistData = async () => {
   try {
     const today = new Date().toISOString().split("T")[0];
-    await Promise.all([
-      getDentistDashboardSnapshot({ forceRefresh: true }),
-      getDentistProfile({ forceRefresh: true }),
-      getDentistPatientHistory({ forceRefresh: true }),
-      getDentistSchedule({ date: today, forceRefresh: true }),
+    const [profileResult, dashboardResult, historyResult, scheduleResult] = await Promise.all([
+      fetchJson("/dentist/profile/me", { method: "GET" }),
+      fetchJson("/dentist/dashboard/snapshot", { method: "GET" }),
+      fetchJson("/dentist/patients/history", { method: "GET" }),
+      fetchJson(`/dentist/schedule?date=${today}`, { method: "GET" }),
     ]);
 
-    return { success: true };
+    // PRELOAD FIX: Sync to localStorage exactly like adminService.js
+    if (profileResult?.success && profileResult.data) {
+      dentistCache.profile = profileResult.data;
+      
+      const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+      
+      // Cache details instantly to prevent UI flicker
+      if (profileResult.data.fullName) userData.fullName = profileResult.data.fullName;
+      if (profileResult.data.name) userData.name = profileResult.data.name;
+      if (profileResult.data.specialization) userData.specialty = profileResult.data.specialization;
+      
+      const dbPath = profileResult.data.avatarPath || profileResult.data.avatarUrl || profileResult.data.profile_photo_url || "";
+      if (dbPath) {
+        userData.avatarPath = dbPath;
+        userData.avatarUrl = dbPath;
+        userData.profile_photo_url = dbPath;
+      }
+      
+      localStorage.setItem("user_data", JSON.stringify(userData));
+    }
+
+    if (dashboardResult?.success) dentistCache.dashboard = dashboardResult.data;
+    if (historyResult?.success) dentistCache.patientHistory = historyResult.data;
+    if (scheduleResult?.success) dentistCache.scheduleByKey.set(`date=${today}`, scheduleResult.data);
+    
+    dentistCache.loadedAt = new Date().toISOString();
+
+    return {
+      success: true,
+      data: getDentistCache(),
+    };
   } catch {
     return { success: false, message: "Failed to preload dentist data" };
   }
@@ -122,11 +195,36 @@ export const updateDentistProfile = async (payload) => {
 
     if (data?.success) {
       dentistCache.profile = data.data;
+    } else {
+      dentistCache.profile = null;
     }
 
     return data;
   } catch {
+    console.error("Profile update error:", error);
+    dentistCache.profile = null;
     return { success: false, message: "Failed to update profile" };
+  }
+};
+
+export const uploadDentistProfileAvatar = async ({ avatarBase64, fileName }) => {
+  try {
+    const data = await fetchJson("/dentist/profile/avatar", {
+      method: "POST",
+      body: JSON.stringify({ avatarBase64, fileName }),
+    });
+
+    if (data?.success) {
+      dentistCache.profile = data.data;
+    } else {
+      dentistCache.profile = null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Avatar upload error:", error);
+    dentistCache.profile = null;
+    return { success: false, message: "Failed to upload profile image" };
   }
 };
 
@@ -190,7 +288,6 @@ export const createDentistProcedure = async (payload) => {
     });
 
     if (data?.success) {
-      // Invalidate dependent caches so timeline/dashboard refreshes with new procedure.
       dentistCache.patientHistory = null;
       dentistCache.dashboard = null;
     }

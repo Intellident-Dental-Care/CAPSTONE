@@ -1,8 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import NotificationPopup from "../notifications/NotificationPopup";
-// IMPORTANT: Make sure this path matches your actual file structure
-import { fetchUnreadDentistNotifications, markDentistNotificationsAsRead } from "../../../services/dentistService";
+import { 
+  fetchUnreadDentistNotifications, 
+  markDentistNotificationsAsRead,
+  uploadDentistProfileAvatar,
+  loadDentistAvatarObjectUrl
+} from "../../../services/dentistService";
+
+const topbarAvatarCache = {
+  path: "",
+  src: "",
+};
 
 function BellIcon() {
   return (
@@ -36,12 +45,14 @@ export default function Topbar({
   onToggleSidebar,
 }) {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
 
-  // NATIVE STATE MANAGEMENT (Mirroring the Admin side)
   const [notifications, setNotifications] = useState([]);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarSrc, setAvatarSrc] = useState(topbarAvatarCache.src);
+  const loadingRef = useRef(false);
 
-  // Time formatter
   const timeAgo = (dateString) => {
     if (!dateString) return "Just now";
     const seconds = Math.floor((new Date() - new Date(dateString)) / 1000);
@@ -53,39 +64,132 @@ export default function Topbar({
     return `${Math.floor(hours / 24)} days ago`;
   };
 
-  // Fetch logic
   const loadNotifications = async () => {
     try {
       const response = await fetchUnreadDentistNotifications();
       if (response && response.success && response.data) {
-        const formattedData = response.data.map(row => ({
+        const formattedData = response.data.map((row) => ({
           id: row.id,
           title: row.title,
           message: row.message,
-          time: row.created_at ? timeAgo(row.created_at) : "Just now"
+          time: row.created_at ? timeAgo(row.created_at) : "Just now",
         }));
         setNotifications(formattedData);
       }
     } catch (error) {
-      console.error("Error fetching notifications:", error);
     }
   };
 
-  // Mark read logic
   const handleMarkAllRead = async () => {
     const response = await markDentistNotificationsAsRead();
     if (response.success) {
       setNotifications([]);
-      setIsNotificationOpen(false); 
+      setIsNotificationOpen(false);
     }
   };
 
-  // Mount & Polling
   useEffect(() => {
     loadNotifications();
-    const interval = setInterval(loadNotifications, 30000); // 30 seconds
+    const interval = setInterval(loadNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const reloadAvatar = async () => {
+      const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+      const avatarPath = userData?.avatarPath || userData?.avatarUrl || userData?.profile_photo_url || "";
+
+      if (avatarPath === topbarAvatarCache.path && topbarAvatarCache.src) {
+        setAvatarSrc(topbarAvatarCache.src);
+        return;
+      }
+
+      if (!avatarPath) {
+        topbarAvatarCache.path = "";
+        topbarAvatarCache.src = "";
+        setAvatarSrc("");
+        return;
+      }
+
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+
+      try {
+        const resolved = await loadDentistAvatarObjectUrl(avatarPath);
+        topbarAvatarCache.path = avatarPath;
+        topbarAvatarCache.src = resolved || "";
+        setAvatarSrc(resolved || "");
+      } catch {
+        setAvatarSrc("");
+      } finally {
+        loadingRef.current = false;
+      }
+    };
+
+    reloadAvatar();
+
+    const handleAvatarUpdated = () => {
+      const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+      const newAvatarPath = userData?.avatarPath || userData?.avatarUrl || userData?.profile_photo_url || "";
+      
+      if (newAvatarPath && topbarAvatarCache.path !== newAvatarPath) {
+        reloadAvatar();
+      }
+    };
+
+    window.addEventListener("auth:user-updated", handleAvatarUpdated);
+    window.addEventListener("storage", handleAvatarUpdated);
+
+    return () => {
+      window.removeEventListener("auth:user-updated", handleAvatarUpdated);
+      window.removeEventListener("storage", handleAvatarUpdated);
+    };
+  }, []);
+
+  const handleAvatarClick = () => {
+    navigate("/dentist/profile");
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    setUploadingAvatar(true);
+
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("Failed to read image file"));
+        reader.readAsDataURL(file);
+      });
+
+      const result = await uploadDentistProfileAvatar({
+        avatarBase64: base64,
+        fileName: file.name,
+      });
+
+      if (!result?.success) {
+        alert(result?.message || "Failed to upload avatar.");
+        return;
+      }
+
+      const newAvatarPath = result.data.avatarUrl || result.data.avatarPath || "";
+      
+      const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+      userData.avatarPath = newAvatarPath;
+      userData.avatarUrl = newAvatarPath;
+      localStorage.setItem("user_data", JSON.stringify(userData));
+
+      window.dispatchEvent(new CustomEvent("auth:user-updated", { detail: userData }));
+      
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   return (
     <header className="admin-topbar dentist-topbar">
@@ -132,11 +236,25 @@ export default function Topbar({
         <button
           type="button"
           className="top-profile-btn"
-          onClick={() => navigate("/dentist/profile")}
-          aria-label="Go to profile"
+          onClick={handleAvatarClick}
+          disabled={uploadingAvatar}
+          aria-label="Go to profile and upload picture"
+          style={{ position: "relative", opacity: uploadingAvatar ? 0.5 : 1 }}
         >
-          <img src={profileImage} alt="Profile" className="top-avatar" />
+          <img 
+            src={avatarSrc || profileImage || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&q=80"} 
+            alt="Profile" 
+            className="top-avatar" 
+          />
         </button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={handleAvatarChange}
+        />
       </div>
     </header>
   );

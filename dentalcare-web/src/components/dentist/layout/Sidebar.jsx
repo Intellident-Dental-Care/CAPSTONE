@@ -1,42 +1,109 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import logo from "../../../assets/logo.png";
 import doctorProfile from "../../../assets/profile_sample.jpg";
 import AuthService from "../../../services/authService";
-import { getDentistProfile } from "../../../services/dentistService";
+import { getDentistProfile, loadDentistAvatarObjectUrl } from "../../../services/dentistService";
+
+const sidebarAvatarCache = {
+  path: "",
+  src: "",
+};
 
 export default function Sidebar({ isOpen = false, onClose }) {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [displayName, setDisplayName] = useState("Dentist");
-  const [displaySpecialty, setDisplaySpecialty] = useState("General Dentistry");
+  
+  const [currentUser, setCurrentUser] = useState(() => AuthService.getCurrentUser() || {});
+  const [avatarSrc, setAvatarSrc] = useState(sidebarAvatarCache.src);
+  const loadingRef = useRef(false);
 
   useEffect(() => {
-    const localUser = AuthService.getCurrentUser();
+    const syncFromStorage = () => {
+      setCurrentUser(AuthService.getCurrentUser() || {});
+    };
 
-    if (localUser?.fullName || localUser?.name) {
-      setDisplayName(localUser.fullName || localUser.name);
-      setDisplaySpecialty(
-        localUser.specialty || localUser.specialization || "General Dentistry"
-      );
-    }
+    const handleUserUpdated = (event) => {
+      if (event?.detail && typeof event.detail === "object") {
+        setCurrentUser((prev) => ({ ...prev, ...event.detail }));
+        return;
+      }
+      syncFromStorage();
+    };
 
-    let mounted = true;
+    window.addEventListener("storage", syncFromStorage);
+    window.addEventListener("auth:user-updated", handleUserUpdated);
 
-    getDentistProfile()
-      .then((result) => {
-        if (!mounted || !result?.success || !result?.data) return;
-        setDisplayName(result.data.fullName || localUser?.fullName || "Dentist");
-        setDisplaySpecialty(
-          result.data.specialization ||
-            localUser?.specialty ||
-            "General Dentistry"
-        );
-      })
-      .catch(() => {});
+    getDentistProfile().then((result) => {
+      if (result?.success && result?.data) {
+        const localUser = AuthService.getCurrentUser() || {};
+        const updatedUser = { ...localUser, ...result.data };
+
+        if (result.data.profile_photo_url) {
+          updatedUser.avatarPath = result.data.profile_photo_url;
+          updatedUser.avatarUrl = result.data.profile_photo_url;
+        }
+
+        localStorage.setItem("user_data", JSON.stringify(updatedUser));
+        window.dispatchEvent(new CustomEvent("auth:user-updated", { detail: updatedUser }));
+      }
+    }).catch(() => {});
 
     return () => {
-      mounted = false;
+      window.removeEventListener("storage", syncFromStorage);
+      window.removeEventListener("auth:user-updated", handleUserUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    const reloadAvatar = async () => {
+      const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+      const avatarPath = userData?.avatarPath || userData?.avatarUrl || userData?.profile_photo_url || "";
+
+      if (avatarPath === sidebarAvatarCache.path && sidebarAvatarCache.src) {
+        setAvatarSrc(sidebarAvatarCache.src);
+        return;
+      }
+
+      if (!avatarPath) {
+        sidebarAvatarCache.path = "";
+        sidebarAvatarCache.src = "";
+        setAvatarSrc("");
+        return;
+      }
+
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+
+      try {
+        const resolved = await loadDentistAvatarObjectUrl(avatarPath);
+        sidebarAvatarCache.path = avatarPath;
+        sidebarAvatarCache.src = resolved || "";
+        setAvatarSrc(resolved || "");
+      } catch {
+        setAvatarSrc("");
+      } finally {
+        loadingRef.current = false;
+      }
+    };
+
+    reloadAvatar();
+
+    const handleAvatarUpdated = () => {
+      const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+      const newAvatarPath = userData?.avatarPath || userData?.avatarUrl || userData?.profile_photo_url || "";
+      
+      if (newAvatarPath && sidebarAvatarCache.path !== newAvatarPath) {
+        reloadAvatar();
+      }
+    };
+
+    window.addEventListener("auth:user-updated", handleAvatarUpdated);
+    window.addEventListener("storage", handleAvatarUpdated);
+
+    return () => {
+      window.removeEventListener("auth:user-updated", handleAvatarUpdated);
+      window.removeEventListener("storage", handleAvatarUpdated);
     };
   }, []);
 
@@ -45,6 +112,9 @@ export default function Sidebar({ isOpen = false, onClose }) {
     AuthService.clearAuth();
     navigate("/login");
   };
+
+  const displayName = currentUser?.fullName || currentUser?.name || "Dentist";
+  const displaySpecialty = currentUser?.specialty || currentUser?.specialization || "General Dentistry";
 
   return (
     <>
@@ -65,7 +135,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
             </div>
 
             <div className="profile-card">
-              <img src={doctorProfile} alt="Dentist" />
+              <img src={avatarSrc || doctorProfile} alt="Dentist" />
               <h3>{displayName}</h3>
               <p>{displaySpecialty}</p>
             </div>

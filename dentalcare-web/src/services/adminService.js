@@ -10,7 +10,7 @@ const adminCache = {
   queue: null,
   dashboard: null,
   loadedAt: null,
-  avatarBlobCache: {}, // Cache for avatar blobs by path
+  avatarBlobCache: {},
 };
 
 const baseHeaders = () => ({

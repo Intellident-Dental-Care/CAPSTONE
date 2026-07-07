@@ -20,11 +20,75 @@ const formatTime = (timeValue) => {
   return `${hour12}:${String(m).padStart(2, "0")} ${suffix}`;
 };
 
+const DENTIST_AVATAR_BUCKET = "profile-uploads";
+const getAvatarStoragePath = (dentistId) => `dentist_${String(dentistId || "").trim()}/profile_main`;
+const sanitizeFileName = (value) => String(value || "avatar.jpg").replace(/[^a-zA-Z0-9._-]/g, "_");
+
+const uploadBase64ToSupabase = async (bucket, path, base64Str) => {
+  const matches = String(base64Str || "").match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+  if (!matches || matches.length !== 3) return null;
+
+  const contentType = matches[1];
+  const buffer = Buffer.from(matches[2], "base64");
+
+  const { error } = await supabaseAdmin.storage
+    .from(bucket)
+    .upload(path, buffer, {
+      contentType,
+      upsert: true,
+    });
+
+  if (error) {
+    console.error("Dentist avatar upload error:", error);
+    throw error;
+  }
+
+  return path;
+};
+
+export const updateDentistAvatarById = async (dentistId, payload = {}) => {
+  const avatarBase64 = String(payload.avatarBase64 || "").trim();
+  const fileName = sanitizeFileName(payload.fileName || "avatar.jpg");
+
+  if (!avatarBase64) {
+    return { success: false, statusCode: 400, message: "Image data is required" };
+  }
+
+  const avatarPath = `${getAvatarStoragePath(dentistId)}/avatar_${Date.now()}_${fileName}`;
+  const storedPath = await uploadBase64ToSupabase(DENTIST_AVATAR_BUCKET, avatarPath, avatarBase64);
+
+  if (!storedPath) {
+    return { success: false, statusCode: 400, message: "Invalid image data" };
+  }
+
+  const { error: dbUpdateError } = await supabaseAdmin
+    .from("dentist_list")
+    .update({ 
+      profile_photo_url: storedPath,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", dentistId);
+
+  if (dbUpdateError) {
+    console.error("Failed to persist avatar URL string to dentist_list:", dbUpdateError);
+    return { success: false, statusCode: 500, message: "Avatar uploaded but failed to save reference link." };
+  }
+
+  return {
+    success: true,
+    statusCode: 200,
+    data: {
+      avatarUrl: storedPath,
+      avatarPath: storedPath,
+    },
+  };
+};
+
 export const getDentistProfileDetails = async (dentistProfileId) => {
   const [profileResult, scheduleResult] = await Promise.all([
     supabaseAdmin
       .from("dentist_list")
-      .select("id, name, email, phone_number, specialization, license_number, birthdate, about, experience_years")
+      .select("id, name, email, phone_number, specialization, birthdate, about, experience_years, profile_photo_url")
       .eq("id", dentistProfileId)
       .single(),
     supabaseAdmin
@@ -58,10 +122,11 @@ export const getDentistProfileDetails = async (dentistProfileId) => {
       email: profileResult.data.email || "",
       phone: profileResult.data.phone_number || "",
       specialization: profileResult.data.specialization || "",
-      licenseNumber: profileResult.data.license_number || "",
       birthdate: profileResult.data.birthdate || "",
       about: profileResult.data.about || "",
       experience_years: profileResult.data.experience_years || "",
+      avatarUrl: profileResult.data.profile_photo_url || "",
+      avatarPath: profileResult.data.profile_photo_url || "",
       schedules,
       notifications: [],
     },
