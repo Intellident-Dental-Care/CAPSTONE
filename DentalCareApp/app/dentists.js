@@ -18,6 +18,7 @@ import { colors } from "./theme/colors";
 import { supabase } from "../server/supabaseService";
 import { getSession, getActiveProfileByEmail } from "./_storage/authStorage";
 import { profileIndexCache } from "./_storage/profileCache";
+import DentistAvatar from "./services/DentistPicture/pictureHandler";
 
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -146,11 +147,13 @@ function DentistCard({ item, liked, onToggleLike, onBook }) {
   return (
     <View style={styles.card}>
       <View style={styles.photo}>
-        {item.photo ? (
-          <Image source={item.photo} style={styles.photoImg} />
-        ) : (
-          <Ionicons name="person" size={34} color={colors.primary} />
-        )}
+        <Ionicons name="person" size={34} color={colors.primary} />
+        <DentistAvatar 
+          dentistId={item.dentistId} 
+          style={[StyleSheet.absoluteFill, { borderRadius: 18 }]} 
+          iconSize={1} 
+          fallbackColor="transparent" 
+        />
       </View>
 
       <View style={styles.info}>

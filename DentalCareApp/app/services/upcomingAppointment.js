@@ -155,6 +155,7 @@ export const fetchUpcomingAppointment = async (profileId, options = {}) => {
       // Format the appointment data
       const formattedAppointment = {
         id: appointment.id,
+        dentistId: appointment.dentist_id,
         doctorName: appointment.dentist_list.name,
         specialization: appointment.dentist_list.specialization,
         branch: appointment.branch,

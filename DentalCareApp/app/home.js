@@ -43,6 +43,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import ProfileSwitcherModal from "./components/ProfileSwitcherModal";
 import { fetchUpcomingTreatments } from "./services/upcomingTreatments";
 import { fetchPatientHistory } from "./services/patientHistory";
+import DentistAvatar from "./services/DentistPicture/pictureHandler";
 
 function isUuid(value) {
   if (!value) return false;
@@ -596,7 +597,12 @@ export default function Home() {
             <View style={styles.upcomingCard}>
               <View style={styles.upTopRow}>
                 <View style={styles.docAvatar}>
-                  <Ionicons name="person" size={22} color={colors.primary} />
+                  <DentistAvatar 
+                    dentistId={upcomingAppointment?.dentistId} 
+                    style={{ width: 34, height: 34, borderRadius: 17 }} 
+                    iconSize={22} 
+                    fallbackColor={colors.primary} 
+                  />
                 </View>
 
                 <View style={{ flex: 1 }}>
@@ -648,6 +654,7 @@ export default function Home() {
                   title={visit.doctor}
                   clinic={`${visit.doctor} • Dentist`}
                   service={visit.title}
+                  dentistId={visit.dentist_id || visit.dentistId}
                   onBookNow={openFlowModal}
                   onDetails={() => openDetailModal(visit)}
                 />
@@ -664,7 +671,7 @@ export default function Home() {
               />
             </View>
           )}
-             
+              
 
           <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
             Treatment Plan
@@ -1002,12 +1009,17 @@ function QuickBtn({ icon, label, onPress }) {
   );
 }
 
-function RecentCard({ title, clinic, service, onBookNow, onDetails }) {
+function RecentCard({ title, clinic, service, dentistId, onBookNow, onDetails }) {
   return (
     <View style={styles.recentCard}>
       <View style={styles.recentTop}>
         <View style={styles.recentAvatar}>
-          <Ionicons name="person" size={20} color={colors.primary} />
+          <DentistAvatar 
+            dentistId={dentistId} 
+            style={{ width: 34, height: 34, borderRadius: 17 }} 
+            iconSize={20} 
+            fallbackColor={colors.primary} 
+          />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.recentTitle}>{String(service || "")}</Text>
