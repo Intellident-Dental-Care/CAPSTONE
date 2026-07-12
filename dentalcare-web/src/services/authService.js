@@ -1,11 +1,11 @@
-const RAW_API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
+const RAW_API_BASE_URL = import.meta.env.VITE_API_URL || "https://capstone-9yhx.onrender.com/api";
 const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, "");
 
 const getApiOrigin = () => {
   try {
     return new URL(API_BASE_URL).origin;
   } catch {
-    return "http://localhost:5001";
+    return "https://capstone-9yhx.onrender.com";
   }
 };
 
@@ -31,8 +31,8 @@ const buildAuthEndpointCandidates = (authPath) => {
   }
 
   if (apiOrigin.includes("127.0.0.1")) {
-    candidates.push(`http://localhost:5001/api/auth${normalized}`);
-    candidates.push(`http://localhost:5001/auth${normalized}`);
+    candidates.push(`https://capstone-9yhx.onrender.com/api/auth${normalized}`);
+    candidates.push(`https://capstone-9yhx.onrender.com/auth${normalized}`);
   }
 
   return [...new Set(candidates)];
@@ -62,10 +62,10 @@ const buildOtpPublicEndpointCandidates = () => {
 
   if (apiOrigin.includes("127.0.0.1")) {
     candidates.push(
-      "http://localhost:5001/api/auth/send-verification-public",
-      "http://localhost:5001/api/auth/resend-otp",
-      "http://localhost:5001/send-verification",
-      "http://localhost:5001/resend-otp"
+      "https://capstone-9yhx.onrender.com/api/auth/send-verification-public",
+      "https://capstone-9yhx.onrender.com/api/auth/resend-otp",
+      "https://capstone-9yhx.onrender.com/send-verification",
+      "https://capstone-9yhx.onrender.com/resend-otp"
     );
   }
 
@@ -84,7 +84,7 @@ const buildVerifyOtpPublicEndpointCandidates = () => {
   }
 
   if (apiOrigin.includes("127.0.0.1")) {
-    candidates.push("http://localhost:5001/api/auth/verify-otp-public", "http://localhost:5001/verify-otp-public");
+    candidates.push("https://capstone-9yhx.onrender.com/api/auth/verify-otp-public", "https://capstone-9yhx.onrender.com/verify-otp-public");
   }
 
   return [...new Set(candidates)];
@@ -102,7 +102,7 @@ const buildVerifyOtpProtectedEndpointCandidates = () => {
   }
 
   if (apiOrigin.includes("127.0.0.1")) {
-    candidates.push("http://localhost:5001/api/auth/verify-otp", "http://localhost:5001/verify-otp");
+    candidates.push("https://capstone-9yhx.onrender.com/api/auth/verify-otp", "https://capstone-9yhx.onrender.com/verify-otp");
   }
 
   return [...new Set(candidates)];

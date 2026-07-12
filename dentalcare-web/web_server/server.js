@@ -34,7 +34,7 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 dotenv.config({ path: path.resolve(process.cwd(), "../.env"), override: false });
 
 const app = express();
-const PORT = Number(process.env.EMAIL_SERVER_PORT || 5001);
+const PORT = Number(process.env.PORT || process.env.EMAIL_SERVER_PORT || 5001);
 const LOCAL_IP = getLocalIpAddress();
 
 app.use(cors({ origin: "*", credentials: true }));
@@ -45,11 +45,13 @@ app.get("/health", (_req, res) => {
 });
 
 app.get("/server-discovery", (_req, res) => {
+  const currentUrl = process.env.RENDER_EXTERNAL_URL || `http://${LOCAL_IP}:${PORT}`;
+
   res.status(200).json({
     success: true,
     serverInfo: {
       currentIP: LOCAL_IP,
-      currentUrl: `http://${LOCAL_IP}:${PORT}`,
+      currentUrl: currentUrl,
       urls: getServerDiscoveryUrls(PORT).urls,
     },
   });
