@@ -7,7 +7,7 @@ const { getLocalIpAddress, getServerDiscoveryUrls } = require('./getServerUrl');
 const os = require('os');
 
 const app = express();
-const PORT = process.env.EMAIL_SERVER_PORT || 5001;
+const PORT = process.env.PORT || process.env.EMAIL_SERVER_PORT || 5001;
 
 // ==========================================
 // 1. INITIALIZATION & MIDDLEWARE
@@ -30,15 +30,15 @@ const timelineRoute = require('./HistoryModel/3DTimeline');
 
 app.use('/api/3d-timeline', timelineRoute);
 
-// ==========================================
-// 3. EMAIL TRANSPORTER SETUP
-// ==========================================
+// EMAIL TRANSPORTER SETUP
+
 console.log('Email server starting...');
 console.log('EMAIL_USER configured:', !!process.env.EMAIL_USER);
 console.log('EMAIL_PASS configured:', !!process.env.EMAIL_PASS);
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp-relay.brevo.com',
+  port: 2525,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
