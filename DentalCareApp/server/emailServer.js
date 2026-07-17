@@ -111,7 +111,7 @@ app.post('/send-verification', async (req, res) => {
     }
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: 'dentalcareapplication@gmail.com',
       to: email,
       subject: 'Your Verification Code - Dental Care App',
       html: `
@@ -186,7 +186,7 @@ app.post('/resend-otp', async (req, res) => {
     }
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: 'dentalcareapplication@gmail.com',
       to: email,
       subject: 'Your New Verification Code - Dental Care App',
       html: `
@@ -334,7 +334,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Email server ready to receive requests!`);
   console.log(`If client can't find server, try: http://${LOCAL_IP}:${PORT}/test in browser`);
 });
-
 
 // Handle unexpected crashes so the port doesn't hang
 process.on('uncaughtException', (err) => {
