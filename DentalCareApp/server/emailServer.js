@@ -109,8 +109,10 @@ app.post('/send-verification', async (req, res) => {
     
     res.json({ success: true, message: 'Verification code sent to your email' });
   } catch (error) {
-    console.error('Email sending error:', error);
-    res.status(500).json({ error: 'Failed to send verification code', details: error.message });
+    // UPDATED ERROR LOGGING
+    const errorDetails = error.text || error.message || JSON.stringify(error) || 'Unknown EmailJS Error';
+    console.error('Email sending error:', errorDetails);
+    res.status(500).json({ error: 'Failed to send verification code', details: errorDetails });
   }
 });
 
@@ -184,8 +186,10 @@ app.post('/resend-otp', async (req, res) => {
     
     res.json({ success: true, message: 'New verification code sent to your email' });
   } catch (error) {
-    console.error('Resend OTP error:', error);
-    res.status(500).json({ error: 'Failed to resend verification code', details: error.message });
+    // UPDATED ERROR LOGGING
+    const errorDetails = error.text || error.message || JSON.stringify(error) || 'Unknown EmailJS Error';
+    console.error('Resend OTP error:', errorDetails);
+    res.status(500).json({ error: 'Failed to resend verification code', details: errorDetails });
   }
 });
 
