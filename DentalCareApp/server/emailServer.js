@@ -1,6 +1,6 @@
 require('dotenv').config({ path: '../.env' });
 const express = require('express');
-const nodemailer = require('nodemailer');
+const emailjs = require('@emailjs/nodejs');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const { getLocalIpAddress, getServerDiscoveryUrls } = require('./getServerUrl');
@@ -30,28 +30,7 @@ const timelineRoute = require('./HistoryModel/3DTimeline');
 
 app.use('/api/3d-timeline', timelineRoute);
 
-// EMAIL TRANSPORTER SETUP
-
-console.log('Email server starting...');
-console.log('EMAIL_USER configured:', !!process.env.EMAIL_USER);
-console.log('EMAIL_PASS configured:', !!process.env.EMAIL_PASS);
-
-const transporter = nodemailer.createTransport({
-  host: 'smtp-relay.brevo.com',
-  port: 2525,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-transporter.verify((error, success) => {
-  if (error) {
-    console.log('Email transporter verification failed:', error);
-  } else {
-    console.log('Email transporter is ready to send emails');
-  }
-});
+console.log('Email server starting with EmailJS...');
 
 // ==========================================
 // 4. OTP & VERIFICATION ROUTES
@@ -110,25 +89,25 @@ app.post('/send-verification', async (req, res) => {
       return res.status(500).json({ error: 'Failed to store verification code', details: upsertError.message });
     }
 
-    const mailOptions = {
-      from: 'dentalcareapplication@gmail.com',
-      to: email,
-      subject: 'Your Verification Code - Dental Care App',
-      html: `
-        <h2>Welcome ${fullName}!</h2>
-        <p>Your email verification code is:</p>
-        <h1 style="font-size: 32px; color: #e91e63; text-align: center; letter-spacing: 5px; margin: 20px 0;">${otp}</h1>
-        <p><strong>This code will expire in 10 minutes.</strong></p>
-        <p>Enter this code in the app to verify your email address.</p>
-        <p>If you didn't create this account, please ignore this email.</p>
-      `,
+    const templateParams = {
+      to_email: email,
+      fullName: fullName,
+      otp: otp
     };
 
     console.log('Sending OTP email to:', email);
-    const info = await transporter.sendMail(mailOptions);
-    console.log('OTP email sent successfully:', info.messageId);
+    const info = await emailjs.send(
+      process.env.EMAILJS_SERVICE_ID,
+      process.env.EMAILJS_TEMPLATE_ID,
+      templateParams,
+      {
+        publicKey: process.env.EMAILJS_PUBLIC_KEY,
+        privateKey: process.env.EMAILJS_PRIVATE_KEY,
+      }
+    );
+    console.log('OTP email sent successfully');
     
-    res.json({ success: true, message: 'Verification code sent to your email', messageId: info.messageId });
+    res.json({ success: true, message: 'Verification code sent to your email' });
   } catch (error) {
     console.error('Email sending error:', error);
     res.status(500).json({ error: 'Failed to send verification code', details: error.message });
@@ -185,25 +164,25 @@ app.post('/resend-otp', async (req, res) => {
       return res.status(500).json({ error: 'Failed to update verification code', details: updateError.message });
     }
 
-    const mailOptions = {
-      from: 'dentalcareapplication@gmail.com',
-      to: email,
-      subject: 'Your New Verification Code - Dental Care App',
-      html: `
-        <h2>Hello ${fullName}!</h2>
-        <p>Your new email verification code is:</p>
-        <h1 style="font-size: 32px; color: #e91e63; text-align: center; letter-spacing: 5px; margin: 20px 0;">${otp}</h1>
-        <p><strong>This code will expire in 10 minutes.</strong></p>
-        <p>Enter this code in the app to verify your email address.</p>
-        <p>If you didn't request this code, please ignore this email.</p>
-      `,
+    const templateParams = {
+      to_email: email,
+      fullName: fullName,
+      otp: otp
     };
 
     console.log('Sending new OTP email to:', email);
-    const info = await transporter.sendMail(mailOptions);
-    console.log('New OTP email sent successfully:', info.messageId);
+    const info = await emailjs.send(
+      process.env.EMAILJS_SERVICE_ID,
+      process.env.EMAILJS_TEMPLATE_ID,
+      templateParams,
+      {
+        publicKey: process.env.EMAILJS_PUBLIC_KEY,
+        privateKey: process.env.EMAILJS_PRIVATE_KEY,
+      }
+    );
+    console.log('New OTP email sent successfully');
     
-    res.json({ success: true, message: 'New verification code sent to your email', messageId: info.messageId });
+    res.json({ success: true, message: 'New verification code sent to your email' });
   } catch (error) {
     console.error('Resend OTP error:', error);
     res.status(500).json({ error: 'Failed to resend verification code', details: error.message });
