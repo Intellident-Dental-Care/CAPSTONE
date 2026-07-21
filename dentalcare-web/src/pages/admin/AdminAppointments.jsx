@@ -319,7 +319,7 @@ export default function AdminAppointments() {
   const summary = useMemo(() => {
     return {
       total: filteredAppointments.length,
-      waiting: filteredAppointments.filter((a) => a.status === "Waiting").length,
+      pending: filteredAppointments.filter((a) => a.status === "Pending").length,
       queue: filteredAppointments.filter((a) => a.status === "In Queue" || a.status === "In Treatment").length,
       completed: filteredAppointments.filter((a) => a.status === "Completed").length,
       cancelled: filteredAppointments.filter((a) => a.status === "Cancelled").length,
@@ -560,7 +560,7 @@ export default function AdminAppointments() {
       date: createResult?.data?.appointmentDate || today,
       time: createResult?.data?.appointmentTimeLabel || (walkInForm.time === "Now" ? getCurrentTimeLabel() : walkInForm.time),
       type: "Walk-in",
-      status: "Waiting",
+      status: "Pending",
       notes: walkInForm.notes || "Walk-in appointment added by admin.",
     };
 
@@ -638,8 +638,8 @@ export default function AdminAppointments() {
               <h3>{summary.total}</h3>
             </div>
             <div className="summary-card">
-              <span>Waiting</span>
-              <h3>{summary.waiting}</h3>
+              <span>Pending</span>
+              <h3>{summary.pending}</h3>
             </div>
             <div className="summary-card">
               <span>In Queue</span>
@@ -671,7 +671,7 @@ export default function AdminAppointments() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <option value="All">All Status</option>
-                <option value="Waiting">Waiting</option>
+                <option value="Pending">Pending</option>
                 <option value="In Queue">In Queue</option>
                 <option value="In Treatment">In Treatment</option>
                 <option value="Completed">Completed</option>

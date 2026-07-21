@@ -34,7 +34,7 @@ const currentMinutesOfDay = () => {
 
 const computeWaitMetrics = (bookings, totalDelayMinutes) => {
   const waiting = (bookings || []).filter(
-    (item) => item.rawStatus === "pending" || item.status === "Waiting"
+    (item) => item.rawStatus === "confirmed" || item.status === "In Queue"
   );
 
   if (!waiting.length) {
@@ -312,7 +312,6 @@ export const applyQueueDelay = async (adminProfileId, payload = {}) => {
   const effectiveDate = queueResult.data.date;
   const affectedBookings = (queueResult.data.bookings || []).filter(
     (booking) =>
-      booking.status === "Waiting" ||
       booking.status === "In Queue" ||
       booking.status === "In Treatment"
   );

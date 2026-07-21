@@ -1,8 +1,9 @@
 import { supabaseAdmin } from "../../shared/supabaseClient.js";
 
 const STATUS_MAP = {
-  pending: "In Queue",
-  waiting: "In Queue",
+  pending: "Pending",
+  waiting: "Pending",
+  confirmed: "In Queue",
   in_queue: "In Queue",
   in_treatment: "In Treatment",
   inqueue: "In Queue",
