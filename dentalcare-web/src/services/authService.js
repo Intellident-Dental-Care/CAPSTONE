@@ -150,30 +150,18 @@ class AuthService {
     }
   }
 
-  /**
-   * Retrieve token from localStorage
-   */
   static getToken() {
     return localStorage.getItem('auth_token');
   }
 
-  /**
-   * Retrieve user role from localStorage
-   */
   static getRole() {
     return localStorage.getItem('auth_role');
   }
 
-  /**
-   * Check if user is authenticated
-   */
   static isAuthenticated() {
     return !!this.getToken();
   }
 
-  /**
-   * Clear authentication data from localStorage
-   */
   static clearAuth() {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_role');
@@ -189,9 +177,6 @@ class AuthService {
     localStorage.removeItem('pending_profile');
   }
 
-  /**
-   * Get Authorization header
-   */
   static getAuthHeader() {
     const token = this.getToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
@@ -207,14 +192,6 @@ class AuthService {
     return parseJwtPayload(verificationToken);
   }
 
-  // ==================== DENTIST LOGIN ====================
-
-  /**
-   * Login dentist with email and password
-   * @param {string} email - Dentist email
-   * @param {string} password - Password
-   * @returns {Promise<object>} - Login response
-   */
   static async dentistLogin(email, password) {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/dentist/login`, {
@@ -251,10 +228,6 @@ class AuthService {
     }
   }
 
-  /**
-   * Get dentist profile
-   * @returns {Promise<object>} - Profile data
-   */
   static async getDentistProfile() {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/dentist/profile`, {
@@ -277,10 +250,6 @@ class AuthService {
     }
   }
 
-  /**
-   * Verify dentist token
-   * @returns {Promise<object>} - Verification response
-   */
   static async verifyDentistToken() {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/dentist/verify`, {
@@ -302,14 +271,6 @@ class AuthService {
     }
   }
 
-  // ==================== ADMIN LOGIN ====================
-
-  /**
-   * Login admin with email and password
-   * @param {string} email - Admin email
-   * @param {string} password - Password
-   * @returns {Promise<object>} - Login response
-   */
   static async adminLogin(email, password) {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/admin/login`, {
@@ -346,10 +307,6 @@ class AuthService {
     }
   }
 
-  /**
-   * Get admin profile
-   * @returns {Promise<object>} - Profile data
-   */
   static async getAdminProfile() {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/admin/profile`, {
@@ -372,10 +329,6 @@ class AuthService {
     }
   }
 
-  /**
-   * Verify admin token
-   * @returns {Promise<object>} - Verification response
-   */
   static async verifyAdminToken() {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/admin/verify`, {
@@ -397,11 +350,6 @@ class AuthService {
     }
   }
 
-  /**
-   * Check if admin has specific permission
-   * @param {string} permission - Permission to check
-   * @returns {Promise<boolean>} - True if has permission
-   */
   static async checkAdminPermission(permission) {
     try {
       const response = await fetch(
@@ -423,12 +371,6 @@ class AuthService {
     }
   }
 
-  // ==================== GENERAL AUTH ====================
-
-  /**
-   * Logout user
-   * @returns {Promise<object>} - Logout response
-   */
   static async logout() {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/logout`, {
