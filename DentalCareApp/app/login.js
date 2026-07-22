@@ -10,7 +10,7 @@ import {
   Animated,
   Dimensions,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
 import AuthAlert from "./components/authAlert";
@@ -25,6 +25,7 @@ const isSmallPhone = H < 760;
 
 export default function Login() {
   const router = useRouter();
+  const params = useLocalSearchParams();
 
   const [showPass, setShowPass] = useState(false);
   const [remember, setRemember] = useState(false);
@@ -32,6 +33,8 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [successMessage, setSuccessMessage] = useState("");
 
   const translateY = useRef(new Animated.Value(H)).current;
   const backdrop = useRef(new Animated.Value(0)).current;
@@ -63,6 +66,18 @@ export default function Login() {
       Animated.spring(logoAnim, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 140 }),
     ]).start();
   }, []);
+
+  useEffect(() => {
+    if (params.passwordChanged === "true") {
+      setSuccessMessage("Your password has been changed successfully.");
+
+      const timer = setTimeout(() => {
+        setSuccessMessage("");
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [params.passwordChanged]);
 
   const logoStyle = useMemo(() => {
     const scale = logoAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.72] });
@@ -273,6 +288,16 @@ export default function Login() {
                 </Pressable>
               </View>
 
+              {!!successMessage && (
+                <View style={styles.successAlert}>
+                  <Feather name="check-circle" size={17} color="#2E9B61" />
+
+                  <Text style={styles.successAlertText}>
+                    {successMessage}
+                  </Text>
+                </View>
+              )}
+
               <AuthAlert message={error} />
 
               <View style={styles.rowBetween}>
@@ -281,7 +306,10 @@ export default function Login() {
                   <Text style={styles.smallPink}>Remember me</Text>
                 </Pressable>
 
-                <Pressable onPress={() => {}}>
+                <Pressable
+                  onPress={() => switchTo("/forgot-password")}
+                  disabled={loading}
+                >
                   <Text style={styles.smallPink}>Forgot Password?</Text>
                 </Pressable>
               </View>
@@ -490,5 +518,27 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 11,
     fontWeight: "900",
+  },
+
+  successAlert: {
+    marginTop: 12,
+    minHeight: 42,
+    borderRadius: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    backgroundColor: "#ECFFF4",
+    borderWidth: 1,
+    borderColor: "#BDE9CE",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+  },
+
+  successAlertText: {
+    flex: 1,
+    color: "#2E7D50",
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "700",
   },
 });
