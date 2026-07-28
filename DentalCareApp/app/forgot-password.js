@@ -9,11 +9,13 @@ import {
   Platform,
   ScrollView,
   Dimensions,
-  Image
+  Image,
+  ActivityIndicator
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { colors } from "./theme/colors";
+import { getServerUrl } from "../server/getClientSideUrl";
 
 const { height: H } = Dimensions.get("window");
 const isSmallPhone = H < 760;
@@ -21,8 +23,8 @@ const isSmallPhone = H < 760;
 const ForgotPassword = () => {
   const router = useRouter();
 
-  // email | otp | password
   const [currentStep, setCurrentStep] = useState("email");
+  const [isLoading, setIsLoading] = useState(false);
 
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
@@ -39,7 +41,6 @@ const ForgotPassword = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
-  // Resend OTP countdown
   useEffect(() => {
     if (currentStep !== "otp" || countdown <= 0) {
       return;
@@ -63,7 +64,7 @@ const ForgotPassword = () => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
   };
 
-  const handleEmailContinue = () => {
+  const handleEmailContinue = async () => {
     setEmailError("");
 
     if (!email.trim()) {
@@ -76,21 +77,41 @@ const ForgotPassword = () => {
       return;
     }
 
-    // Frontend only:
-    // No real OTP is being sent.
-    setOtp(["", "", "", "", "", ""]);
-    setCountdown(60);
-    setCurrentStep("otp");
+    setIsLoading(true);
+    try {
+      const baseUrl = await getServerUrl();
+      const response = await fetch(`${baseUrl}/api/forgot-password/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() })
+      });
+      
+      const data = await response.json();
 
-    setTimeout(() => {
-      otpInputs.current[0]?.focus();
-    }, 300);
+      if (!response.ok) {
+        setEmailError(data.error || "Failed to send reset code.");
+        setIsLoading(false);
+        return;
+      }
+
+      setOtp(["", "", "", "", "", ""]);
+      setCountdown(60);
+      setCurrentStep("otp");
+
+      setTimeout(() => {
+        otpInputs.current[0]?.focus();
+      }, 300);
+
+    } catch (error) {
+      setEmailError("Network error. Please make sure the server is reachable.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleOtpChange = (value, index) => {
     const cleanValue = value.replace(/[^0-9]/g, "");
 
-    // Support pasting the complete OTP
     if (cleanValue.length > 1) {
       const pastedOtp = cleanValue.slice(0, 6).split("");
       const updatedOtp = ["", "", "", "", "", ""];
@@ -122,7 +143,6 @@ const ForgotPassword = () => {
       otpInputs.current[index + 1]?.focus();
     }
 
-    // Automatically continue after entering the sixth digit
     if (index === 5 && cleanValue) {
       const completedOtp = [...updatedOtp];
       const otpCode = completedOtp.join("");
@@ -145,68 +165,99 @@ const ForgotPassword = () => {
     }
   };
 
-  const handleResendOtp = () => {
+  const handleResendOtp = async () => {
     if (countdown > 0) {
       return;
     }
 
-    // Frontend only:
-    // This only resets the countdown.
-    setOtp(["", "", "", "", "", ""]);
     setOtpError("");
-    setCountdown(60);
+    
+    try {
+      const baseUrl = await getServerUrl();
+      const response = await fetch(`${baseUrl}/api/forgot-password/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() })
+      });
 
-    setTimeout(() => {
-      otpInputs.current[0]?.focus();
-    }, 100);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setOtpError(data.error || "Failed to resend code.");
+        return;
+      }
+
+      setOtp(["", "", "", "", "", ""]);
+      setCountdown(60);
+
+      setTimeout(() => {
+        otpInputs.current[0]?.focus();
+      }, 100);
+
+    } catch (error) {
+      setOtpError("Network error. Please try again.");
+    }
   };
 
-  const validatePassword = () => {
-    if (!newPassword) {
-      return "Please enter your new password.";
-    }
+const validatePassword = () => {
+    const rules = [
+      { isValid: () => newPassword, message: "Please enter your new password." },
+      { isValid: () => newPassword.length >= 8, message: "Password must contain at least 8 characters." },
+      { isValid: () => /[A-Z]/.test(newPassword), message: "Password must contain at least one uppercase letter." },
+      { isValid: () => /[a-z]/.test(newPassword), message: "Password must contain at least one lowercase letter." },
+      { isValid: () => /[0-9]/.test(newPassword), message: "Password must contain at least one number." },
+      { isValid: () => newPassword === confirmPassword, message: "Passwords do not match." }
+    ];
 
-    if (newPassword.length < 8) {
-      return "Password must contain at least 8 characters.";
-    }
-
-    if (!/[A-Z]/.test(newPassword)) {
-      return "Password must contain at least one uppercase letter.";
-    }
-
-    if (!/[a-z]/.test(newPassword)) {
-      return "Password must contain at least one lowercase letter.";
-    }
-
-    if (!/[0-9]/.test(newPassword)) {
-      return "Password must contain at least one number.";
-    }
-
-    if (newPassword !== confirmPassword) {
-      return "Passwords do not match.";
-    }
-
-    return "";
+    const failedRule = rules.find(rule => !rule.isValid());
+    
+    return failedRule ? failedRule.message : "";
   };
 
-  const handlePasswordContinue = () => {
+  const handlePasswordContinue = async () => {
     setPasswordError("");
 
     const validationError = validatePassword();
-
     if (validationError) {
       setPasswordError(validationError);
       return;
     }
 
-    // Frontend only:
-    // No password is being updated in the database.
-    router.replace({
-      pathname: "/login",
-      params: {
-        passwordChanged: "true",
-      },
-    });
+    const otpString = otp.join("");
+    setIsLoading(true);
+
+    try {
+      const baseUrl = await getServerUrl();
+      const response = await fetch(`${baseUrl}/api/forgot-password/change`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: email.trim(),
+          otp: otpString,
+          newPassword: newPassword
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPasswordError(data.error || "Failed to reset password.");
+        setIsLoading(false);
+        return;
+      }
+
+      router.replace({
+        pathname: "/login",
+        params: {
+          passwordChanged: "true",
+        },
+      });
+      
+    } catch (error) {
+      setPasswordError("Network error. Could not connect to server.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBack = () => {
@@ -319,6 +370,7 @@ const ForgotPassword = () => {
             }}
             returnKeyType="done"
             onSubmitEditing={handleEmailContinue}
+            editable={!isLoading}
           />
         </View>
 
@@ -335,8 +387,13 @@ const ForgotPassword = () => {
             pressed && styles.buttonPressed,
           ]}
           onPress={handleEmailContinue}
+          disabled={isLoading}
         >
-          <Text style={styles.continueButtonText}>Continue</Text>
+          {isLoading ? (
+             <ActivityIndicator color="#FFFFFF" />
+          ) : (
+             <Text style={styles.continueButtonText}>Continue</Text>
+          )}
         </Pressable>
       </>
     );
@@ -462,6 +519,7 @@ const ForgotPassword = () => {
               setNewPassword(value);
               setPasswordError("");
             }}
+            editable={!isLoading}
           />
 
           <Pressable
@@ -502,6 +560,7 @@ const ForgotPassword = () => {
             }}
             returnKeyType="done"
             onSubmitEditing={handlePasswordContinue}
+            editable={!isLoading}
           />
 
           <Pressable
@@ -563,8 +622,13 @@ const ForgotPassword = () => {
             pressed && styles.buttonPressed,
           ]}
           onPress={handlePasswordContinue}
+          disabled={isLoading}
         >
-          <Text style={styles.continueButtonText}>Continue</Text>
+          {isLoading ? (
+             <ActivityIndicator color="#FFFFFF" />
+          ) : (
+             <Text style={styles.continueButtonText}>Continue</Text>
+          )}
         </Pressable>
       </>
     );

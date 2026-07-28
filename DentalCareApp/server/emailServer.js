@@ -5,6 +5,7 @@ const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const { getLocalIpAddress, getServerDiscoveryUrls } = require('./getServerUrl');
 const os = require('os');
+const { requestPasswordReset, changePassword } = require('./Authentication/forgotPassword');
 
 const app = express();
 const PORT = process.env.PORT || process.env.EMAIL_SERVER_PORT || 5001;
@@ -31,6 +32,35 @@ const timelineRoute = require('./HistoryModel/3DTimeline');
 app.use('/api/3d-timeline', timelineRoute);
 
 console.log('Email server starting with EmailJS...');
+
+// ==========================================
+// 3. FORGOT PASSWORD ROUTES
+// ==========================================
+const sendEmailJS = async (email, fullName, otp) => {
+  const templateParams = {
+    to_email: email,
+    fullName: fullName,
+    otp: otp
+  };
+
+  return await emailjs.send(
+    process.env.EMAILJS_SERVICE_ID,
+    process.env.EMAILJS_TEMPLATE_ID,
+    templateParams,
+    {
+      publicKey: process.env.EMAILJS_PUBLIC_KEY,
+      privateKey: process.env.EMAILJS_PRIVATE_KEY,
+    }
+  );
+};
+
+app.post('/api/forgot-password/request', (req, res) => {
+  requestPasswordReset(req, res, generateOTP, sendEmailJS);
+});
+
+app.post('/api/forgot-password/change', (req, res) => {
+  changePassword(req, res);
+});
 
 // ==========================================
 // 4. OTP & VERIFICATION ROUTES
@@ -109,7 +139,6 @@ app.post('/send-verification', async (req, res) => {
     
     res.json({ success: true, message: 'Verification code sent to your email' });
   } catch (error) {
-    // UPDATED ERROR LOGGING
     const errorDetails = error.text || error.message || JSON.stringify(error) || 'Unknown EmailJS Error';
     console.error('Email sending error:', errorDetails);
     res.status(500).json({ error: 'Failed to send verification code', details: errorDetails });
@@ -186,7 +215,6 @@ app.post('/resend-otp', async (req, res) => {
     
     res.json({ success: true, message: 'New verification code sent to your email' });
   } catch (error) {
-    // UPDATED ERROR LOGGING
     const errorDetails = error.text || error.message || JSON.stringify(error) || 'Unknown EmailJS Error';
     console.error('Resend OTP error:', errorDetails);
     res.status(500).json({ error: 'Failed to resend verification code', details: errorDetails });
@@ -318,7 +346,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`If client can't find server, try: http://${LOCAL_IP}:${PORT}/test in browser`);
 });
 
-// Handle unexpected crashes so the port doesn't hang
 process.on('uncaughtException', (err) => {
   console.error('There was an uncaught error:', err);
   process.exit(1); 
