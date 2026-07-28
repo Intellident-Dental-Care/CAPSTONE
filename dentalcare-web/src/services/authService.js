@@ -465,8 +465,6 @@ class AuthService {
         ...this.getVerificationHeader(),
       };
 
-      // Web flow should prioritize verification-token routes so the currently
-      // logged-in account is always used (no email/profile matching ambiguity).
       let response = await fetch(`${API_BASE_URL}/auth/send-otp`, {
         method: "POST",
         headers,
@@ -487,7 +485,6 @@ class AuthService {
         });
       }
 
-      // Fallback to DentalCareApp-style public routes when protected routes are unavailable.
       if (!response || response.status === 404) {
         response = await callFirstNon404(buildOtpPublicEndpointCandidates(), {
           method: "POST",
@@ -597,7 +594,6 @@ class AuthService {
       }
 
       if (data?.success && !data?.data?.token) {
-        // Public verification endpoint succeeded. Keep user on login and clear pending state.
         this.clearPendingVerification();
       }
 
@@ -610,36 +606,19 @@ class AuthService {
     }
   }
 
-  /**
-   * Get current user data from localStorage
-   * @returns {object|null} - User data or null
-   */
   static getCurrentUser() {
     const userData = localStorage.getItem('user_data');
     return userData ? JSON.parse(userData) : null;
   }
 
-  /**
-   * Check if current user is dentist
-   * @returns {boolean}
-   */
   static isDentist() {
     return this.getRole() === 'dentist';
   }
 
-  /**
-   * Check if current user is admin
-   * @returns {boolean}
-   */
   static isAdmin() {
     return this.getRole() === 'admin';
   }
 
-  /**
-   * Send OTP to user's email for password reset
-   * @param {string} email - User's email address
-   * @returns {Promise<object>} - { success, message, data: { role, profileId, email } }
-   */
   static async forgotPasswordSendOtp(email) {
     const endpoints = buildAuthEndpointCandidates("/forgot-password/send-otp");
 
@@ -668,53 +647,40 @@ class AuthService {
     }
   }
 
-  /**
-   * Verify OTP and get reset token for password reset
-   * @param {string} email - User's email address
-   * @param {string} otp - OTP code sent to email
-   * @returns {Promise<object>} - { success, message, data: { resetToken } }
-   */
-static async forgotPasswordVerifyOtp(email, otp, identity = null) {
-  const endpoints = buildAuthEndpointCandidates("/forgot-password/verify-otp");
+  static async forgotPasswordVerifyOtp(email, otp, identity = null) {
+    const endpoints = buildAuthEndpointCandidates("/forgot-password/verify-otp");
 
-  try {
-    const response = await callFirstNon404(endpoints, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: String(email || "").trim().toLowerCase(),
-        otp: String(otp || "").trim(),
-        role: identity?.role,
-        profileId: identity?.profileId,
-        userId: identity?.userId || identity?.profileId,
-      }),
-    });
+    try {
+      const response = await callFirstNon404(endpoints, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: String(email || "").trim().toLowerCase(),
+          otp: String(otp || "").trim(),
+          role: identity?.role,
+          profileId: identity?.profileId,
+          userId: identity?.userId || identity?.profileId,
+        }),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (response.status === 404) {
+      if (response.status === 404) {
+        return {
+          success: false,
+          message: "OTP verification endpoint not found. Please try again.",
+        };
+      }
+
+      return data;
+    } catch (error) {
       return {
         success: false,
-        message: "OTP verification endpoint not found. Please try again.",
+        message: "Failed to verify OTP. Please try again.",
       };
     }
-
-    return data;
-  } catch (error) {
-    return {
-      success: false,
-      message: "Failed to verify OTP. Please try again.",
-    };
   }
-}
 
-  /**
-   * Reset password using reset token
-   * @param {string} resetToken - Token obtained from OTP verification
-   * @param {string} password - New password
-   * @param {string} confirmPassword - Password confirmation
-   * @returns {Promise<object>} - { success, message }
-   */
   static async forgotPasswordReset(resetToken, password, confirmPassword) {
     const endpoints = buildAuthEndpointCandidates("/forgot-password/reset");
 
