@@ -51,7 +51,6 @@
         }
       ]
     },
-
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png",
@@ -83,6 +82,12 @@
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to show nearby dental branches and provide directions.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "react-native-maps",
+        {
+          "androidGoogleMapsApiKey": "AIzaSyAN5D8ZRwIMJEQND7S27M6sm4HsCjh64uU"
         }
       ]
     ],

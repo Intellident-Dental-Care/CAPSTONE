@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { colors } from "../theme/colors";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { useMapLocation } from "../../server/userMapLocation";
 
 export default function InAppNavigation() {
@@ -139,6 +139,7 @@ export default function InAppNavigation() {
     <View style={styles.container}>
       {/* Map */}
       <MapView
+        provider={PROVIDER_GOOGLE}
         ref={setMapRef}
         style={styles.map}
         showsUserLocation={true}

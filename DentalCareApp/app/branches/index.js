@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { colors } from "../theme/colors";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { useMapLocation } from "../../server/userMapLocation";
 import { preloadLocationData, isLocationPreloaded } from "../_storage/locationPreload";
 
@@ -317,10 +317,11 @@ export default function Branches() {
       {/* Map container */}
       <View style={[styles.mapWrap, isNavigating && styles.mapFullScreen]}>
         <MapView 
+          provider={PROVIDER_GOOGLE}
           ref={setMapRef}
           style={StyleSheet.absoluteFill} 
           initialRegion={initialRegion}
-          showsUserLocation={false} // Use custom marker for better control
+          showsUserLocation={false} 
           showsMyLocationButton={false}
           followsUserLocation={isNavigating}
           showsCompass={isNavigating}
