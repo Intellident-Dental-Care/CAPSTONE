@@ -13,7 +13,6 @@ import { WebView } from "react-native-webview";
 import { colors } from "../theme/colors";
 import { usePreAssessment } from "./_layout";
 import { supabase } from "../../server/supabaseService";
-import { getServerUrl } from "../../server/getClientSideUrl";
 import { getRecommendedServiceCriteria } from "../../server/AIRecommendation/serviceMapper";
 
 export default function AISummary() {
@@ -51,18 +50,9 @@ export default function AISummary() {
 
       if (!imageToAnalyze) throw new Error("No photo provided");
 
-      const baseNodeUrl = await getServerUrl();
-      // Extract the IP from the base URL and use port 8000 for the AI server
-      let aiServerUrl = baseNodeUrl;
-      try {
-        const url = new URL(baseNodeUrl);
-        aiServerUrl = `http://${url.hostname}:8000`;
-        console.log('[AI] Using AI server URL:', aiServerUrl);
-      } catch (e) {
-        console.warn('[AI] Failed to parse base URL, using fallback:', e);
-        aiServerUrl = baseNodeUrl.replace(/:[0-9]+/, ":8000");
-      }
-      const AI_API_URL = aiServerUrl + "/analyze";
+      // ENVIRONMENT VARIABLES (Sourced safely from .env)
+      const AI_API_URL = process.env.EXPO_PUBLIC_HF_API_URL || "https://intellident-intellidentai.hf.space/analyze";
+      const HF_TOKEN = process.env.EXPO_PUBLIC_HF_TOKEN;
 
       const formData = new FormData();
       formData.append("file", {
@@ -74,15 +64,22 @@ export default function AISummary() {
       // 3. Send photo to Python AI
       const aiResponse = await fetch(AI_API_URL, {
         method: "POST",
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: { 
+          "Content-Type": "multipart/form-data",
+          "Authorization": `Bearer ${HF_TOKEN}`
+        },
         body: formData,
       });
+
+      if (!aiResponse.ok) {
+        throw new Error(`Server returned HTTP ${aiResponse.status}`);
+      }
 
       const aiData = await aiResponse.json();
       
       const problem = aiData.detected_problem || "None";
       const rawDescription = aiData.description || ""; 
-      const confidence = aiData.confidence ?? 1.0; // Extract confidence score
+      const confidence = aiData.confidence ?? 1.0;
 
       // 4. Map the AI result, Dynamic QA list, and patient description into the scoring engine
       const localQaList = fetchedQuestions.map((qText, i) => ({
@@ -112,7 +109,7 @@ export default function AISummary() {
 
       if (data) {
         finalServiceName = data.name;
-        finalPriceDisplay = data.price_display; // Using DB price_display as requested
+        finalPriceDisplay = data.price_display;
         dispatch({ type: "SET_SUGGESTED_SERVICE", payload: data.name });
       }
 
