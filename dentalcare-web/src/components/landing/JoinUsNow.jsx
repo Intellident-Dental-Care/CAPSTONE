@@ -19,7 +19,7 @@ export default function JoinUsNow() {
 
             <div className="mt-7 sm:mt-8">
               <a
-                href="https://github.com/Intellident-Dental-Care/CAPSTONE/releases/download/v1.0.0/application-b3f5f383-b8f3-4c36-9261-77653952f297.apk"
+                href="https://github.com/Intellident-Dental-Care/CAPSTONE/releases/latest/download/IntelliDent.apk"
                 download="IntelliDent.apk"
                 className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-pink-600 shadow-sm transition hover:scale-[1.02]"
               >
