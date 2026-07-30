@@ -1,3 +1,9 @@
 {
-  "devCommand": "npm run dev:all"
+  "devCommand": "npm run dev:all",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
