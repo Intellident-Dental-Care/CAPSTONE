@@ -321,6 +321,10 @@ app.get('/test', (req, res) => {
   res.json({ message: 'Email server is working!', server: `${LOCAL_IP}:${PORT}`, timestamp: new Date().toISOString() });
 });
 
+app.get("/ping", (req, res) => {
+  res.status(200).send("OK");
+});
+
 // ==========================================
 // 6. SERVER LISTENER
 // ==========================================
