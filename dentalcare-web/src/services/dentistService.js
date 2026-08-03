@@ -1,6 +1,6 @@
 import AuthService from "./authService";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://capstone-9yhx.onrender.com/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const dentistCache = {
   dashboard: null,
@@ -59,7 +59,6 @@ export const loadDentistAvatarObjectUrl = async (avatarPath) => {
   if (!imageUrl) return "";
   if (imageUrl.startsWith("blob:") || imageUrl.startsWith("data:")) return imageUrl;
 
-  // Check if blob is already cached (Identical to Admin)
   if (dentistCache.avatarBlobCache[avatarPath]) {
     return URL.createObjectURL(dentistCache.avatarBlobCache[avatarPath]);
   }
@@ -74,7 +73,6 @@ export const loadDentistAvatarObjectUrl = async (avatarPath) => {
   }
 
   const blob = await response.blob();
-  // Cache the blob data natively, not the URL
   dentistCache.avatarBlobCache[avatarPath] = blob;
   return URL.createObjectURL(blob);
 };
@@ -89,13 +87,11 @@ export const preloadDentistData = async () => {
       fetchJson(`/dentist/schedule?date=${today}`, { method: "GET" }),
     ]);
 
-    // PRELOAD FIX: Sync to localStorage exactly like adminService.js
     if (profileResult?.success && profileResult.data) {
       dentistCache.profile = profileResult.data;
       
       const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
       
-      // Cache details instantly to prevent UI flicker
       if (profileResult.data.fullName) userData.fullName = profileResult.data.fullName;
       if (profileResult.data.name) userData.name = profileResult.data.name;
       if (profileResult.data.specialization) userData.specialty = profileResult.data.specialization;

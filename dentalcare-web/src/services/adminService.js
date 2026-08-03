@@ -1,6 +1,6 @@
 import AuthService from "./authService";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://capstone-9yhx.onrender.com";
+const API_BASE_URL = import.meta.env.VITE_LIVE_ORIGIN;
 
 const adminCache = {
   profile: null,
@@ -43,7 +43,6 @@ export const loadAdminAvatarObjectUrl = async (avatarPath) => {
   if (!imageUrl) return "";
   if (imageUrl.startsWith("blob:") || imageUrl.startsWith("data:")) return imageUrl;
 
-  // Check if blob is already cached
   if (adminCache.avatarBlobCache[avatarPath]) {
     return URL.createObjectURL(adminCache.avatarBlobCache[avatarPath]);
   }
@@ -58,7 +57,6 @@ export const loadAdminAvatarObjectUrl = async (avatarPath) => {
   }
 
   const blob = await response.blob();
-  // Cache the blob data, not the URL
   adminCache.avatarBlobCache[avatarPath] = blob;
   return URL.createObjectURL(blob);
 };
@@ -74,8 +72,6 @@ export const clearAdminCache = () => {
   adminCache.dashboard = null;
   adminCache.loadedAt = null;
 };
-
-// Inside your frontend adminService.js file
 
 export const preloadAdminData = async () => {
   try {
@@ -216,14 +212,13 @@ export const updateAdminProfile = async (payload) => {
     if (data?.success) {
       adminCache.profile = data.data;
     } else {
-      // Clear cache on error so next call will retry
       adminCache.profile = null;
     }
 
     return data;
   } catch (error) {
     console.error("Profile update error:", error);
-    adminCache.profile = null; // Clear cache on network error
+    adminCache.profile = null;
     return { success: false, message: "Failed to update admin profile" };
   }
 };
@@ -238,14 +233,13 @@ export const uploadAdminProfileAvatar = async ({ avatarBase64, fileName }) => {
     if (data?.success) {
       adminCache.profile = data.data;
     } else {
-      // Clear cache on error so next call will retry
       adminCache.profile = null;
     }
 
     return data;
   } catch (error) {
     console.error("Avatar upload error:", error);
-    adminCache.profile = null; // Clear cache on network error
+    adminCache.profile = null;
     return { success: false, message: "Failed to upload profile image" };
   }
 };
@@ -361,7 +355,6 @@ export const isSuperAdmin = () => {
   return user?.admin_type === "super_admin" || user?.adminType === "super_admin";
 };
 
-// Dentist Leave Management
 export const setDentistLeave = async (dentistId, startDate, endDate, reason) => {
   try {
     const data = await fetchJson("/admin/dentists/leave", {
@@ -370,7 +363,7 @@ export const setDentistLeave = async (dentistId, startDate, endDate, reason) => 
     });
 
     if (data?.success) {
-      adminCache.dentists = null; // Clear cache to fetch updated data
+      adminCache.dentists = null;
     }
 
     return data;
@@ -387,7 +380,7 @@ export const cancelDentistLeave = async (leaveId) => {
     });
 
     if (data?.success) {
-      adminCache.dentists = null; // Clear cache
+      adminCache.dentists = null;
     }
 
     return data;

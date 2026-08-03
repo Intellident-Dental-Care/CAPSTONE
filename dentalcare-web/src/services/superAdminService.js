@@ -1,6 +1,6 @@
 import AuthService from "./authService";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://capstone-9yhx.onrender.com/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const baseHeaders = () => ({
   "Content-Type": "application/json",
@@ -144,8 +144,6 @@ export const saveSuperAdminTerms = async (terms) => {
     body: JSON.stringify({ terms }),
   });
 };
-
-//QUESTIONNAIRE 
 
 export const getSuperAdminQuestionnaire = async () => {
   return await fetchJson("/super_admin/questionnaire", {

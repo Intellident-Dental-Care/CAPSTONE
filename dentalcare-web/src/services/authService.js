@@ -1,11 +1,11 @@
-const RAW_API_BASE_URL = import.meta.env.VITE_API_URL || "https://capstone-9yhx.onrender.com/api";
+const RAW_API_BASE_URL = import.meta.env.VITE_API_URL;
 const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, "");
 
 const getApiOrigin = () => {
   try {
     return new URL(API_BASE_URL).origin;
   } catch {
-    return "https://capstone-9yhx.onrender.com";
+    return import.meta.env.VITE_LIVE_ORIGIN;
   }
 };
 
@@ -31,8 +31,9 @@ const buildAuthEndpointCandidates = (authPath) => {
   }
 
   if (apiOrigin.includes("127.0.0.1")) {
-    candidates.push(`https://capstone-9yhx.onrender.com/api/auth${normalized}`);
-    candidates.push(`https://capstone-9yhx.onrender.com/auth${normalized}`);
+    const liveOrigin = import.meta.env.VITE_LIVE_ORIGIN;
+    candidates.push(`${liveOrigin}/api/auth${normalized}`);
+    candidates.push(`${liveOrigin}/auth${normalized}`);
   }
 
   return [...new Set(candidates)];
@@ -61,11 +62,12 @@ const buildOtpPublicEndpointCandidates = () => {
   }
 
   if (apiOrigin.includes("127.0.0.1")) {
+    const liveOrigin = import.meta.env.VITE_LIVE_ORIGIN;
     candidates.push(
-      "https://capstone-9yhx.onrender.com/api/auth/send-verification-public",
-      "https://capstone-9yhx.onrender.com/api/auth/resend-otp",
-      "https://capstone-9yhx.onrender.com/send-verification",
-      "https://capstone-9yhx.onrender.com/resend-otp"
+      `${liveOrigin}/api/auth/send-verification-public`,
+      `${liveOrigin}/api/auth/resend-otp`,
+      `${liveOrigin}/send-verification`,
+      `${liveOrigin}/resend-otp`
     );
   }
 
@@ -84,7 +86,8 @@ const buildVerifyOtpPublicEndpointCandidates = () => {
   }
 
   if (apiOrigin.includes("127.0.0.1")) {
-    candidates.push("https://capstone-9yhx.onrender.com/api/auth/verify-otp-public", "https://capstone-9yhx.onrender.com/verify-otp-public");
+    const liveOrigin = import.meta.env.VITE_LIVE_ORIGIN;
+    candidates.push(`${liveOrigin}/api/auth/verify-otp-public`, `${liveOrigin}/verify-otp-public`);
   }
 
   return [...new Set(candidates)];
@@ -102,7 +105,8 @@ const buildVerifyOtpProtectedEndpointCandidates = () => {
   }
 
   if (apiOrigin.includes("127.0.0.1")) {
-    candidates.push("https://capstone-9yhx.onrender.com/api/auth/verify-otp", "https://capstone-9yhx.onrender.com/verify-otp");
+    const liveOrigin = import.meta.env.VITE_LIVE_ORIGIN;
+    candidates.push(`${liveOrigin}/api/auth/verify-otp`, `${liveOrigin}/verify-otp`);
   }
 
   return [...new Set(candidates)];
@@ -140,9 +144,6 @@ const parseJwtPayload = (token) => {
 };
 
 class AuthService {
-  /**
-   * Store token in localStorage
-   */
   static setToken(token, role) {
     if (token) {
       localStorage.setItem('auth_token', token);
