@@ -514,7 +514,6 @@ export default function SuperAdminDentists() {
         name: "New Dentist",
         contactNumber: "Not Set",
         specialty: "General Dentistry",
-        licenseNumber: `TEMP-${Date.now()}`,
         yearsExperience: 0,
       });
       setIsSubmitting(false);

@@ -170,7 +170,6 @@ export const authenticateDentist = async (email, password) => {
           authUserId: authResult.user.id,
           fullName: dentist.name,
           specialty: dentist.specialization,
-          licenseNumber: dentist.license_number,
           phone: dentist.phone_number,
           yearsExperience: dentist.experience_years,
         },

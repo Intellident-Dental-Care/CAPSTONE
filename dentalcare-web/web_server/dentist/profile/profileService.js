@@ -141,7 +141,6 @@ export const updateDentistProfileDetails = async (dentistProfileId, payload = {}
   if (typeof payload.email === "string") updates.email = payload.email.trim().toLowerCase();
   if (typeof payload.phone === "string") updates.phone_number = payload.phone.trim();
   if (typeof payload.specialization === "string") updates.specialization = payload.specialization.trim();
-  if (typeof payload.licenseNumber === "string") updates.license_number = payload.licenseNumber.trim();
   
   if (payload.birthdate !== undefined) updates.birthdate = payload.birthdate || null;
   if (typeof payload.about === "string") updates.about = payload.about.trim();
