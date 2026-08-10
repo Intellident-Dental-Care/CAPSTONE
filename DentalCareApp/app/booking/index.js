@@ -40,7 +40,6 @@ function PickerModal({ visible, title, options, onClose, onPick, selectedValue }
   );
 }
 
-// Get standard local date string YYYY-MM-DD
 function getLocalDateStr() {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -111,7 +110,7 @@ export default function BookingBranchDoctor() {
 
       setServices((data || []).map((s) => s.name));
     } catch (err) {
-      console.error("Error fetching services:", err);
+      console.error(err);
     }
   };
 
@@ -128,7 +127,7 @@ export default function BookingBranchDoctor() {
         supabase
           .from("dentist_list")
           .select(
-            "id, name, specialization, experience_years, total_patients, success_rate"
+            "id, name, specialization, experience_years"
           ),
         supabase
           .from("dentist_schedule")
@@ -143,7 +142,6 @@ export default function BookingBranchDoctor() {
       if (dentistsError) throw dentistsError;
       if (schedulesError) throw schedulesError;
 
-      // Filter via Javascript to prevent timezone skipping
       const onLeaveSet = new Set();
       (leavesData || []).forEach(l => {
         if (l.start_date <= todayStr && l.end_date >= todayStr) {
@@ -159,7 +157,6 @@ export default function BookingBranchDoctor() {
         const branchName = row.branch?.trim();
         const dentist = dentistMap.get(row.dentist_id);
 
-        // Hide if missing branch/dentist data OR if dentist is currently on leave
         if (!branchName || !dentist || onLeaveSet.has(dentist.id)) return;
 
         if (!branchGroups[branchName]) branchGroups[branchName] = [];
@@ -181,7 +178,7 @@ export default function BookingBranchDoctor() {
         if (presetDoctor) setDoctorId(presetDoctor.id);
       }
     } catch (err) {
-      console.error("Error fetching dentists:", err);
+      console.error(err);
       Alert.alert("Error", "Failed to load dentist data");
     } finally {
       setLoading(false);
@@ -189,7 +186,6 @@ export default function BookingBranchDoctor() {
   };
 
   useEffect(() => {
-    // If the data is still loading, do nothing
     if (Object.keys(doctorsByBranch).length === 0) return;
 
     if (!branch || !doctor) {
@@ -204,7 +200,6 @@ export default function BookingBranchDoctor() {
     if (selected) {
       setDoctorId(selected.id);
     } else {
-      // If a doctor was auto-passed (e.g. from AI Summary) but is secretly on leave, clear them out
       setDoctor("");
       setDoctorId("");
     }
@@ -215,7 +210,6 @@ export default function BookingBranchDoctor() {
     return doctorsByBranch[branch] || [];
   }, [branch, doctorsByBranch]);
 
-  // Make sure they have a valid doctor ID before proceeding
   const canProceed = !!(service && branch && doctor && doctorId);
 
   if (loading) {
@@ -364,7 +358,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingHorizontal: 18,
   },
-
   backBtn: {
     width: 36,
     height: 36,
@@ -372,32 +365,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   imageWrap: {
     marginTop: 6,
   },
-
   heroImage: {
     height: 360,
     width: "100%",
     borderRadius: 40,
     resizeMode: "cover",
   },
-
   h1: {
     marginTop: 16,
     fontSize: 22,
     fontWeight: "900",
     color: colors.primary,
   },
-
   h2: {
     marginTop: 6,
     fontSize: 11,
     color: colors.textGray,
     lineHeight: 16,
   },
-
   dropdown: {
     height: 46,
     borderRadius: 14,
@@ -409,13 +397,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     backgroundColor: "#FFF8FB",
   },
-
   dropdownText: {
     fontSize: 12,
     color: "#666",
     fontWeight: "700",
   },
-
   aiRecommendedBadge: {
     backgroundColor: "#FFF1F6",
     borderRadius: 8,
@@ -424,13 +410,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary,
   },
-
   aiRecommendedBadgeText: {
     fontSize: 9,
     color: colors.primary,
     fontWeight: "900",
   },
-
   proceedBtn: {
     position: "absolute",
     right: 24,
@@ -446,26 +430,22 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-
   proceedText: {
     color: "#fff",
     fontSize: 12,
     fontWeight: "900",
   },
-
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.35)",
     padding: 18,
     justifyContent: "center",
   },
-
   modalCard: {
     backgroundColor: "#fff",
     borderRadius: 22,
     padding: 18,
   },
-
   modalTitle: {
     fontSize: 15,
     fontWeight: "900",
@@ -473,19 +453,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: "center",
   },
-
   modalItem: {
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: "#F3F3F3",
   },
-
   modalItemContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-
   modalItemText: {
     fontSize: 12,
     color: "#444",

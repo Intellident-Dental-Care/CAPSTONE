@@ -1,5 +1,3 @@
-// app/booking/appointment.js
-
 import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
@@ -21,13 +19,14 @@ import { getCurrentUser } from "../../server/supabaseService";
 import { getCurrentActiveProfileForSession, getPatientProfileByProfileId } from "../_storage/authStorage";
 import { clearAppointmentCacheForProfile, appointmentsListCache } from "../_storage/profileCache";
 
-/* ---------- helpers ---------- */
 function monthShort(d) {
   return d.toLocaleString("en-US", { month: "short" }).toUpperCase();
 }
+
 function pad2(n) {
   return String(n).padStart(2, "0");
 }
+
 function toISODate(d) {
   const y = d.getFullYear();
   const m = pad2(d.getMonth() + 1);
@@ -219,7 +218,6 @@ function convertTo12Hour(time24h) {
   return `${hour12}:${minutes} ${modifier}`;
 }
 
-/* ---------- component ---------- */
 export default function BookingAppointment() {
   const router = useRouter();
   const { service, branch, doctor, doctorId, preassessmentId, bookingId, editMode, originalDate, originalTime } = useLocalSearchParams();
@@ -256,6 +254,9 @@ export default function BookingAppointment() {
 
   const [showCalendar, setShowCalendar] = useState(false);
   const [pickedDate, setPickedDate] = useState(today);
+
+  const [patientCount, setPatientCount] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
 
   const availableSlots = useMemo(
     () => buildSlotsForDate(dentistSchedules, selectedISO, dentistLeaves),
@@ -402,11 +403,33 @@ export default function BookingAppointment() {
         .eq("dentist_id", data.id)
         .gte("end_date", todayStr);
 
+      const { data: statsData } = await supabase
+        .from("bookings")
+        .select("status")
+        .eq("dentist_id", data.id);
+
+      let activeCount = 0;
+      let compCount = 0;
+
+      if (statsData) {
+        statsData.forEach(b => {
+          const st = (b.status || '').toLowerCase();
+          if (st === 'completed') {
+            compCount++;
+          } else if (st !== 'cancelled') {
+            activeCount++;
+          }
+        });
+      }
+
+      setPatientCount(activeCount);
+      setCompletedCount(compCount);
+
       setDentistData(data);
       setDentistSchedules(scheduleData || []);
       setDentistLeaves(leaveData || []);
     } catch (err) {
-      console.error('Error fetching dentist:', err);
+      console.error(err);
       setDentistSchedules([]);
       setDentistLeaves([]);
       Alert.alert("Error", "Failed to load dentist schedule.");
@@ -441,7 +464,7 @@ export default function BookingAppointment() {
 
       setBookedTimeSlots(bookedTimes);
     } catch (err) {
-      console.error('Error fetching booked time slots:', err);
+      console.error(err);
       setBookedTimeSlots([]);
     }
   };
@@ -460,7 +483,7 @@ export default function BookingAppointment() {
       const delay = Number(data?.total_delay_minutes) || 0;
       setQueueDelayMinutes(Math.max(0, delay));
     } catch (err) {
-      console.error('Error fetching queue delay state:', err);
+      console.error(err);
       setQueueDelayMinutes(0);
     }
   };
@@ -548,7 +571,6 @@ export default function BookingAppointment() {
 
       const time24h = convertTo24Hour(selectedTime);
 
-      // Check if slot is taken by another user
       const { data: existingBookings } = await supabase
         .from('bookings')
         .select('id, appointment_time, status')
@@ -574,8 +596,6 @@ export default function BookingAppointment() {
         return;
       }
 
-      // **NEW: Check if this specific profile/user already has ANY booking on this date**
-      // We removed the `.eq('dentist_id', dentistData.id)` condition.
       let dupQuery = supabase
         .from('bookings')
         .select('id, status')
@@ -656,7 +676,7 @@ export default function BookingAppointment() {
 
       setShowAlert(true);
     } catch (err) {
-      console.error('Error creating booking:', err);
+      console.error(err);
       Alert.alert('Error', 'Failed to create booking. Please try again.');
     } finally {
       setBooking(false);
@@ -712,9 +732,9 @@ export default function BookingAppointment() {
       </View>
 
       <View style={styles.statsRow}>
-        <Stat label="Experience" value={`${dentistData?.experience_years || 14} years`} />
-        <Stat label="Patients" value={dentistData?.total_patients || "1234"} />
-        <Stat label="Success Rate" value={`${dentistData?.success_rate || 99.9}%`} />
+        <Stat label="Experience" value={`${dentistData?.experience_years || 0} years`} />
+        <Stat label="Patients" value={patientCount} />
+        <Stat label="Completed Procedures" value={completedCount} />
       </View>
 
       <View style={styles.tabsRow}>
@@ -867,15 +887,8 @@ export default function BookingAppointment() {
             No time slots available for the selected date at this branch.
           </Text>
         )}
-
-        {bookedTimeSlots.length > 0 && (
-          <Text style={styles.bookedInfo}>
-            * Grayed out times are already booked for this doctor and branch
-          </Text>
-        )}
       </ScrollView>
 
-      {/* Book Now */}
       <Pressable 
         style={[styles.bookBtn, !canBookNow && { opacity: 0.5 }]} 
         onPress={handleBooking}
@@ -969,20 +982,17 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingHorizontal: 18,
   },
-
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 10,
   },
-
   headerRight: {
     flexDirection: "row",
     gap: 14,
     alignItems: "center",
   },
-
   backBtn: {
     width: 36,
     height: 36,
@@ -990,8 +1000,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-
   doctorRow: {
     marginTop: 6,
     marginLeft: 10,
@@ -999,7 +1007,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-
   docPic: {
     width: 77,
     height: 83,
@@ -1008,25 +1015,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   docName: {
     fontSize: 17,
     fontWeight: "900",
     color: colors.primary,
   },
-
   docSub: {
     marginTop: 2,
     fontSize: 12,
     color: colors.textGray,
   },
-
   statsRow: {
     marginTop: 12,
     flexDirection: "row",
     justifyContent: "space-around",
   },
-
   tabsRow: {
     marginTop: 22,
     flexDirection: "row",
@@ -1036,18 +1039,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textGray,
   },
-
   tabActive: {
     color: colors.primary,
     fontWeight: "900",
   },
-
   tabLine: {
     marginTop: 8,
     height: 1,
     backgroundColor: "#eee",
   },
-
   section: {
     marginTop: 14,
     marginBottom: 12,
@@ -1055,7 +1055,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: colors.primary,
   },
-
   datePill: {
     width: 60,
     height: 60,
@@ -1064,23 +1063,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   datePillActive: {
     backgroundColor: colors.primary,
   },
-
   dateText: {
     fontSize: 10,
     fontWeight: "900",
     color: "#777",
   },
-
   calendarPill: {
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: colors.primary,
   },
-
   timeTabs: {
     marginTop: 10,
     height: 38,
@@ -1089,31 +1084,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     padding: 3,
   },
-
   timeTab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 17,
   },
-
   timeTabActive: {
     backgroundColor: colors.primary,
   },
-
   timeTabText: {
     fontSize: 10,
     fontWeight: "900",
     color: "#777",
   },
-
   timeGrid: {
     marginTop: 16,
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
   },
-
   timeBox: {
     width: "48%",
     minHeight: 46,
@@ -1125,72 +1115,61 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#EFEFEF",
   },
-
   timeBoxActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-
   timeText: {
     fontSize: 11,
     fontWeight: "900",
     color: "#666",
   },
-
   timeBoxBooked: {
     backgroundColor: "#F3F3F3",
     borderWidth: 1,
     borderColor: "#E1E1E1",
   },
-
- timeTextBooked: {
-  color: "#AAAAAA",
-},
-
-bookedLabel: {
-  marginTop: 2,
-  fontSize: 8.5,
-  fontWeight: "900",
-  color: "#B04B65",
-},
+  timeTextBooked: {
+    color: "#AAAAAA",
+  },
+  bookedLabel: {
+    marginTop: 2,
+    fontSize: 8.5,
+    fontWeight: "900",
+    color: "#B04B65",
+  },
   bookedInfo: {
     marginTop: 10,
     fontSize: 10,
     color: colors.textGray,
     fontWeight: "700",
   },
-
   noScheduleText: {
     marginTop: 4,
     fontSize: 11,
     color: colors.textGray,
     fontWeight: "700",
   },
-
-
-bookBtn: {
-  position: "absolute",
-  bottom: 28,
-  alignSelf: "center",
-  width: 160,
-  height: 44,
-  borderRadius: 22,
-  backgroundColor: colors.primary,
-  alignItems: "center",
-  justifyContent: "center",
-  shadowColor: "#000",
-  shadowOpacity: 0.15,
-  shadowRadius: 10,
-  elevation: 4,
-},
-
-
+  bookBtn: {
+    position: "absolute",
+    bottom: 28,
+    alignSelf: "center",
+    width: 160,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
+  },
   bookText: {
     color: "#fff",
     fontSize: 14,
     fontWeight: "900",
   },
-
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.35)",
@@ -1198,14 +1177,12 @@ bookBtn: {
     alignItems: "center",
     paddingHorizontal: 20,
   },
-
   modalCard: {
     width: "100%",
     backgroundColor: "#FFFFFF",
     borderRadius: 28,
     padding: 22,
   },
-
   modalTitle: {
     fontSize: 18,
     fontWeight: "800",
@@ -1213,14 +1190,12 @@ bookBtn: {
     textAlign: "center",
     marginBottom: 8,
   },
-
   modalSubtitle: {
     fontSize: 12,
     color: colors.textGray,
     textAlign: "center",
     marginBottom: 16,
   },
-
   previewBox: {
     backgroundColor: "#FFF7FA",
     borderRadius: 18,
@@ -1229,24 +1204,20 @@ bookBtn: {
     borderWidth: 1,
     borderColor: "#F8D4E0",
   },
-
   previewRow: {
     marginBottom: 10,
   },
-
   previewLabel: {
     fontSize: 11,
     color: colors.textGray,
     marginBottom: 2,
     fontWeight: "700",
   },
-
   previewValue: {
     fontSize: 13,
     color: colors.primary,
     fontWeight: "900",
   },
-
   confirmBtn: {
     backgroundColor: colors.primary,
     paddingVertical: 15,
@@ -1254,18 +1225,15 @@ bookBtn: {
     alignItems: "center",
     marginBottom: 10,
   },
-
   confirmText: {
     fontSize: 14,
     fontWeight: "800",
     color: "#fff",
   },
-
   cancelBtn: {
     paddingVertical: 10,
     alignItems: "center",
   },
-
   cancelText: {
     fontSize: 13,
     color: colors.textGray,
