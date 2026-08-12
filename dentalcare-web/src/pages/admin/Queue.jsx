@@ -354,7 +354,7 @@ export default function Queue() {
                     </div>
 
                     <div className="queue-live-status">
-                      {currentPatient.status}
+                      {currentPatient.status === "In Queue" ? "Currently being treated" : currentPatient.status}
                     </div>
 
                     <div className="queue-live-details">
@@ -408,13 +408,16 @@ export default function Queue() {
               </div>
 
               <div className="queue-lower-grid">
-                <div className="queue-next-card">
+                <div 
+                  className="queue-next-card" 
+                  style={{ display: "flex", flexDirection: "column", justifyContent: "flex-start", height: "100%" }}
+                >
                   <div className="queue-card-head">
                     <h3>Next Patient</h3>
                   </div>
 
                   {nextPatient ? (
-                    <>
+                    <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
                       <div className="queue-next-number">
                         #{nextPatient.queueNumber}
                       </div>
@@ -422,13 +425,13 @@ export default function Queue() {
                       <p>{nextPatient.time}</p>
                       <span className="queue-chip">{nextPatient.procedure}</span>
 
-                      <div className="queue-next-meta">
+                      <div className="queue-next-meta" style={{ marginTop: "auto" }}>
                         <span>Assigned Dentist</span>
                         <strong>{nextPatient.dentist}</strong>
                       </div>
-                    </>
+                    </div>
                   ) : (
-                    <div className="queue-empty-state">
+                    <div className="queue-empty-state" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "162px" }}>
                       <p>No next patient in queue.</p>
                     </div>
                   )}
@@ -504,9 +507,9 @@ export default function Queue() {
                     <div
                       key={patient.id}
                       className={`queue-list-item ${
-                        patient.status === "In Treatment"
+                        patient.id === currentPatient?.id
                           ? "active-treatment"
-                          : patient.status === "In Queue"
+                          : patient.status === "In Queue" || patient.rawStatus === "pending"
                           ? "active"
                           : patient.status === "Completed"
                           ? "completed"
@@ -526,7 +529,11 @@ export default function Queue() {
 
                       <div className="queue-list-right">
                         <span>{patient.time}</span>
-                        <small>{patient.status}</small>
+                        <small>
+                          {patient.id === currentPatient?.id && patient.status === "In Queue" 
+                            ? "Currently being treated" 
+                            : patient.status}
+                        </small>
                       </div>
                     </div>
                   ))}

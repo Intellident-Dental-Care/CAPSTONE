@@ -198,24 +198,35 @@ export default function AdminDashboard() {
                 <p className="admin-mini-stat-title">Next Patient Details</p>
 
                 <div className="admin-patient-content">
-                  <div className="admin-patient-top">
-                    <h4 className="admin-patient-name">{nextPatientFromApi?.patientName || "No next patient"}</h4>
-                    <p className="admin-patient-treatment">
-                      {nextPatientFromApi?.procedure || "--"}
-                    </p>
-                    <p className="admin-patient-schedule">
-                      {nextPatientFromApi ? `${nextPatientFromApi.time} - ${nextPatientFromApi.date}` : "--"}
-                    </p>
-                  </div>
+                  {nextPatientFromApi ? (
+                    <>
+                      <div className="admin-patient-top">
+                        <h4 className="admin-patient-name">{nextPatientFromApi.patientName}</h4>
+                        <p className="admin-patient-treatment">
+                          {nextPatientFromApi.procedure || "--"}
+                        </p>
+                        <p className="admin-patient-schedule">
+                          {nextPatientFromApi.time} - {nextPatientFromApi.date}
+                        </p>
+                      </div>
 
-                  <div className="admin-patient-bottom">
-                    <span className="admin-assigned-label">
-                      Assigned Dentist
-                    </span>
-                    <span className="admin-assigned-value">
-                      {nextPatientFromApi?.dentist || "Unassigned"}
-                    </span>
-                  </div>
+                      <div className="admin-patient-bottom">
+                        <span className="admin-assigned-label">
+                          Assigned Dentist
+                        </span>
+                        <span className="admin-assigned-value">
+                          {nextPatientFromApi.dentist || "Unassigned"}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="admin-patient-top" style={{ minHeight: "120px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                      <h4 className="admin-patient-name" style={{ color: "#A0A0A0" }}>Queue is clear</h4>
+                      <p className="admin-patient-treatment" style={{ color: "#C0C0C0" }}>
+                        No upcoming patients for today
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
