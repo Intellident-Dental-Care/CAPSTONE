@@ -18,6 +18,15 @@ import { supabase } from "../../server/supabaseService";
 import { getCurrentUser } from "../../server/supabaseService";
 import { getCurrentActiveProfileForSession, getPatientProfileByProfileId } from "../_storage/authStorage";
 import { clearAppointmentCacheForProfile, appointmentsListCache } from "../_storage/profileCache";
+import * as Notifications from "expo-notifications";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 function monthShort(d) {
   return d.toLocaleString("en-US", { month: "short" }).toUpperCase();
@@ -217,6 +226,45 @@ function convertTo12Hour(time24h) {
   
   return `${hour12}:${minutes} ${modifier}`;
 }
+
+const scheduleBookingNotifications = async (dateISO, time12h, doctorName) => {
+  const { status } = await Notifications.requestPermissionsAsync();
+  if (status !== "granted") return;
+
+  const time24h = convertTo24Hour(time12h);
+  const appointmentDate = new Date(`${dateISO}T${time24h}`);
+
+  const todayNotificationDate = new Date(`${dateISO}T08:00:00`);
+  const now = new Date();
+
+  if (todayNotificationDate > now) {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Appointment Today",
+        body: `Your booked appointment for ${doctorName} is today at ${time12h}.`,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: todayNotificationDate,
+      },
+    });
+  }
+
+  const oneHourBefore = new Date(appointmentDate.getTime() - 60 * 60 * 1000);
+
+  if (oneHourBefore > now) {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Appointment Reminder",
+        body: `You have 1 hour left until your appointment for ${doctorName}.`,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: oneHourBefore,
+      },
+    });
+  }
+};
 
 export default function BookingAppointment() {
   const router = useRouter();
@@ -674,6 +722,8 @@ export default function BookingAppointment() {
       clearAppointmentCacheForProfile(cacheKey);
       delete appointmentsListCache[cacheKey];
 
+      await scheduleBookingNotifications(selectedISO, selectedTime, dentistData.name);
+
       setShowAlert(true);
     } catch (err) {
       console.error(err);
@@ -708,15 +758,6 @@ export default function BookingAppointment() {
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={20} color={colors.primary} />
         </Pressable>
-
-        <View style={styles.headerRight}>
-          <Ionicons name="heart-outline" size={18} color={colors.primary} />
-          <Ionicons
-            name="share-social-outline"
-            size={18}
-            color={colors.primary}
-          />
-        </View>
       </View>
 
       <View style={styles.doctorRow}>

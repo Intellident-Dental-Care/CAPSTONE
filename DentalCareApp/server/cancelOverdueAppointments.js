@@ -28,12 +28,11 @@ export const cancelOverdueAppointments = async ({ userId, profileId } = {}) => {
       return { updatedCount: 0, updatedIds: [], error: 'No logged-in user.' };
     }
 
-    // Only pull bookings that are not yet finalized.
     let fetchQuery = supabase
       .from('bookings')
       .select('id, appointment_date, appointment_time, status, user_id, profile_id')
       .eq('user_id', user.id)
-      .in('status', ['pending', 'confirmed']);
+      .eq('status', 'pending');
 
     if (isUuid(profileId)) {
       fetchQuery = fetchQuery.eq('profile_id', profileId);
@@ -54,7 +53,6 @@ export const cancelOverdueAppointments = async ({ userId, profileId } = {}) => {
         );
         if (!appointmentAt) return false;
 
-        // Cancel only if appointment started 1 hour ago and is still not completed.
         const cancelAt = new Date(appointmentAt.getTime() + 60 * 60 * 1000);
         return now >= cancelAt;
       })
@@ -69,7 +67,7 @@ export const cancelOverdueAppointments = async ({ userId, profileId } = {}) => {
       .update({ status: 'cancelled' })
       .in('id', overdueIds)
       .eq('user_id', user.id)
-      .in('status', ['pending', 'confirmed']);
+      .eq('status', 'pending');
 
     if (isUuid(profileId)) {
       updateQuery = updateQuery.eq('profile_id', profileId);
