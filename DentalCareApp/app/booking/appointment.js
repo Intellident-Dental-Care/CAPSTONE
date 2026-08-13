@@ -552,12 +552,35 @@ export default function BookingAppointment() {
     const hasBookableSlots = buildSlotsForDate(dentistSchedules, iso, dentistLeaves).length > 0;
 
     if (!branchHasSchedule || !hasBookableSlots) {
-      Alert.alert(
-        "Unavailable",
-        iso === toISODate(new Date())
-          ? "No available times left for today. Please choose another date."
-          : "This dentist is currently on leave or has no availability at this branch on the selected day."
-      );
+      const docName = dentistData?.name || doctor || "This doctor";
+      let errorMessage = "";
+
+      const isLeave = (dentistLeaves || []).some(l => {
+        const start = String(l.start_date).split('T')[0];
+        const end = String(l.end_date).split('T')[0];
+        return iso >= start && iso <= end;
+      });
+
+      if (isLeave) {
+        errorMessage = `${docName} is currently on leave on the selected date.`;
+      } else if (!branchHasSchedule) {
+        const dayNames = ["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays"];
+        const availableDays = [...new Set((dentistSchedules || []).map(row => Number(row.day_of_week)))];
+        
+        if (availableDays.length > 0) {
+          const availableDaysText = availableDays.map(d => dayNames[d]).join(", ");
+          errorMessage = `${docName} is only available in ${branch} during ${availableDaysText}.`;
+        } else {
+          errorMessage = `${docName} currently has no available schedules in ${branch}.`;
+        }
+      } else if (iso === toISODate(new Date())) {
+        errorMessage = `No available times left for ${docName} today. Please choose another date.`;
+      } else {
+        errorMessage = `${docName} is fully booked on this date. Please choose another date.`;
+      }
+
+      Alert.alert("Unavailable", errorMessage);
+
       if (Platform.OS === "ios") setShowCalendar(false);
       return;
     }
@@ -837,6 +860,7 @@ export default function BookingAppointment() {
                 display={Platform.OS === "ios" ? "spinner" : "calendar"}
                 onChange={onPickDate}
                 accentColor={colors.primary}
+                minimumDate={new Date()}
               />
             )}
           </>
