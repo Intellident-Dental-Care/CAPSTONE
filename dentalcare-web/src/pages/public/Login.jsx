@@ -37,7 +37,6 @@ export default function Login() {
     confirmPassword: "",
   });
 
-  // This checks if the backend sent the lockout error message
   const isLockedOut = error.includes("Account locked due to too many login attempts");
 
   const monthOptions = useMemo(() => [
