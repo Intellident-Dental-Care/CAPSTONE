@@ -36,7 +36,7 @@ export default function Queue() {
 
   const [queueList, setQueueList] = useState([]);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
-  const [showStartNextModal, setShowStartNextModal] = useState(false);
+  const [showStartModal, setShowStartModal] = useState(false);
   const [showDelayModal, setShowDelayModal] = useState(false);
 
   const [selectedDelay, setSelectedDelay] = useState("10");
@@ -54,7 +54,11 @@ export default function Queue() {
       return;
     }
 
-    const mapped = (response?.data?.bookings || []).map((item) => ({
+    const filteredBookings = (response?.data?.bookings || []).filter(
+      (item) => item.rawStatus !== "pending" && item.status !== "Waiting"
+    );
+
+    let mapped = filteredBookings.map((item) => ({
       id: item.id,
       queueNumber: item.queueNumber,
       name: item.patientName,
@@ -88,16 +92,16 @@ export default function Queue() {
   }, []);
 
   const currentPatient = useMemo(() => {
-    return (
-      queueList.find((item) => item.status === "In Treatment") ||
-      queueList.find((item) => item.status === "In Queue") ||
-      null
-    );
+    const inTreatment = queueList.find((item) => item.status === "In Treatment" || item.rawStatus === "in_treatment");
+    if (inTreatment) return inTreatment;
+    return queueList.find((item) => item.status === "In Queue" || item.rawStatus === "confirmed") || null;
   }, [queueList]);
 
   const waitingPatients = useMemo(
-    () => queueList.filter((item) => item.rawStatus === "pending" || item.status === "Waiting"),
-    [queueList]
+    () => queueList.filter(
+      (item) => (item.rawStatus === "confirmed" || item.status === "In Queue") && item.id !== currentPatient?.id
+    ),
+    [queueList, currentPatient]
   );
 
   const nextPatient = waitingPatients[0] || null;
@@ -171,21 +175,16 @@ export default function Queue() {
     );
 
     setShowCompleteConfirm(false);
-
-    if (nextPatient) {
-      setShowStartNextModal(true);
-    }
-
     await loadQueue();
   };
 
-  const startNextTreatment = async () => {
-    if (!nextPatient) {
-      setShowStartNextModal(false);
+  const startTreatment = async () => {
+    if (!currentPatient) {
+      setShowStartModal(false);
       return;
     }
 
-    const result = await updateQueueStatus(nextPatient.id, "in treatment");
+    const result = await updateQueueStatus(currentPatient.id, "in treatment");
     if (!result?.success) {
       setNotifications((prev) => [
         {
@@ -196,13 +195,13 @@ export default function Queue() {
         },
         ...prev,
       ]);
-      setShowStartNextModal(false);
+      setShowStartModal(false);
       return;
     }
 
     setQueueList((prev) =>
       prev.map((item) =>
-        item.id === nextPatient.id
+        item.id === currentPatient.id
           ? { ...item, status: "In Treatment", rawStatus: "in_treatment" }
           : item
       )
@@ -212,13 +211,13 @@ export default function Queue() {
       {
         id: Date.now(),
         title: "Queue Update:",
-        message: `Patient #${nextPatient.queueNumber} is now in-treatment`,
+        message: `Patient #${currentPatient.queueNumber} is now in-treatment`,
         time: "Just now",
       },
       ...prev,
     ]);
 
-    setShowStartNextModal(false);
+    setShowStartModal(false);
     await loadQueue();
   };
 
@@ -354,7 +353,7 @@ export default function Queue() {
                     </div>
 
                     <div className="queue-live-status">
-                      {currentPatient.status === "In Queue" ? "Currently being treated" : currentPatient.status}
+                      {currentPatient.status}
                     </div>
 
                     <div className="queue-live-details">
@@ -392,12 +391,23 @@ export default function Queue() {
                       </div>
                     </div>
 
-                    <button
-                      className="queue-primary-btn queue-complete-btn"
-                      onClick={handleCompleteClick}
-                    >
-                      Complete Treatment
-                    </button>
+                    <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+                      {currentPatient.status === "In Queue" || currentPatient.rawStatus === "confirmed" ? (
+                        <button
+                          className="queue-primary-btn"
+                          onClick={() => setShowStartModal(true)}
+                        >
+                          Start Treatment
+                        </button>
+                      ) : (
+                        <button
+                          className="queue-primary-btn queue-complete-btn"
+                          onClick={handleCompleteClick}
+                        >
+                          Complete Treatment
+                        </button>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <div className="queue-empty-state">
@@ -509,7 +519,7 @@ export default function Queue() {
                       className={`queue-list-item ${
                         patient.id === currentPatient?.id
                           ? "active-treatment"
-                          : patient.status === "In Queue" || patient.rawStatus === "pending"
+                          : patient.status === "In Queue" || patient.rawStatus === "confirmed"
                           ? "active"
                           : patient.status === "Completed"
                           ? "completed"
@@ -529,11 +539,7 @@ export default function Queue() {
 
                       <div className="queue-list-right">
                         <span>{patient.time}</span>
-                        <small>
-                          {patient.id === currentPatient?.id && patient.status === "In Queue" 
-                            ? "Currently being treated" 
-                            : patient.status}
-                        </small>
+                        <small>{patient.status}</small>
                       </div>
                     </div>
                   ))}
@@ -589,22 +595,27 @@ export default function Queue() {
           </div>
         )}
 
-        {showStartNextModal && nextPatient && (
+        {showStartModal && currentPatient && (
           <div className="queue-modal-overlay">
             <div className="queue-modal queue-modal-start">
               <h2>Start Treatment</h2>
               <p className="queue-start-message">
-                <strong>{nextPatient.name}</strong> has been successfully moved
-                to the live queue.
+                Are you ready to begin treatment for <strong>{currentPatient.name}</strong>?
               </p>
               <p className="queue-start-time">
-                Appointment: {nextPatient.time}
+                Appointment: {currentPatient.time}
               </p>
 
               <div className="queue-modal-actions queue-modal-actions-center">
                 <button
+                  className="queue-secondary-btn"
+                  onClick={() => setShowStartModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
                   className="queue-primary-btn"
-                  onClick={startNextTreatment}
+                  onClick={startTreatment}
                 >
                   Start
                 </button>

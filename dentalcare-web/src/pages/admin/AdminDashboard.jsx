@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import AdminSidebar from "../../components/admin/layout/AdminSidebar";
 import AdminTopbar from "../../components/admin/layout/AdminTopbar";
 import AdminSummaryCard from "../../components/admin/dashboard/AdminSummaryCard";
-import { getDashboardSnapshot } from "../../services/adminService";
+import { getDashboardSnapshot, getTodayQueue } from "../../services/adminService";
 import "../../styles/admin/dashboard/admin-dashboard.css";
 import "../../styles/admin/dashboard/admin-layout.css";
 import "../../styles/admin/dashboard/admin-summary-card.css";
@@ -20,8 +20,51 @@ export default function AdminDashboard() {
 
     const loadSnapshot = async () => {
       const response = await getDashboardSnapshot({ forceRefresh: true });
+      
       if (mounted && response?.success) {
-        setSnapshot(response.data);
+        let dashboardData = { ...response.data };
+        const queueRes = await getTodayQueue({ forceRefresh: true });
+        
+        if (queueRes?.success) {
+          const filteredBookings = (queueRes.data.bookings || []).filter(
+            (item) => item.rawStatus !== "pending" && item.status !== "Waiting"
+          );
+
+          let mapped = filteredBookings.map((item) => ({
+            id: item.id,
+            queueNumber: item.queueNumber,
+            patientName: item.patientName || item.name,
+            name: item.patientName || item.name,
+            time: item.time,
+            date: item.date || new Date().toLocaleDateString(),
+            status: item.status,
+            rawStatus: item.rawStatus,
+            procedure: item.procedure,
+            dentist: item.dentist,
+          }));
+
+          // Current patient logic mirroring the Queue.jsx structure
+          const currentPatient = mapped.find((item) => item.status === "In Treatment" || item.rawStatus === "in_treatment") || 
+                                 mapped.find((item) => item.status === "In Queue" || item.rawStatus === "confirmed") || 
+                                 null;
+          
+          const waitingPatients = mapped.filter(
+            (item) => (item.rawStatus === "confirmed" || item.status === "In Queue") && item.id !== currentPatient?.id
+          );
+          
+          const nextPatient = waitingPatients[0] || null;
+
+          dashboardData.liveQueue = currentPatient;
+          dashboardData.nextPatient = nextPatient;
+          
+          if (dashboardData.totals) {
+            dashboardData.totals.waiting = waitingPatients.length;
+          }
+        }
+
+        if (mounted) {
+          setSnapshot(dashboardData);
+        }
       }
     };
 
@@ -40,7 +83,6 @@ export default function AdminDashboard() {
   const monthlyAppointments = snapshot?.monthlyAppointments || [];
   const nextPatientWaitMinutes = Number(snapshot?.nextPatientWaitMinutes || 0);
 
-  // Check if there's an active patient (not completed/done)
   const isActivePatient = currentQueue && currentQueue.status && !["Completed", "Done", "Cancelled"].includes(currentQueue.status);
 
   const [notifications, setNotifications] = useState([
