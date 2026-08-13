@@ -19,6 +19,7 @@ import { getCurrentUser } from "../../server/supabaseService";
 import { getCurrentActiveProfileForSession, getPatientProfileByProfileId } from "../_storage/authStorage";
 import { clearAppointmentCacheForProfile, appointmentsListCache } from "../_storage/profileCache";
 import * as Notifications from "expo-notifications";
+import DentistAvatar from "../services/DentistPicture/pictureHandler";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -761,9 +762,12 @@ export default function BookingAppointment() {
       </View>
 
       <View style={styles.doctorRow}>
-        <View style={styles.docPic}>
-          <Ionicons name="person" size={22} color={colors.primary} />
-        </View>
+        <DentistAvatar 
+          dentistId={dentistData?.id} 
+          style={styles.docPic} 
+          iconSize={22} 
+          fallbackColor={colors.primary} 
+        />
 
         <View style={{ flex: 1 }}>
           <Text style={styles.docName}>{dentistData?.name || doctor || "Doctor"}</Text>
@@ -998,11 +1002,11 @@ export default function BookingAppointment() {
 
 function Stat({ label, value }) {
   return (
-    <View style={{ alignItems: "center" }}>
+    <View style={{ flex: 1, alignItems: "center" }}>
       <Text style={{ fontSize: 12, fontWeight: "900", color: "#666" }}>
         {value}
       </Text>
-      <Text style={{ fontSize: 9, color: colors.textGray }}>{label}</Text>
+      <Text style={{ fontSize: 9, color: colors.textGray, textAlign: "center" }}>{label}</Text>
     </View>
   );
 }

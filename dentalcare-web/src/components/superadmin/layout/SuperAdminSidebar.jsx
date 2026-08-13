@@ -1,20 +1,27 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import logo from "../../../assets/logo.png";
 import adminProfile from "../../../assets/profile_sample.jpg";
 import AuthService from "../../../services/authService";
-import { getAdminProfile } from "../../../services/adminService";
+import { getSuperAdminProfile, loadSuperAdminAvatarObjectUrl } from "../../../services/superAdminService";
+
+const sidebarAvatarCache = {
+  path: "",
+  src: "",
+};
 
 export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }) {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => AuthService.getCurrentUser() || {});
+  const [avatarSrc, setAvatarSrc] = useState(sidebarAvatarCache.src);
+  const loadingRef = useRef(false);
 
   useEffect(() => {
     let active = true;
 
     const loadProfile = async () => {
-      const result = await getAdminProfile();
+      const result = await getSuperAdminProfile();
       if (!active || !result?.success || !result?.data) return;
 
       setCurrentUser((prev) => ({ ...(prev || {}), ...result.data }));
@@ -48,6 +55,58 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
       active = false;
       window.removeEventListener("storage", syncFromStorage);
       window.removeEventListener("auth:user-updated", handleUserUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    const reloadAvatar = async () => {
+      const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+      const avatarPath = userData?.avatarPath || userData?.avatarUrl || "";
+
+      if (avatarPath === sidebarAvatarCache.path && sidebarAvatarCache.src) {
+        setAvatarSrc(sidebarAvatarCache.src);
+        return;
+      }
+
+      if (!avatarPath) {
+        sidebarAvatarCache.path = "";
+        sidebarAvatarCache.src = "";
+        setAvatarSrc("");
+        return;
+      }
+
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+
+      try {
+        const resolved = await loadSuperAdminAvatarObjectUrl(avatarPath);
+        sidebarAvatarCache.path = avatarPath;
+        sidebarAvatarCache.src = resolved || "";
+        setAvatarSrc(resolved || "");
+      } catch {
+        setAvatarSrc("");
+      } finally {
+        loadingRef.current = false;
+      }
+    };
+
+    reloadAvatar();
+
+    const handleAvatarUpdated = () => {
+      const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+      const newAvatarPath = userData?.avatarPath || userData?.avatarUrl || "";
+      
+      if (newAvatarPath && sidebarAvatarCache.path !== newAvatarPath) {
+        reloadAvatar();
+      }
+    };
+
+    window.addEventListener("auth:user-updated", handleAvatarUpdated);
+    window.addEventListener("storage", handleAvatarUpdated);
+
+    return () => {
+      window.removeEventListener("auth:user-updated", handleAvatarUpdated);
+      window.removeEventListener("storage", handleAvatarUpdated);
     };
   }, []);
 
@@ -94,7 +153,7 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
             </div>
 
             <div className="admin-profile-card">
-              <img src={adminProfile} alt="Super Admin" />
+              <img src={avatarSrc || adminProfile} alt="Super Admin" />
               <h3>Hello, {displayName}</h3>
               <p>{displayRole}</p>
             </div>

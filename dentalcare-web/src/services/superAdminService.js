@@ -1,6 +1,6 @@
 import AuthService from "./authService";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_LIVE_ORIGIN;
 
 const baseHeaders = () => ({
   "Content-Type": "application/json",
@@ -170,3 +170,128 @@ export const deleteSuperAdminQuestionnaire = async (id) => {
     method: "DELETE",
   });
 };
+
+const superAdminCache = {
+  profile: null,
+  avatarBlobCache: {},
+};
+
+export const buildSuperAdminAvatarImageUrl = (avatarPath) => {
+  const cleanPath = String(avatarPath || "").trim();
+
+  if (!cleanPath) return "";
+  if (cleanPath.startsWith("blob:") || cleanPath.startsWith("data:") || cleanPath.startsWith("http")) {
+    return cleanPath;
+  }
+
+  return `${API_BASE_URL}/super_admin/profile/image?path=${encodeURIComponent(cleanPath)}`;
+};
+
+export const loadSuperAdminAvatarObjectUrl = async (avatarPath) => {
+  const imageUrl = buildSuperAdminAvatarImageUrl(avatarPath);
+
+  if (!imageUrl) return "";
+  if (imageUrl.startsWith("blob:") || imageUrl.startsWith("data:")) return imageUrl;
+
+  if (superAdminCache.avatarBlobCache[avatarPath]) {
+    return URL.createObjectURL(superAdminCache.avatarBlobCache[avatarPath]);
+  }
+
+  const response = await fetch(imageUrl, {
+    method: "GET",
+    headers: baseHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to load superadmin avatar");
+  }
+
+  const blob = await response.blob();
+  superAdminCache.avatarBlobCache[avatarPath] = blob;
+  return URL.createObjectURL(blob);
+};
+
+export const getSuperAdminProfile = async () => {
+  if (superAdminCache.profile) {
+    return { success: true, data: superAdminCache.profile };
+  }
+
+  try {
+    const data = await fetchJson("/super_admin/profile/me", { method: "GET" });
+    if (data?.success) {
+      superAdminCache.profile = data.data;
+      
+      const dbPath = data.data.avatarPath || data.data.avatarUrl || "";
+      if (dbPath) {
+        const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+        userData.avatarPath = dbPath;
+        userData.avatarUrl = dbPath;
+        localStorage.setItem("user_data", JSON.stringify(userData));
+      }
+    }
+    return data;
+  } catch (error) {
+    return { success: false, message: "Failed to load superadmin profile" };
+  }
+};
+
+export const updateSuperAdminProfile = async (payload) => {
+  try {
+    const data = await fetchJson("/super_admin/profile/me", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+
+    if (data?.success) {
+      superAdminCache.profile = data.data;
+    } else {
+      superAdminCache.profile = null;
+    }
+
+    return data;
+  } catch (error) {
+    superAdminCache.profile = null;
+    return { success: false, message: "Failed to update superadmin profile" };
+  }
+};
+
+export const uploadSuperAdminProfileAvatar = async ({ avatarBase64, fileName }) => {
+  try {
+    const data = await fetchJson("/super_admin/profile/avatar", {
+      method: "POST",
+      body: JSON.stringify({ avatarBase64, fileName }),
+    });
+
+    if (data?.success) {
+      superAdminCache.profile = data.data;
+    } else {
+      superAdminCache.profile = null;
+    }
+
+    return data;
+  } catch (error) {
+    superAdminCache.profile = null;
+    return { success: false, message: "Failed to upload profile image" };
+  }
+};
+
+export const fetchSuperAdminUnreadNotifications = async () => {
+  try {
+    const data = await fetchJson("/super_admin/notifications", { method: "GET" });
+    return data; 
+  } catch (error) {
+    console.error("Error fetching notifications:", error);
+    return { success: false, message: "Failed to fetch notifications", data: [] };
+  }
+};
+
+export const markSuperAdminNotificationsAsRead = async () => {
+  try {
+    const data = await fetchJson("/super_admin/notifications/mark-read", { method: "PATCH" });
+    return data; 
+  } catch (error) {
+    console.error("Error marking notifications as read:", error);
+    return { success: false, message: "Failed to clear notifications" };
+  }
+};
+

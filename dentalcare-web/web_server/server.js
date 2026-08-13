@@ -27,6 +27,8 @@ import superAdminServicesRoutes from "./super_admin/services/servicesRoutes.js";
 import superAdminFaqsRoutes from "./super_admin/faqs/faqsRoutes.js";
 import superAdminTermsRoutes from "./super_admin/terms/termsRoutes.js";
 import questionnaireRoutes from "./super_admin/questionnaire/questionnaireRoutes.js";
+import superAdminProfileRoutes from "./super_admin/profile/profileRoutes.js";
+import superAdminNotificationRoutes from "./super_admin/notifications/notificationRoutes.js";
 
 import {
   getLocalIpAddress,
@@ -54,13 +56,6 @@ const PORT = Number(
 
 const LOCAL_IP = getLocalIpAddress();
 
-/*
-  Using credentials: true together with origin: "*"
-  can cause CORS issues.
-
-  origin: true allows the requesting origin while still
-  supporting credentials.
-*/
 app.use(
   cors({
     origin: true,
@@ -70,7 +65,6 @@ app.use(
 
 app.use(express.json({ limit: "15mb" }));
 
-// Root route
 app.get("/", (_req, res) => {
   res.status(200).json({
     success: true,
@@ -78,7 +72,6 @@ app.get("/", (_req, res) => {
   });
 });
 
-// Health check
 app.get("/health", (_req, res) => {
   res.status(200).json({
     success: true,
@@ -87,7 +80,6 @@ app.get("/health", (_req, res) => {
   });
 });
 
-// Server discovery
 app.get("/server-discovery", (_req, res) => {
   const currentUrl =
     process.env.RENDER_EXTERNAL_URL ||
@@ -103,18 +95,9 @@ app.get("/server-discovery", (_req, res) => {
   });
 });
 
-/* =====================================================
-   AUTHENTICATION ROUTES
-===================================================== */
-
 app.use("/api/auth", authRoutes);
 
-// Keep old authentication endpoints working
 app.use("/", authRoutes);
-
-/* =====================================================
-   ADMIN ROUTES WITH /api PREFIX
-===================================================== */
 
 app.use("/api/admin/dashboard", dashboardRoutes);
 app.use("/api/admin/queuecontrol", queueRoutes);
@@ -124,16 +107,6 @@ app.use("/api/admin/dentists", dentistsRoutes);
 app.use("/api/admin/patients", patientsRoutes);
 app.use("/api/admin/notifications", notificationRoutes);
 
-/* =====================================================
-   ADMIN ROUTES WITHOUT /api PREFIX
-
-   Your current frontend uses:
-   /admin/dentists
-   /admin/profile
-   /admin/appointments
-   and similar URLs.
-===================================================== */
-
 app.use("/admin/dashboard", dashboardRoutes);
 app.use("/admin/queuecontrol", queueRoutes);
 app.use("/admin/profile", profileRoutes);
@@ -142,29 +115,17 @@ app.use("/admin/dentists", dentistsRoutes);
 app.use("/admin/patients", patientsRoutes);
 app.use("/admin/notifications", notificationRoutes);
 
-/* =====================================================
-   DENTIST ROUTES WITH /api PREFIX
-===================================================== */
-
 app.use("/api/dentist/dashboard", dentistDashboardRoutes);
 app.use("/api/dentist/schedule", dentistScheduleRoutes);
 app.use("/api/dentist/profile", dentistProfileRoutes);
 app.use("/api/dentist/patients", dentistPatientsRoutes);
 app.use("/api/dentist/notifications", dentistNotificationRoutes);
 
-/* =====================================================
-   DENTIST ROUTES WITHOUT /api PREFIX
-===================================================== */
-
 app.use("/dentist/dashboard", dentistDashboardRoutes);
 app.use("/dentist/schedule", dentistScheduleRoutes);
 app.use("/dentist/profile", dentistProfileRoutes);
 app.use("/dentist/patients", dentistPatientsRoutes);
 app.use("/dentist/notifications", dentistNotificationRoutes);
-
-/* =====================================================
-   SUPER ADMIN ROUTES WITH /api PREFIX
-===================================================== */
 
 app.use(
   "/api/super_admin/dashboard",
@@ -206,9 +167,15 @@ app.use(
   questionnaireRoutes
 );
 
-/* =====================================================
-   SUPER ADMIN ROUTES WITHOUT /api PREFIX
-===================================================== */
+app.use(
+  "/api/super_admin/profile",
+  superAdminProfileRoutes
+);
+
+app.use(
+  "/api/super_admin/notifications",
+  superAdminNotificationRoutes
+);
 
 app.use(
   "/super_admin/dashboard",
@@ -250,9 +217,15 @@ app.use(
   questionnaireRoutes
 );
 
-/* =====================================================
-   404 HANDLER
-===================================================== */
+app.use(
+  "/super_admin/profile",
+  superAdminProfileRoutes
+);
+
+app.use(
+  "/super_admin/notifications",
+  superAdminNotificationRoutes
+);
 
 app.use((req, res) => {
   res.status(404).json({
@@ -260,10 +233,6 @@ app.use((req, res) => {
     message: `Route not found: ${req.method} ${req.originalUrl}`,
   });
 });
-
-/* =====================================================
-   GLOBAL ERROR HANDLER
-===================================================== */
 
 app.use((err, _req, res, _next) => {
   console.error("Unhandled server error:", err);
@@ -277,10 +246,6 @@ app.use((err, _req, res, _next) => {
 app.get("/ping", (req, res) => {
   res.status(200).send("OK");
 });
-
-/* =====================================================
-   START SERVER
-===================================================== */
 
 app.listen(PORT, "0.0.0.0", async () => {
   console.log(`Web server running on port ${PORT}`);

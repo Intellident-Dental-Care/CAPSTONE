@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import AuthService from "../../../services/authService";
 import { updateAdminProfile, uploadAdminProfileAvatar, loadAdminAvatarObjectUrl } from "../../../services/adminService";
+import { updateSuperAdminProfile, uploadSuperAdminProfileAvatar, loadSuperAdminAvatarObjectUrl } from "../../../services/superAdminService";
 
 export default function AdminProfileModal({ open, onClose, profile, onProfileUpdated }) {
   const fileInputRef = useRef(null);
@@ -15,17 +17,21 @@ export default function AdminProfileModal({ open, onClose, profile, onProfileUpd
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Identify role to dictate which service endpoints to use
+  const currentUser = AuthService.getCurrentUser() || {};
+  const isSuperAdmin = currentUser?.admin_type === "super_admin" || currentUser?.adminType === "super_admin";
+
   useEffect(() => {
     if (!profile) return;
+    
     setForm({
-      fullName: profile.fullName || "",
+      fullName: profile.fullName || profile.full_name || "",
       dob: profile.dob || "",
       gender: profile.gender || "",
-      phone: profile.phone || "",
+      phone: profile.phone || profile.phone_number || "",
       email: profile.email || "",
     });
     
-    // Load avatar path from localStorage if it exists
     const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
     setAvatarPath(userData.avatarPath || userData.avatarUrl || "");
   }, [profile]);
@@ -40,7 +46,10 @@ export default function AdminProfileModal({ open, onClose, profile, onProfileUpd
       }
 
       try {
-        const resolved = await loadAdminAvatarObjectUrl(avatarPath);
+        const resolved = isSuperAdmin 
+          ? await loadSuperAdminAvatarObjectUrl(avatarPath) 
+          : await loadAdminAvatarObjectUrl(avatarPath);
+          
         if (active) setAvatarSrc(resolved || "");
       } catch {
         if (active) setAvatarSrc("");
@@ -52,7 +61,7 @@ export default function AdminProfileModal({ open, onClose, profile, onProfileUpd
     return () => {
       active = false;
     };
-  }, [avatarPath]);
+  }, [avatarPath, isSuperAdmin]);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -74,7 +83,8 @@ export default function AdminProfileModal({ open, onClose, profile, onProfileUpd
         reader.readAsDataURL(file);
       });
 
-      const result = await uploadAdminProfileAvatar({
+      const uploadFn = isSuperAdmin ? uploadSuperAdminProfileAvatar : uploadAdminProfileAvatar;
+      const result = await uploadFn({
         avatarBase64: base64,
         fileName: file.name,
       });
@@ -91,13 +101,13 @@ export default function AdminProfileModal({ open, onClose, profile, onProfileUpd
         return;
       }
 
-      const avatarPath = result.data.avatarUrl || result.data.avatarPath || "";
-      setAvatarPath(avatarPath);
+      const newAvatarPath = result.data.avatarUrl || result.data.avatarPath || "";
+      setAvatarPath(newAvatarPath);
 
       // Update localStorage with avatar path
       const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
-      userData.avatarPath = avatarPath;
-      userData.avatarUrl = avatarPath;
+      userData.avatarPath = newAvatarPath;
+      userData.avatarUrl = newAvatarPath;
       localStorage.setItem("user_data", JSON.stringify(userData));
     } finally {
       setUploadingAvatar(false);
@@ -107,7 +117,9 @@ export default function AdminProfileModal({ open, onClose, profile, onProfileUpd
   const handleSave = async () => {
     setSaving(true);
     try {
-      const result = await updateAdminProfile({
+      // Dynamically fire the corresponding DB profile update service
+      const updateFn = isSuperAdmin ? updateSuperAdminProfile : updateAdminProfile;
+      const result = await updateFn({
         fullName: form.fullName,
         dob: form.dob,
         gender: form.gender,
@@ -130,31 +142,31 @@ export default function AdminProfileModal({ open, onClose, profile, onProfileUpd
       }
 
       if (result?.success && result?.data && onProfileUpdated) {
-      const normalizedProfile = {
-        ...result.data,
-        fullName: result.data.fullName || result.data.full_name || form.fullName,
-        full_name: result.data.full_name || result.data.fullName || form.fullName,
-        email: result.data.email || form.email,
-        phone: result.data.phone || result.data.phone_number || form.phone,
-        phone_number: result.data.phone_number || result.data.phone || form.phone,
-        avatarUrl: result.data.avatarUrl || result.data.avatar_url || avatarPath || "",
-        avatar_url: result.data.avatar_url || result.data.avatarUrl || avatarPath || "",
-      };
+        const normalizedProfile = {
+          ...result.data,
+          fullName: result.data.fullName || result.data.full_name || form.fullName,
+          full_name: result.data.full_name || result.data.fullName || form.fullName,
+          email: result.data.email || form.email,
+          phone: result.data.phone || result.data.phone_number || form.phone,
+          phone_number: result.data.phone_number || result.data.phone || form.phone,
+          avatarUrl: result.data.avatarUrl || result.data.avatar_url || avatarPath || "",
+          avatar_url: result.data.avatar_url || result.data.avatarUrl || avatarPath || "",
+        };
 
-      onProfileUpdated(normalizedProfile);
+        onProfileUpdated(normalizedProfile);
 
-      localStorage.setItem("user_data", JSON.stringify({
-        ...(JSON.parse(localStorage.getItem("user_data") || "{}")),
-        fullName: normalizedProfile.fullName,
-        full_name: normalizedProfile.full_name,
-        email: normalizedProfile.email,
-        phone_number: normalizedProfile.phone_number,
-        avatarUrl: normalizedProfile.avatarUrl,
-        avatar_url: normalizedProfile.avatar_url,
-      }));
+        localStorage.setItem("user_data", JSON.stringify({
+          ...(JSON.parse(localStorage.getItem("user_data") || "{}")),
+          fullName: normalizedProfile.fullName,
+          full_name: normalizedProfile.full_name,
+          email: normalizedProfile.email,
+          phone_number: normalizedProfile.phone_number,
+          avatarUrl: normalizedProfile.avatarUrl,
+          avatar_url: normalizedProfile.avatar_url,
+        }));
 
-      window.dispatchEvent(new CustomEvent("auth:user-updated", { detail: normalizedProfile }));
-      onClose();
+        window.dispatchEvent(new CustomEvent("auth:user-updated", { detail: normalizedProfile }));
+        onClose();
       }
     } catch (error) {
       console.error("Error saving profile:", error);
