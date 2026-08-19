@@ -14,7 +14,7 @@ const fetchJson = async (path, options = {}) => {
       ...options,
     });
 
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
       AuthService.clearAuth();
     }
 

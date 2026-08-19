@@ -292,8 +292,11 @@ class AuthService {
           return data;
         }
 
-        this.setToken(data.data.token, 'admin');
-        localStorage.setItem('user_data', JSON.stringify(data.data.admin));
+        const adminData = data.data.admin;
+        const assignedRole = adminData.admin_type === "super_admin" || adminData.adminType === "super_admin" ? "super_admin" : "admin";
+        
+        this.setToken(data.data.token, assignedRole);
+        localStorage.setItem('user_data', JSON.stringify(adminData));
         return data;
       }
 
