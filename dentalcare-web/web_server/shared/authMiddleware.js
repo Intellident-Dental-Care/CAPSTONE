@@ -64,7 +64,7 @@ export const requireSuperAdmin = async (req, res, next) => {
     const { data: admin, error } = await supabaseAdmin
       .from("admin_list")
       .select("admin_type, is_active")
-      .eq("id", req.user.id)
+      .eq("id", req.user.profileId || req.user.id)
       .single();
 
     if (error || !admin || !admin.is_active || admin.admin_type !== "super_admin") {

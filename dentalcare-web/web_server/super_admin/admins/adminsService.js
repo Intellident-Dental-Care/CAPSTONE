@@ -30,6 +30,10 @@ export const createAdminAccount = async (payload) => {
     const tempPassword = generateTempPassword();
     const otp = generateOtp();
 
+    const branchesString = payload.branches && payload.branches.length > 0 
+      ? payload.branches.join(" | ") 
+      : "Unassigned";
+
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: payload.email,
       password: tempPassword,
@@ -42,7 +46,7 @@ export const createAdminAccount = async (payload) => {
       full_name: payload.name,
       email: payload.email,
       phone_number: payload.contactNumber,
-      branch: payload.branch,
+      branch: branchesString,
       admin_type: "admin",
       is_active: true,
       is_verified: false, 

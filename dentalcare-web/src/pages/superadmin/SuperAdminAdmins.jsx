@@ -75,7 +75,7 @@ export default function SuperAdminAdmins() {
         (admin.sex || "").toLowerCase().includes(keyword);
 
       const matchesBranch =
-        branchFilter === "All Branches" || (admin.branch || "") === branchFilter;
+        branchFilter === "All Branches" || (admin.branch || "").includes(branchFilter);
 
       return matchesSearch && matchesBranch;
     });
