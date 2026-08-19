@@ -10,20 +10,29 @@ import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
 import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
+import { useBranch } from "../../context/BranchContext";
+
 
 export default function AdminDashboard() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [snapshot, setSnapshot] = useState(null);
+  const { selectedBranch } = useBranch();
 
   useEffect(() => {
     let mounted = true;
 
     const loadSnapshot = async () => {
-      const response = await getDashboardSnapshot({ forceRefresh: true });
+      const response = await getDashboardSnapshot({
+        forceRefresh: true,
+        branch: selectedBranch,
+      });
       
       if (mounted && response?.success) {
         let dashboardData = { ...response.data };
-        const queueRes = await getTodayQueue({ forceRefresh: true });
+        const queueRes = await getTodayQueue({
+          forceRefresh: true,
+          branch: selectedBranch,
+        });
         
         if (queueRes?.success) {
           const filteredBookings = (queueRes.data.bookings || []).filter(
@@ -73,7 +82,7 @@ export default function AdminDashboard() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [selectedBranch]);
 
   const currentQueue = snapshot?.liveQueue || null;
   const nextPatientFromApi = snapshot?.nextPatient || null;

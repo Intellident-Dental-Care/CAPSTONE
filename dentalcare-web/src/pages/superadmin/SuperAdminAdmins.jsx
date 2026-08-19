@@ -39,7 +39,7 @@ export default function SuperAdminAdmins() {
 
   const [form, setForm] = useState({
     email: "",
-    branch: REGISTER_BRANCHES[0],
+    branches: [],
   });
 
   const [confirmModal, setConfirmModal] = useState({
@@ -108,17 +108,22 @@ export default function SuperAdminAdmins() {
   const openRegisterConfirmModal = (e) => {
     e.preventDefault();
 
-    if (!form.email.trim() || !form.branch.trim()) return;
+    if (!form.email.trim() || form.branches.length === 0) {
+      alert("Please enter an email and select at least one branch.");
+      return;
+    }
 
     setConfirmModal({
       open: true,
       type: "register-admin",
       ids: [],
       title: "Register Admin Account",
-      message: `Are you sure you want to register ${form.email.trim()} for ${form.branch}?`,
+      message: `Are you sure you want to register ${form.email.trim()} for ${form.branches.join(
+        ", "
+      )}?`,
       payload: {
         email: form.email.trim(),
-        branch: form.branch,
+        branches: form.branches,
       },
     });
   };
@@ -185,7 +190,7 @@ export default function SuperAdminAdmins() {
 
       const res = await createSuperAdminAdmin({
         email: payload.email,
-        branch: payload.branch,
+        branches: payload.branches,
         name: "New Admin",
         contactNumber: "Not Set",
       });
@@ -194,7 +199,10 @@ export default function SuperAdminAdmins() {
 
       if (res?.success) {
         await fetchAdmins();
-        setForm({ email: "", branch: REGISTER_BRANCHES[0] });
+        setForm({
+          email: "",
+          branches: [],
+        });
         setIsRegisterModalOpen(false);
       } else {
         alert(res?.message || "Failed to create admin.");
@@ -242,6 +250,19 @@ export default function SuperAdminAdmins() {
     }
 
     closeConfirmModal();
+  };
+
+  const handleBranchChange = (branch) => {
+    setForm((prev) => {
+      const isSelected = prev.branches.includes(branch);
+
+      return {
+        ...prev,
+        branches: isSelected
+          ? prev.branches.filter((item) => item !== branch)
+          : [...prev.branches, branch],
+      };
+    });
   };
 
   const toggleSelectOne = (id) => {
@@ -844,17 +865,37 @@ export default function SuperAdminAdmins() {
               </div>
 
               <div className="superadmin-admins-field">
-                <label>Branch</label>
-                <select
-                  value={form.branch}
-                  onChange={(e) => setForm((prev) => ({ ...prev, branch: e.target.value }))}
-                >
+                <label>
+                  Branch
+                  <span className="superadmin-admins-required"> *</span>
+                </label>
+
+                <div className="superadmin-admins-branch-checkboxes">
                   {REGISTER_BRANCHES.map((branch) => (
-                    <option key={branch} value={branch}>
-                      {branch}
-                    </option>
+                    <label
+                      key={branch}
+                      className={`superadmin-admins-branch-checkbox ${
+                        form.branches.includes(branch) ? "is-selected" : ""
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.branches.includes(branch)}
+                        onChange={() => handleBranchChange(branch)}
+                      />
+
+                      <span className="superadmin-admins-checkbox-custom">
+                        {form.branches.includes(branch) && "✓"}
+                      </span>
+
+                      <span>{branch}</span>
+                    </label>
                   ))}
-                </select>
+                </div>
+
+                <span className="superadmin-admins-field-hint">
+                  You can select multiple branches.
+                </span>
               </div>
 
               <div className="superadmin-admins-modal-actions superadmin-admins-register-actions">

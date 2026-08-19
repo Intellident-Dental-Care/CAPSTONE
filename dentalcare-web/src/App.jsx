@@ -15,6 +15,12 @@ import Appointments from "./pages/admin/AdminAppointments";
 import AdminDentist from "./pages/admin/AdminDentist";
 import AdminPatient from "./pages/admin/AdminPatient";
 
+import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard";
+import SuperAdminAdmins from "./pages/superadmin/SuperAdminAdmins";
+import SuperAdminDentists from "./pages/superadmin/SuperAdminDentists";
+import SuperAdminPatients from "./pages/superadmin/SuperAdminPatients";
+import SuperAdminServices from "./pages/superadmin/SuperAdminServices";
+import SuperAdminFaqs from "./pages/superadmin/SuperAdminFaqs";
 import SuperAdminTermsConditions from "./pages/superadmin/SuperAdminTermsConditions";
 import SuperAdminToothQuestions from "./pages/superadmin/SuperAdminToothQuestions";
 
@@ -32,13 +38,6 @@ function ProtectedRoute({ expectedRole, children }) {
 
   return children;
 }
-
-import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard";
-import SuperAdminAdmins from "./pages/superadmin/SuperAdminAdmins";
-import SuperAdminDentists from "./pages/superadmin/SuperAdminDentists";
-import SuperAdminPatients from "./pages/superadmin/SuperAdminPatients";
-import SuperAdminServices from "./pages/superadmin/SuperAdminServices";
-import SuperAdminFaqs from "./pages/superadmin/SuperAdminFaqs";
 
 export default function App() {
   return (
@@ -64,82 +63,84 @@ export default function App() {
         />
 
         <Route
-          path="/superadmin-dashboard"
-          element={<Navigate to="/superadmin/dashboard" replace />}
-        />
-
-        <Route
           path="/dentist/dashboard"
-          element={(
+          element={
             <ProtectedRoute expectedRole="dentist">
               <DentistDashboard />
             </ProtectedRoute>
-          )}
+          }
         />
+
         <Route
           path="/dentist/profile"
-          element={(
+          element={
             <ProtectedRoute expectedRole="dentist">
               <DentistProfile />
             </ProtectedRoute>
-          )}
+          }
         />
+
         <Route
           path="/dentist/schedule"
-          element={(
+          element={
             <ProtectedRoute expectedRole="dentist">
               <DentistSchedule />
             </ProtectedRoute>
-          )}
+          }
         />
+
         <Route
           path="/dentist/patient-history"
-          element={(
+          element={
             <ProtectedRoute expectedRole="dentist">
               <DentistPatientHistory />
             </ProtectedRoute>
-          )}
+          }
         />
 
         <Route
           path="/admin/dashboard"
-          element={(
+          element={
             <ProtectedRoute expectedRole="admin">
               <AdminDashboard />
             </ProtectedRoute>
-          )}
+          }
         />
+
         <Route
           path="/admin/queue-control"
-          element={(
+          element={
             <ProtectedRoute expectedRole="admin">
               <Queue />
             </ProtectedRoute>
-          )}
+          }
         />
+
         <Route
           path="/admin/appointments"
-          element={(
+          element={
             <ProtectedRoute expectedRole="admin">
               <Appointments />
             </ProtectedRoute>
-          )}
+          }
         />
+
         <Route
           path="/admin/dentists"
-          element={(
+          element={
             <ProtectedRoute expectedRole="admin">
               <AdminDentist />
             </ProtectedRoute>
-          )}
+          }
         />
+
         <Route
           path="/admin/patients"
-          element={(
+          element={
             <ProtectedRoute expectedRole="admin">
               <AdminPatient />
             </ProtectedRoute>
-          )}
+          }
         />
 
         <Route path="/superadmin/dashboard" element={<SuperAdminDashboard />} />
@@ -148,8 +149,14 @@ export default function App() {
         <Route path="/superadmin/patients" element={<SuperAdminPatients />} />
         <Route path="/superadmin/services" element={<SuperAdminServices />} />
         <Route path="/superadmin/faqs" element={<SuperAdminFaqs />} />
-        <Route path="/superadmin/terms-and-conditions" element={<SuperAdminTermsConditions />} />
-        <Route path="/superadmin/tooth-questions" element={<SuperAdminToothQuestions />} />
+        <Route
+          path="/superadmin/terms-and-conditions"
+          element={<SuperAdminTermsConditions />}
+        />
+        <Route
+          path="/superadmin/tooth-questions"
+          element={<SuperAdminToothQuestions />}
+        />
       </Routes>
     </BrowserRouter>
   );

@@ -468,6 +468,83 @@
   color: #fff;
 }
 
+
+.superadmin-admins-branch-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.superadmin-admins-branch-checkbox {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+
+  background: #ffffff;
+  border: 1px solid #f2c9d8;
+  border-radius: 16px;
+
+  color: #556074;
+  font-size: 0.93rem;
+  font-weight: 600;
+
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.superadmin-admins-branch-checkbox:hover {
+  border-color: #ee8cb3;
+  background: #fff8fb;
+}
+
+.superadmin-admins-branch-checkbox.is-selected {
+  border-color: #f05a96;
+  background: #fff3f8;
+}
+
+.superadmin-admins-branch-checkbox input {
+  display: none;
+}
+
+.superadmin-admins-checkbox-custom {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 2px solid #e4a8bf;
+  border-radius: 6px;
+
+  background: #ffffff;
+  color: #ffffff;
+
+  font-size: 14px;
+  font-weight: 800;
+
+  transition: 0.2s ease;
+}
+
+.superadmin-admins-branch-checkbox.is-selected
+  .superadmin-admins-checkbox-custom {
+  background: #f05a96;
+  border-color: #f05a96;
+}
+
+.superadmin-admins-field-hint {
+  color: #9a9faf;
+  font-size: 0.78rem;
+}
+
+.superadmin-admins-required {
+  color: #ef4b84;
+}
+
 @media (max-width: 1024px) {
   .superadmin-admins-stats {
     grid-template-columns: 1fr;

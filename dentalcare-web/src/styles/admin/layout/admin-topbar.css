@@ -19,6 +19,90 @@
   color: #2f2f2f;
 }
 
+/* =========================
+   SHARED BRANCH SELECTOR
+========================= */
+
+.admin-topbar-branch-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px 5px 12px;
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #f2d7e1;
+  box-shadow: 0 8px 20px rgba(239, 75, 132, 0.06);
+}
+
+.admin-topbar-branch-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #9a9aa3;
+  white-space: nowrap;
+}
+
+.admin-topbar-branch-select {
+  min-width: 190px;
+  height: 34px;
+
+  padding: 0 30px 0 10px;
+
+  border: 1px solid #f0bfd1;
+  border-radius: 10px;
+
+  background: #fff8fb;
+  color: #55555d;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  outline: none;
+  cursor: pointer;
+
+  transition: 0.2s ease;
+}
+
+.admin-topbar-branch-select:hover {
+  border-color: #e85084;
+}
+
+.admin-topbar-branch-select:focus {
+  border-color: #e85084;
+  box-shadow: 0 0 0 3px rgba(232, 80, 132, 0.1);
+}
+
+@media (max-width: 900px) {
+  .admin-topbar-branch-label {
+    display: none;
+  }
+
+  .admin-topbar-branch-select {
+    min-width: 150px;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-topbar {
+    height: auto;
+    min-height: 72px;
+    padding: 10px 12px;
+  }
+
+  .admin-topbar-actions {
+    gap: 6px;
+  }
+
+  .admin-topbar-branch-wrapper {
+    padding: 4px;
+  }
+
+  .admin-topbar-branch-select {
+    width: 135px;
+    min-width: 135px;
+    font-size: 11px;
+  }
+}
+
 .admin-bell-svg {
   width: 18px;
   height: 18px;
