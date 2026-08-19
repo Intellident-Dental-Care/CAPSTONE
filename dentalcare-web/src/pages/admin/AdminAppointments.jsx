@@ -678,16 +678,7 @@ export default function AdminAppointments() {
                 <option value="Cancelled">Cancelled</option>
               </select>
 
-              <select
-                value={branchFilter}
-                onChange={(e) => setBranchFilter(e.target.value)}
-              >
-                {branches.map((branch) => (
-                  <option key={branch} value={branch}>
-                    {branch}
-                  </option>
-                ))}
-              </select>
+              
             </div>
           </div>
 
