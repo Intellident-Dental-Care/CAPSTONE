@@ -9,7 +9,6 @@ const parseBooleanEnv = (value, defaultValue = false) => {
   return ["1", "true", "yes", "y", "on"].includes(normalized);
 };
 
-// Simple password hashing for fallback auth when Supabase auth fails
 const hashPasswordForFallback = (password) => {
   const salt = "admin_fallback_salt_2024";
   return crypto.createHash("sha256").update(password + salt).digest("hex");
@@ -95,12 +94,6 @@ const resolveAdminProfileByIdentifier = async (identifier) => {
   return null;
 };
 
-/**
- * Authenticate admin with email and password
- * @param {string} email - Admin email
- * @param {string} password - Plain text password
- * @returns {Promise<object>} - Authentication result
- */
 export const authenticateAdmin = async (email, password) => {
   try {
     if (!email || !password) {
@@ -173,15 +166,12 @@ export const authenticateAdmin = async (email, password) => {
       }
 
       if (!isSchemaIssue && !usedSchemaFallback) {
-        // Check if this is a case where admin exists in admin_list but not in Supabase auth
-        // Use fallback authentication when Supabase auth user doesn't exist
         if (isInvalidCredentials && admin?.id && admin?.email) {
           console.log("[ADMIN_LOGIN_MISSING_AUTH_USER_ATTEMPTING_FALLBACK]", {
             adminId: admin.id,
             adminEmail: admin.email,
           });
 
-          // First try the bootstrap fallback
           const canFallback = canUseBootstrapFallback(identifier, password, admin.email, admin.full_name);
           if (canFallback) {
             usedSchemaFallback = true;
@@ -191,7 +181,6 @@ export const authenticateAdmin = async (email, password) => {
               adminEmail: admin.email,
             });
           } else {
-            // Try fallback password hash from forgot-password flow
             try {
               const notes = admin.notes ? JSON.parse(String(admin.notes)) : {};
               if (notes.fallback_password_hash && verifyPasswordForFallback(password, notes.fallback_password_hash)) {
@@ -295,7 +284,7 @@ export const authenticateAdmin = async (email, password) => {
       profileId: admin.id,
       email: admin.email,
       name: admin.full_name,
-      role: "admin",
+      role: admin.admin_type === 'super_admin' ? 'super_admin' : 'admin',
       adminType: admin.admin_type,
       branch: admin.branch,
       purpose: "session",
@@ -332,11 +321,6 @@ export const authenticateAdmin = async (email, password) => {
   }
 };
 
-/**
- * Verify admin token
- * @param {string} token - JWT token
- * @returns {Promise<object>} - Verification result
- */
 export const verifyAdminToken = async (token) => {
   try {
     if (!token) {
@@ -349,7 +333,7 @@ export const verifyAdminToken = async (token) => {
 
     const decoded = verifyToken(token);
 
-    if (!decoded || decoded.role !== "admin" || decoded.purpose !== "session") {
+    if (!decoded || !["admin", "super_admin"].includes(decoded.role) || decoded.purpose !== "session") {
       return {
         success: false,
         message: "Invalid token",
@@ -392,11 +376,6 @@ export const verifyAdminToken = async (token) => {
   }
 };
 
-/**
- * Get admin profile by ID
- * @param {string} adminId - Admin ID
- * @returns {Promise<object>} - Admin profile data
- */
 export const getAdminProfile = async (adminId) => {
   try {
     if (!adminId) {
@@ -441,12 +420,6 @@ export const getAdminProfile = async (adminId) => {
   }
 };
 
-/**
- * Check if admin has specific permission
- * @param {string} adminId - Admin ID
- * @param {string} permission - Permission to check
- * @returns {Promise<boolean>} - True if admin has permission
- */
 export const checkAdminPermission = async (adminId, permission) => {
   try {
     const { data: admin, error } = await supabaseAdmin
@@ -488,7 +461,6 @@ export const upsertAdminProfileDetails = async (adminId, details, authUserId) =>
     updated_at: new Date().toISOString(),
   };
 
-  // Only update name and phone if they're provided (not null)
   if (details.fullName !== null && details.fullName !== undefined) {
     payload.full_name = details.fullName;
   }
@@ -503,7 +475,6 @@ export const upsertAdminProfileDetails = async (adminId, details, authUserId) =>
       contactDetail: details.contactDetail || null,
     };
 
-    // Store password hash for fallback auth if authUserId doesn't exist and password is being set
     if (!authUserId && details.newPassword) {
       noteObj.fallback_password_hash = hashPasswordForFallback(details.newPassword);
       console.log("[ADMIN_PROFILE_STORING_FALLBACK_PASSWORD]", {
@@ -545,8 +516,6 @@ export const upsertAdminProfileDetails = async (adminId, details, authUserId) =>
           status: authUpdateError?.status,
         });
 
-        // Do not block profile completion and OTP flow when auth credential
-        // sync fails due upstream auth service issues.
         return {
           success: true,
           credentialsUpdated: false,

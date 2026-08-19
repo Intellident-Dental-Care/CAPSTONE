@@ -190,13 +190,17 @@ router.post("/verify-otp", requireVerificationToken, async (req, res) => {
   if (!result.success) return res.status(result.statusCode).json(result);
 
   const profile = result.data;
+  
+  const assignedRole = profile.admin_type === 'super_admin' ? 'super_admin' : req.user.role;
+  
+  console.log("OTP VERIFICATION ASSIGNED ROLE:", assignedRole);
 
   const sessionToken = signToken({
     id: req.user.id,
     profileId: req.user.profileId,
     email: profile.email,
     name: profile.full_name || profile.name,
-    role: req.user.role,
+    role: assignedRole,
     adminType: profile.admin_type,
     branch: profile.branch,
     purpose: "session",
@@ -207,7 +211,7 @@ router.post("/verify-otp", requireVerificationToken, async (req, res) => {
     data: {
       token: sessionToken,
       profile,
-      role: req.user.role,
+      role: assignedRole,
     },
   });
 });
@@ -269,7 +273,7 @@ router.post("/forgot-password/send-otp", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Forgot password send OTP error:", error);
+    console.log(error);
 
     return res.status(500).json({
       success: false,
@@ -337,7 +341,7 @@ router.post("/forgot-password/verify-otp", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Forgot password verify OTP error:", error);
+    console.log(error);
 
     return res.status(500).json({
       success: false,
@@ -399,7 +403,6 @@ router.post("/forgot-password/reset", async (req, res) => {
       });
     }
 
-    // Step 1: Direct lookup using your synced custom table ID
     const { data: profileData, error: profileError } = await supabaseAdmin
       .from(tableName)
       .select("id, email")
@@ -407,27 +410,25 @@ router.post("/forgot-password/reset", async (req, res) => {
       .single();
 
     if (profileError || !profileData) {
-      console.error("Profile lookup error:", profileError);
+      console.log(profileError);
       return res.status(400).json({ 
         success: false,
         message: "Account profile not found.",
       });
     }
 
-    // Step 2: Pass the synced ID directly to Supabase Auth
     const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(profileData.id, {
         password,
     });
 
     if (updateAuthError) {
-      console.error("Supabase Auth password update error:", updateAuthError);
+      console.log(updateAuthError);
       return res.status(400).json({
         success: false,
         message: updateAuthError.message || "Password reset failed.",
       });
     }
 
-    // Step 3: Update timestamp
     await supabaseAdmin
       .from(tableName)
       .update({
@@ -435,7 +436,6 @@ router.post("/forgot-password/reset", async (req, res) => {
       })
       .eq("id", resetRecord.profileId);
 
-    // Clean up OTP stores
     inMemoryOtpStore.delete(
       `${resetRecord.role}:${resetRecord.profileId}:forgot_password`
     );
@@ -446,7 +446,7 @@ router.post("/forgot-password/reset", async (req, res) => {
       message: "Password reset successfully.",
     });
   } catch (error) {
-    console.error("Forgot password reset error:", error);
+    console.log(error);
 
     return res.status(400).json({
       success: false,

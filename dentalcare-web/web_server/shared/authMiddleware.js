@@ -55,24 +55,21 @@ export const requireRole = (role) => {
   };
 };
 
-export const requireSuperAdmin = async (req, res, next) => {
-  try {
-    if (!req.user || req.user.role !== "admin") {
-      return res.status(403).json({ success: false, message: "Forbidden" });
-    }
+export const requireSuperAdmin = (req, res, next) => {
+  console.log("SUPER ADMIN CHECK START");
+  console.log("Token Role:", req.user?.role);
+  console.log("Token Admin Type:", req.user?.adminType);
 
-    const { data: admin, error } = await supabaseAdmin
-      .from("admin_list")
-      .select("admin_type, is_active")
-      .eq("id", req.user.profileId || req.user.id)
-      .single();
+  const isSuperAdminRole = req.user?.role === "super_admin";
+  const isSuperAdminType = req.user?.adminType === "super_admin";
 
-    if (error || !admin || !admin.is_active || admin.admin_type !== "super_admin") {
-      return res.status(403).json({ success: false, message: "Super admin only" });
-    }
-
+  if (req.user && (isSuperAdminRole || isSuperAdminType)) {
     return next();
-  } catch (error) {
-    return res.status(500).json({ success: false, message: "Authorization check failed" });
   }
+
+  console.log("SUPER ADMIN CHECK FAILED");
+  return res.status(403).json({ 
+    success: false, 
+    message: "Forbidden: Super Admin access required" 
+  });
 };
