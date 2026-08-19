@@ -130,11 +130,11 @@ export default function Login() {
       if (res?.requiresVerification) return applyPendingVerification(activeRole, res?.data?.profile);
 
       if (activeRole === "admin") {
-        await preloadAdminData();
         const data = res?.data?.admin || {};
         if (data.admin_type === "super_admin" || data.adminType === "super_admin") {
           navigate("/superadmin/dashboard", { replace: true });
         } else {
+          await preloadAdminData();
           navigate("/admin/dashboard", { replace: true });
         }
       } else {
@@ -198,11 +198,11 @@ export default function Login() {
       setShowVerifyModal(false);
 
       if (activeRole === "admin") {
-        await preloadAdminData();
         const userProfile = verifyResult.data?.profile || AuthService.getCurrentUser() || {};
         if (userProfile?.admin_type === "super_admin" || userProfile?.adminType === "super_admin") {
           navigate("/superadmin/dashboard", { replace: true });
         } else {
+          await preloadAdminData();
           navigate("/admin/dashboard", { replace: true });
         }
       } else {
