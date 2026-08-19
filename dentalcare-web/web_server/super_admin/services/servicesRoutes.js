@@ -1,5 +1,5 @@
 import express from "express";
-import { requireAuth, requireRole } from "../../shared/authMiddleware.js";
+import { requireAuth } from "../../shared/authMiddleware.js";
 import { 
   getServicesList, 
   createService,
@@ -12,38 +12,36 @@ import {
 const router = express.Router();
 
 const requireSuperAdmin = (req, res, next) => {
-  if (req.user?.adminType === "super_admin" || req.user?.admin_type === "super_admin") return next();
+  if (req.user?.adminType === "super_admin" || req.user?.admin_type === "super_admin" || req.user?.role === "super_admin") return next();
   return res.status(403).json({ success: false, message: "Forbidden: Super Admin only" });
 };
 
-// --- SERVICES ---
-router.get("/", requireAuth, requireRole("admin"), requireSuperAdmin, async (req, res) => {
+router.get("/", requireAuth, requireSuperAdmin, async (req, res) => {
   const result = await getServicesList();
   return res.status(result.statusCode || 500).json(result);
 });
 
-router.post("/", requireAuth, requireRole("admin"), requireSuperAdmin, async (req, res) => {
+router.post("/", requireAuth, requireSuperAdmin, async (req, res) => {
   const result = await createService(req.body);
   return res.status(result.statusCode || 500).json(result);
 });
 
-// --- CATEGORIES ---
-router.get("/categories", requireAuth, requireRole("admin"), requireSuperAdmin, async (req, res) => {
+router.get("/categories", requireAuth, requireSuperAdmin, async (req, res) => {
   const result = await getServiceCategories();
   return res.status(result.statusCode || 500).json(result);
 });
 
-router.post("/categories", requireAuth, requireRole("admin"), requireSuperAdmin, async (req, res) => {
+router.post("/categories", requireAuth, requireSuperAdmin, async (req, res) => {
   const result = await createServiceCategory(req.body);
   return res.status(result.statusCode || 500).json(result);
 });
 
-router.put("/categories/:id", requireAuth, requireRole("admin"), requireSuperAdmin, async (req, res) => {
+router.put("/categories/:id", requireAuth, requireSuperAdmin, async (req, res) => {
   const result = await updateServiceCategory(req.params.id, req.body);
   return res.status(result.statusCode || 500).json(result);
 });
 
-router.patch("/categories/status", requireAuth, requireRole("admin"), requireSuperAdmin, async (req, res) => {
+router.patch("/categories/status", requireAuth, requireSuperAdmin, async (req, res) => {
   const { ids, status } = req.body;
   if (!ids || !status) return res.status(400).json({ success: false, message: "Missing ids or status" });
   const result = await updateServiceCategoryStatus(ids, status);
