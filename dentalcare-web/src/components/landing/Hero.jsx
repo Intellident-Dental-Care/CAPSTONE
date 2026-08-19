@@ -33,7 +33,6 @@ export default function Hero() {
         <div className="pointer-events-none absolute right-[-120px] top-[40px] h-[240px] w-[240px] rounded-full bg-rose-100/20 blur-3xl sm:h-[300px] sm:w-[300px]" />
         <div className="pointer-events-none absolute bottom-[-120px] left-1/2 h-[180px] w-[420px] -translate-x-1/2 rounded-full bg-pink-100/25 blur-3xl sm:h-[220px] sm:w-[640px]" />
 
-        {/* top bar */}
         <div className="relative z-40 flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-pink-50 ring-1 ring-pink-100 sm:h-12 sm:w-12">
@@ -130,7 +129,6 @@ export default function Hero() {
         )}
 
         <div className="relative mt-8">
-          {/* VERY LARGE DESKTOP ONLY */}
           <div className="hidden xl:block xl:min-h-[760px]">
             <div className="absolute left-[80px] top-[100px] z-0 w-[720px]">
               <h1 className="text-[7.4rem] font-bold leading-[0.84] tracking-[-0.1em] text-slate-900">
@@ -175,9 +173,13 @@ export default function Hero() {
               </p>
 
               <div className="mt-10 flex justify-end">
-                <button className="rounded-full bg-gradient-to-r from-[#ff4fa3] to-[#ff6b8f] px-10 py-4 text-[21px] font-semibold text-white shadow-[0_16px_28px_rgba(236,72,153,0.24)] transition hover:scale-[1.02]">
+                <a
+                  href="https://github.com/Intellident-Dental-Care/CAPSTONE/releases/latest/download/IntelliDent.apk"
+                  download="IntelliDent.apk"
+                  className="inline-block rounded-full bg-gradient-to-r from-[#ff4fa3] to-[#ff6b8f] px-10 py-4 text-[21px] font-semibold text-white shadow-[0_16px_28px_rgba(236,72,153,0.24)] transition hover:scale-[1.02]"
+                >
                   ↓ Download Now
-                </button>
+                </a>
               </div>
             </div>
 
@@ -188,7 +190,6 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* TABLET / SMALL LAPTOP */}
           <div className="hidden md:block xl:hidden">
             <div className="grid items-center gap-8 py-6 text-center">
               <div className="mx-auto max-w-[760px]">
@@ -233,9 +234,13 @@ export default function Hero() {
                 </p>
 
                 <div className="mt-8 flex justify-center">
-                  <button className="rounded-full bg-gradient-to-r from-[#ff4fa3] to-[#ff6b8f] px-9 py-4 text-lg font-semibold text-white shadow-[0_16px_28px_rgba(236,72,153,0.24)] transition hover:scale-[1.02]">
+                  <a
+                    href="https://github.com/Intellident-Dental-Care/CAPSTONE/releases/latest/download/IntelliDent.apk"
+                    download="IntelliDent.apk"
+                    className="inline-block rounded-full bg-gradient-to-r from-[#ff4fa3] to-[#ff6b8f] px-9 py-4 text-lg font-semibold text-white shadow-[0_16px_28px_rgba(236,72,153,0.24)] transition hover:scale-[1.02]"
+                  >
                     ↓ Download Now
-                  </button>
+                  </a>
                 </div>
               </div>
 
@@ -245,7 +250,6 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* MOBILE */}
           <div className="md:hidden">
             <div className="grid justify-items-center gap-6 py-4 text-center sm:gap-8 sm:py-6">
               <div className="w-full max-w-[420px]">
@@ -287,9 +291,13 @@ export default function Hero() {
                 </p>
 
                 <div className="mt-6 flex justify-center">
-                  <button className="rounded-full bg-gradient-to-r from-[#ff4fa3] to-[#ff6b8f] px-7 py-3.5 text-base font-semibold text-white shadow-[0_16px_28px_rgba(236,72,153,0.24)] transition hover:scale-[1.02] sm:px-8 sm:py-4 sm:text-lg">
+                  <a
+                    href="https://github.com/Intellident-Dental-Care/CAPSTONE/releases/latest/download/IntelliDent.apk"
+                    download="IntelliDent.apk"
+                    className="inline-block rounded-full bg-gradient-to-r from-[#ff4fa3] to-[#ff6b8f] px-7 py-3.5 text-base font-semibold text-white shadow-[0_16px_28px_rgba(236,72,153,0.24)] transition hover:scale-[1.02] sm:px-8 sm:py-4 sm:text-lg"
+                  >
                     ↓ Book Now
-                  </button>
+                  </a>
                 </div>
               </div>
 
