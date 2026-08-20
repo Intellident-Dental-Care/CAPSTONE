@@ -94,6 +94,7 @@ export default function Home() {
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [recentVisits, setRecentVisits] = useState([]);
   const [treatmentPlans, setTreatmentPlans] = useState([]);
+  const [privacyChecked, setPrivacyChecked] = useState(!!global.hasShownPrivacyThisSession);
 
   const loadQueueForAppointment = useCallback(async (appointment, { showLoader = true } = {}) => {
     if (!appointment) {
@@ -244,10 +245,21 @@ export default function Home() {
 
   useFocusEffect(
     useCallback(() => {
+      if (!global.hasShownPrivacyThisSession) {
+        setTimeout(() => {
+          router.replace("/data-privacy");
+        }, 0);
+        return;
+      }
+
+      if (!privacyChecked) {
+        setPrivacyChecked(true);
+      }
+
       (async () => {
         await loadProfiles();
       })();
-    }, [loadProfiles])
+    }, [loadProfiles, privacyChecked])
   );
 
   const handleSelectProfile = async (profile) => {
@@ -409,6 +421,10 @@ export default function Home() {
   const queueProgress = isQueueDay && queueData?.totalInQueue
     ? Math.max(8, Math.round((queueData.queueNumber / queueData.totalInQueue) * 100))
     : 0;
+
+  if (!privacyChecked) {
+    return <View style={styles.safe} />;
+  }
 
   return (
     <View style={styles.safe}>
@@ -656,7 +672,17 @@ export default function Home() {
                   service={visit.title}
                   dentistId={visit.dentist_id || visit.dentistId}
                   onBookNow={openFlowModal}
-                  onDetails={() => openDetailModal(visit)}
+                  onDetails={() => {
+                    const isCompleted = String(visit.status || "").toLowerCase() === "completed";
+                    const amount = Number(visit.amount_paid) || 0;
+                    
+                    openDetailModal({
+                      ...visit,
+                      suggestedPrice: isCompleted 
+                        ? `Amount Paid: ₱${amount.toLocaleString()}`
+                        : visit.suggestedPrice || visit.price_display || "Contact clinic for pricing"
+                    });
+                  }}
                 />
               ))}
             </ScrollView>
@@ -692,20 +718,27 @@ export default function Home() {
                   status={treatment.status || "Confirmed"}
                   rightA="VIEW DETAILS"
                   rightB={['Confirmed', 'Pending'].includes(treatment.status) ? "RESCHEDULE" : "BOOK NOW"}
-                  onViewDetails={() => openDetailModal({
-                    doctor: treatment.dentist_name || treatment.doctor || "Assigned Dentist",
-                    title: treatment.service || treatment.title || "Dental Treatment",
-                    type: treatment.type || "Treatment",
-                    status: treatment.status || "Confirmed",
-                    date: formattedDate,
-                    time: appointmentTime || "-",
-                    tooth: treatment.tooth || "Not specified",
-                    description: treatment.description || "-",
-                    qaList: treatment.qaList || [],
-                    suggestedTreatment: treatment.service || treatment.title || "-",
-                    suggestedPrice: treatment.price_display || "Contact clinic for pricing",
-                    procedure: treatment.procedure_name || treatment.service || "-",
-                  })}
+                  onViewDetails={() => {
+                    const isCompleted = String(treatment.status || "").toLowerCase() === "completed";
+                    const amount = Number(treatment.amount_paid) || 0;
+
+                    openDetailModal({
+                      doctor: treatment.dentist_name || treatment.doctor || "Assigned Dentist",
+                      title: treatment.service || treatment.title || "Dental Treatment",
+                      type: treatment.type || "Treatment",
+                      status: treatment.status || "Confirmed",
+                      date: formattedDate,
+                      time: appointmentTime || "-",
+                      tooth: treatment.tooth || "Not specified",
+                      description: treatment.description || "-",
+                      qaList: treatment.qaList || [],
+                      suggestedTreatment: treatment.service || treatment.title || "-",
+                      suggestedPrice: isCompleted 
+                        ? `Amount Paid: ₱${amount.toLocaleString()}`
+                        : treatment.price_display || "Contact clinic for pricing",
+                      procedure: treatment.procedure_name || treatment.service || "-",
+                    });
+                  }}
                   onPrimaryAction={() => {
                     if (['Confirmed', 'Pending'].includes(treatment.status)) {
                       handleReschedule(treatment);
@@ -1026,10 +1059,6 @@ function RecentCard({ title, clinic, service, dentistId, onBookNow, onDetails })
           <Text style={styles.recentClinic}>{String(title || "")}</Text>
         </View>
       </View>
-
-      {/* <View style={styles.servicePill}>
-        <Text style={styles.recentService}>{service}</Text>
-      </View> */}
 
       <View style={styles.recentBtnRow}>
         <Pressable style={styles.softBtn} onPress={onBookNow}>

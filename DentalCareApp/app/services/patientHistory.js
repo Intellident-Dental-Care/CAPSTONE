@@ -20,13 +20,17 @@ export const fetchPatientHistory = async (userId, profileId) => {
       { data: services },
       { data: dentists },
       { data: preassessments },
-      { data: procedures }
+      { data: procedures },
+      { data: questionsData }
     ] = await Promise.all([
       supabase.from("dental_services").select("name, type, price_display"),
       supabase.from("dentist_list").select("id, name"),
       supabase.from("patient_preassessment").select("*").in("id", bookings.map(b => b.preassessment_id).filter(Boolean)),
-      supabase.from("patient_procedures").select("*").in("booking_id", bookings.map(b => b.id))
+      supabase.from("patient_procedures").select("*").in("booking_id", bookings.map(b => b.id)),
+      supabase.from("questionnaire").select("id, question_text, question_order").order("question_order", { ascending: true })
     ]);
+
+    const dynamicQuestions = questionsData || [];
 
     const formattedItems = bookings.map(booking => {
       const svc = services?.find(s => s.name === booking.service) || {};
@@ -38,9 +42,27 @@ export const fetchPatientHistory = async (userId, profileId) => {
       const monthGroup = dateObj.toLocaleDateString("en-US", { month: "long", year: "numeric" });
       const formattedDate = dateObj.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
-      const qaList = pa.answers 
-        ? QUESTIONS.map((q, idx) => ({ question: q, answer: pa.answers[idx] || "-" })) 
-        : [];
+      let qaList = [];
+      if (pa.answers) {
+        let parsedAnswers = pa.answers;
+        if (typeof parsedAnswers === "string") {
+          try { parsedAnswers = JSON.parse(parsedAnswers); } catch (e) {}
+        }
+
+        if (Array.isArray(parsedAnswers) && parsedAnswers.length > 0) {
+          qaList = dynamicQuestions.map((q) => {
+            const answerObj = parsedAnswers.find(
+              (a) => String(a?.questionId) === String(q.id) || String(a?.questionId) === String(q.question_order)
+            );
+            return { question: q.question_text, answer: answerObj?.answer || "Not answered" };
+          });
+        } else if (parsedAnswers && typeof parsedAnswers === "object" && Object.keys(parsedAnswers).length > 0) {
+          qaList = dynamicQuestions.map((q, idx) => ({
+            question: q.question_text,
+            answer: parsedAnswers[q.id] || parsedAnswers[String(q.id)] || parsedAnswers[idx] || parsedAnswers[String(idx)] || "Not answered",
+          }));
+        }
+      }
 
       return {
         monthGroup,
@@ -57,7 +79,8 @@ export const fetchPatientHistory = async (userId, profileId) => {
         suggestedPrice: svc.price_display || "-",
         procedure: proc.procedure_name || booking.service || "-",
         remarks: proc.remarks || "No remarks provided.",
-        doctorPhotos: [proc.before_image_url, proc.after_image_url].filter(Boolean).map((uri, i) => ({ id: i, uri }))
+        doctorPhotos: [proc.before_image_url, proc.after_image_url].filter(Boolean).map((uri, i) => ({ id: i, uri })),
+        amount_paid: booking.amount_paid 
       };
     });
 

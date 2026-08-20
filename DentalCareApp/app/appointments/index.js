@@ -16,21 +16,9 @@ import { supabase } from "../../server/supabaseService";
 import { getCurrentActiveProfileForSession, getSession } from "../_storage/authStorage";
 import {
   appointmentsListCache,
-  APPOINTMENT_CACHE_TTL_MS,
 } from "../_storage/profileCache";
 
-const QUESTIONS = [
-  "Do you feel tooth pain when biting or chewing?",
-  "Do you experience sensitivity to cold drinks?",
-  "Do you experience sensitivity to hot food/drinks?",
-  "Do your gums bleed when brushing or flossing?",
-  "Do you notice swelling in the gums or face?",
-  "Do you have bad breath even after brushing?",
-  "Do you see a visible hole or dark spot on the tooth?",
-  "Do you feel pain that wakes you up at night?",
-  "Do you feel pain when eating sweet food?",
-  "Have you had a filling or dental treatment on this tooth before?",
-];
+let globalQuestionsCache = null;
 
 function isUuid(value) {
   if (!value) return false;
@@ -99,10 +87,22 @@ export default function AppointmentsScreen() {
       const cacheKey = profileId || "__no_profile__";
       const cached = appointmentsListCache[cacheKey];
 
-      // Instantly load cached data for UI speed
       if (cached) setAppointments(cached.data);
 
-      // The stale check is removed here so it ALWAYS fetches fresh data in the background
+      if (!globalQuestionsCache) {
+        const { data: qData, error: qError } = await supabase
+          .from("questionnaire")
+          .select("id, question_text, question_order")
+          .order("question_order", { ascending: true });
+
+        if (!qError && qData) {
+          globalQuestionsCache = qData;
+        } else {
+          globalQuestionsCache = [];
+        }
+      }
+
+      const dynamicQuestions = globalQuestionsCache || [];
 
       let dbQuery = supabase
         .from("bookings")
@@ -114,7 +114,6 @@ export default function AppointmentsScreen() {
       if (profileId) {
         dbQuery = dbQuery.eq("profile_id", profileId);
       } else {
-        // Fast local session fetch (Prevents re-login network delays)
         const session = await getSession();
         const user = session?.user;
         if (!user) return;
@@ -174,13 +173,14 @@ export default function AppointmentsScreen() {
           }
 
           if (Array.isArray(parsedAnswers) && parsedAnswers.length > 0) {
-            // Answers are stored as array of {questionId, answer} objects
-            qaList = QUESTIONS.map((q, idx) => {
+            qaList = dynamicQuestions.map((q) => {
               const answerObj = parsedAnswers.find(
-                (a) => a?.questionId === idx + 1 || a?.questionId === String(idx + 1)
+                (a) =>
+                  String(a?.questionId) === String(q.id) ||
+                  String(a?.questionId) === String(q.question_order)
               );
               return {
-                question: q,
+                question: q.question_text,
                 answer: answerObj?.answer || "Not answered",
               };
             });
@@ -189,10 +189,11 @@ export default function AppointmentsScreen() {
             typeof parsedAnswers === "object" &&
             Object.keys(parsedAnswers).length > 0
           ) {
-            // Fallback for old format where answers are indexed by position
-            qaList = QUESTIONS.map((q, idx) => ({
-              question: q,
+            qaList = dynamicQuestions.map((q, idx) => ({
+              question: q.question_text,
               answer:
+                parsedAnswers[q.id] ||
+                parsedAnswers[String(q.id)] ||
                 parsedAnswers[idx] ||
                 parsedAnswers[String(idx)] ||
                 "Not answered",
@@ -200,11 +201,19 @@ export default function AppointmentsScreen() {
           }
         }
 
-        const priceMin = servicesMap[b.service];
-        const formattedPrice =
-          priceMin != null
-            ? `Starting Price: ₱${priceMin.toLocaleString()}`
-            : "Starting Price: N/A";
+        const statusLower = String(b.status || "").toLowerCase();
+        let displayPrice = "Starting Price: N/A";
+
+        if (statusLower === "completed") {
+          const amount = Number(b.amount_paid) || 0;
+          displayPrice = `Amount Paid: ₱${amount.toLocaleString()}`;
+        } else {
+          const priceMin = servicesMap[b.service];
+          displayPrice =
+            priceMin != null
+              ? `Starting Price: ₱${priceMin.toLocaleString()}`
+              : "Starting Price: N/A";
+        }
 
         const fallbackTooth =
           pa.tooth_selected || b.tooth_area || b.tooth || "Not specified";
@@ -228,7 +237,7 @@ export default function AppointmentsScreen() {
           description: fallbackDesc,
           qaList: fallbackQaList,
           suggestedTreatment: b.suggested_treatment || b.service || "N/A",
-          suggestedPrice: formattedPrice,
+          suggestedPrice: displayPrice,
           procedure: b.service || "Dental Appointment",
           month: formatMonthLabel(rawDate),
         };
@@ -275,7 +284,6 @@ export default function AppointmentsScreen() {
 
               if (error) throw error;
 
-              // Update local state AND update the cache so it doesn't revert back on focus
               setAppointments((prev) => {
                 const updated = prev.map((item) =>
                   item.id === selectedAppointment.id
@@ -285,7 +293,9 @@ export default function AppointmentsScreen() {
 
                 for (let key in appointmentsListCache) {
                   if (appointmentsListCache[key]?.data) {
-                    appointmentsListCache[key].data = appointmentsListCache[key].data.map((item) =>
+                    appointmentsListCache[key].data = appointmentsListCache[
+                      key
+                    ].data.map((item) =>
                       item.id === selectedAppointment.id
                         ? { ...item, status: "Cancelled" }
                         : item
@@ -702,20 +712,20 @@ export default function AppointmentsScreen() {
                   </View>
 
                   <View style={styles.suggestedCard}>
-                      <Text style={styles.suggestedLabel}>
-                        Suggested Treatment
-                      </Text>
+                    <Text style={styles.suggestedLabel}>
+                      Suggested Treatment
+                    </Text>
 
-                      <Text style={styles.suggestedValue}>
-                        {selectedAppointment?.suggestedTreatment}
-                      </Text>
+                    <Text style={styles.suggestedValue}>
+                      {selectedAppointment?.suggestedTreatment}
+                    </Text>
 
-                      <Text style={styles.suggestedPrice}>
-                        {selectedAppointment?.suggestedPrice}
-                      </Text>
-                    </View>
+                    <Text style={styles.suggestedPrice}>
+                      {selectedAppointment?.suggestedPrice}
+                    </Text>
+                  </View>
 
-                    <View style={styles.assessmentBox}>
+                  <View style={styles.assessmentBox}>
                     <Text style={styles.assessmentLabel}>
                       Patient Description
                     </Text>
@@ -757,7 +767,11 @@ export default function AppointmentsScreen() {
                     style={styles.cancelAppointmentBtn}
                     onPress={handleCancelAppointment}
                   >
-                    <Ionicons name="close-circle-outline" size={18} color="#fff" />
+                    <Ionicons
+                      name="close-circle-outline"
+                      size={18}
+                      color="#fff"
+                    />
 
                     <Text style={styles.cancelAppointmentText}>
                       Cancel Appointment

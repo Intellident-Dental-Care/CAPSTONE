@@ -90,6 +90,8 @@ export default function DataPrivacy() {
     try {
       setLoading(true);
 
+      global.hasShownPrivacyThisSession = true;
+
       const activeProfile = await getCurrentActiveProfileForSession();
 
       if (!activeProfile?.id) {
