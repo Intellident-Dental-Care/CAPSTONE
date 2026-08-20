@@ -8,6 +8,7 @@ import {
   getAdminPatients,
   updateAppointmentStatus,
 } from "../../services/adminService";
+import { useBranch } from "../../context/BranchContext";
 import "../../styles/admin/appointments/admin-appointments.css";
 import "../../styles/admin/dashboard/admin-layout.css";
 import "../../styles/admin/layout/admin-sidebar.css";
@@ -97,6 +98,7 @@ function isWithinRange(date, startDate, endDate) {
 }
 
 export default function AdminAppointments() {
+  const { selectedBranch } = useBranch();
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const [notifications, setNotifications] = useState([
@@ -125,7 +127,6 @@ export default function AdminAppointments() {
   const [doctorCatalog, setDoctorCatalog] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [branchFilter, setBranchFilter] = useState("All");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedAppointment, setSelectedAppointment] = useState(null);
@@ -147,7 +148,7 @@ export default function AdminAppointments() {
     age: "",
     phone: "",
     dentist: "",
-    branch: "",
+    branch: selectedBranch || "",
     treatment: "",
     date: today,
     time: "",
@@ -159,20 +160,13 @@ export default function AdminAppointments() {
 
     const loadData = async () => {
       const [appointmentsResult, patientsResult, dentistsResult] = await Promise.all([
-        getAdminAppointments(),
+        getAdminAppointments({ branch: selectedBranch, forceRefresh: true }),
         getAdminPatients(),
         getAdminDentists(),
       ]);
 
       if (active && appointmentsResult?.success && Array.isArray(appointmentsResult.data)) {
         setAppointments(appointmentsResult.data);
-        
-        // Auto-fill branch from backend if matched
-        if (appointmentsResult.adminBranch && appointmentsResult.adminBranch !== "All") {
-          const adminBranch = toBranchLabel(appointmentsResult.adminBranch);
-          setBranchFilter(adminBranch);
-          setWalkInForm((prev) => ({ ...prev, branch: adminBranch }));
-        }
       }
 
       if (active && patientsResult?.success && Array.isArray(patientsResult.data)) {
@@ -204,12 +198,13 @@ export default function AdminAppointments() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [selectedBranch]);
 
-  const branches = useMemo(() => {
-    const uniqueBranches = [...new Set(appointments.map((item) => item.branch))];
-    return ["All", ...new Set([...branchOptions, ...uniqueBranches])];
-  }, [appointments]);
+  useEffect(() => {
+    if (selectedBranch) {
+      setWalkInForm((prev) => ({ ...prev, branch: selectedBranch }));
+    }
+  }, [selectedBranch]);
 
   const patientSuggestions = useMemo(() => {
     if (!patientQuery.trim()) return [];
@@ -238,14 +233,12 @@ export default function AdminAppointments() {
     return doctorCatalog.find((doctor) => doctor.name === walkInForm.dentist) || null;
   }, [doctorCatalog, walkInForm.dentist]);
 
-  // SMART TIME SLOTS CALCULATION
   const dynamicTimeOptions = useMemo(() => {
     if (!walkInForm.dentist) return [];
     const now = new Date();
     const currentMins = now.getHours() * 60 + now.getMinutes();
     const slots = [];
 
-    // Format "Now"
     let hours = now.getHours();
     const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12 || 12;
@@ -255,7 +248,6 @@ export default function AdminAppointments() {
       value: "Now",
     });
 
-    // Dentist's booked times today
     const bookedRanges = appointments
       .filter((a) => a.dentist === walkInForm.dentist && a.date === today && a.status !== "Cancelled")
       .map((a) => {
@@ -266,19 +258,14 @@ export default function AdminAppointments() {
         if (match[3].toUpperCase() === "PM" && h !== 12) h += 12;
         if (match[3].toUpperCase() === "AM" && h === 12) h = 0;
         const startMins = h * 60 + m;
-        // Assuming 1 hr duration blocks
         return { start: startMins, end: startMins + 60 };
       });
 
-    // Standard slots: 9:00 AM to 4:00 PM
     for (let h = 9; h <= 16; h++) {
       for (let m of [0, 30]) {
         const slotMins = h * 60 + m;
-        
-        // Exclude past times
         if (slotMins <= currentMins) continue;
 
-        // Check if it overlaps with any existing appointment block
         const overlaps = bookedRanges.some((b) => slotMins < b.end && slotMins + 60 > b.start);
         
         if (!overlaps) {
@@ -293,6 +280,8 @@ export default function AdminAppointments() {
   }, [appointments, walkInForm.dentist, today]);
 
   const filteredAppointments = useMemo(() => {
+    const selectedBranchKey = toBranchKey(selectedBranch);
+
     return appointments.filter((appointment) => {
       const matchesSearch =
         appointment.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -304,7 +293,9 @@ export default function AdminAppointments() {
         statusFilter === "All" || appointment.status === statusFilter;
 
       const matchesBranch =
-        branchFilter === "All" || appointment.branch === branchFilter;
+        !selectedBranch ||
+        selectedBranch === "All" ||
+        toBranchKey(appointment.branch) === selectedBranchKey;
 
       const matchesDateRange = isWithinRange(
         appointment.date,
@@ -314,7 +305,7 @@ export default function AdminAppointments() {
 
       return matchesSearch && matchesStatus && matchesBranch && matchesDateRange;
     });
-  }, [appointments, searchTerm, statusFilter, branchFilter, startDate, endDate]);
+  }, [appointments, searchTerm, statusFilter, selectedBranch, startDate, endDate]);
 
   const summary = useMemo(() => {
     return {
@@ -446,7 +437,7 @@ export default function AdminAppointments() {
 
     setSelectedIds((prev) => prev.filter((id) => !succeededIds.includes(id)));
 
-    const refreshedAppointments = await getAdminAppointments();
+    const refreshedAppointments = await getAdminAppointments({ branch: selectedBranch, forceRefresh: true });
     if (refreshedAppointments?.success && Array.isArray(refreshedAppointments.data)) {
       setAppointments(refreshedAppointments.data);
     }
@@ -464,7 +455,7 @@ export default function AdminAppointments() {
       age: "",
       phone: "",
       dentist: "",
-      branch: branchFilter !== "All" ? branchFilter : "", // maintain branch
+      branch: selectedBranch || "",
       treatment: "",
       date: today,
       time: "",
@@ -514,7 +505,7 @@ export default function AdminAppointments() {
     setWalkInForm((prev) => ({
       ...prev,
       date: today,
-      time: "Now", // default smart select
+      time: "Now",
     }));
     setWalkInStep(2);
   };
@@ -542,7 +533,7 @@ export default function AdminAppointments() {
       dentistId: selectedDentist?.id || null,
       branch: walkInForm.branch,
       service: walkInForm.treatment,
-      time: walkInForm.time, // Passes "Now" or standard time slot to backend
+      time: walkInForm.time,
     });
 
     if (!createResult?.success) {
@@ -677,8 +668,6 @@ export default function AdminAppointments() {
                 <option value="Completed">Completed</option>
                 <option value="Cancelled">Cancelled</option>
               </select>
-
-              
             </div>
           </div>
 
