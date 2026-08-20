@@ -255,7 +255,7 @@ export const getQueueForAdminBranch = async (adminProfileId, requestedBranch = n
   }
 };
 
-export const updateBookingQueueStatus = async (adminProfileId, bookingId, status) => {
+export const updateBookingQueueStatus = async (adminProfileId, bookingId, status, amountPaid = null) => {
   const queueResult = await getTodayBranchBookings(adminProfileId);
 
   if (!queueResult.success) {
@@ -282,9 +282,15 @@ export const updateBookingQueueStatus = async (adminProfileId, bookingId, status
     };
   }
 
+  const updatePayload = { status: mappedStatus };
+
+  if (mappedStatus === "completed" && amountPaid !== null) {
+    updatePayload.amount_paid = amountPaid;
+  }
+
   const { error } = await supabaseAdmin
     .from("bookings")
-    .update({ status: mappedStatus })
+    .update(updatePayload)
     .eq("id", bookingId);
 
   if (error) {

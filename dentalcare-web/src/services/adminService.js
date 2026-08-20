@@ -151,11 +151,11 @@ export const getTodayQueue = async (options = {}) => {
   }
 };
 
-export const updateQueueStatus = async (bookingId, status) => {
+export const updateQueueStatus = async (bookingId, status, amountPaid = null) => {
   try {
     const data = await fetchJson("/admin/queuecontrol/status", {
       method: "PATCH",
-      body: JSON.stringify({ bookingId, status }),
+      body: JSON.stringify({ bookingId, status, amountPaid }),
     });
 
     if (data?.success) {
@@ -433,7 +433,7 @@ export const fetchUnreadNotifications = async (branch = "") => {
 
 export const markNotificationsAsRead = async (branch = "") => {
   try {
-    const data = await fetchJson("/admin/notifications/mark-read", { 
+    const data = await fetchJson("/admin/notifications/mark-read", {
       method: "PATCH",
       body: JSON.stringify({ branch }),
     });

@@ -198,7 +198,8 @@ export default function Queue() {
 
     const result = await updateQueueStatus(
       currentPatient.id,
-      "completed"
+      "completed",
+      Number(amountPaid)
     );
 
     if (!result?.success) {
@@ -715,6 +716,7 @@ export default function Queue() {
                   type="button"
                   className="queue-primary-btn"
                   onClick={handlePaymentContinue}
+                  disabled={!amountPaid || isNaN(Number(amountPaid)) || Number(amountPaid) <= 0}
                 >
                   Continue
                 </button>

@@ -10,13 +10,13 @@ router.get("/today", requireAuth, requireRole("admin"), async (req, res) => {
 });
 
 router.patch("/status", requireAuth, requireRole("admin"), async (req, res) => {
-  const { bookingId, status } = req.body || {};
+  const { bookingId, status, amountPaid } = req.body || {};
 
   if (!bookingId || !status) {
     return res.status(400).json({ success: false, message: "bookingId and status are required" });
   }
 
-  const result = await updateBookingQueueStatus(req.user.profileId || req.user.id, bookingId, status);
+  const result = await updateBookingQueueStatus(req.user.profileId || req.user.id, bookingId, status, amountPaid);
   return res.status(result.statusCode || 500).json(result);
 });
 
@@ -27,7 +27,7 @@ router.post("/delay", requireAuth, requireRole("admin"), async (req, res) => {
     delayMinutes,
     message,
     reset,
-    branch, 
+    branch,
   });
 
   return res.status(result.statusCode || 500).json(result);
