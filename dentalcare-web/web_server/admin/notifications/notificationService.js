@@ -1,16 +1,32 @@
 import { supabaseAdmin } from "../../shared/supabaseClient.js";
 
-// Now requires adminId as a parameter
-export const getUnreadNotifications = async (adminId) => {
+export const getUnreadNotifications = async (adminId, branch) => {
   try {
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("admin_notifications")
       .select("*")
       .eq("admin_id", adminId)
       .eq("is_read", false)      
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (branch && branch !== "All") {
+      query = query.ilike("branch", `%${branch.trim()}%`);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      if (error.message.includes("branch") && error.message.includes("column")) {
+         const fallback = await supabaseAdmin
+          .from("admin_notifications")
+          .select("*")
+          .eq("admin_id", adminId)
+          .eq("is_read", false)      
+          .order("created_at", { ascending: false });
+         return { success: true, statusCode: 200, data: fallback.data || [] };
+      }
+      throw error;
+    }
 
     return { success: true, statusCode: 200, data };
   } catch (error) {
@@ -19,17 +35,32 @@ export const getUnreadNotifications = async (adminId) => {
   }
 };
 
-// Now requires adminId as a parameter
-export const markAllNotificationsAsRead = async (adminId) => {
+export const markAllNotificationsAsRead = async (adminId, branch) => {
   try {
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("admin_notifications")
       .update({ is_read: true })
       .eq("admin_id", adminId)
-      .eq("is_read", false)
-      .select();
+      .eq("is_read", false);
 
-    if (error) throw error;
+    if (branch && branch !== "All") {
+       query = query.ilike("branch", `%${branch.trim()}%`);
+    }
+
+    const { data, error } = await query.select();
+
+    if (error) {
+       if (error.message.includes("branch") && error.message.includes("column")) {
+         const fallback = await supabaseAdmin
+          .from("admin_notifications")
+          .update({ is_read: true })
+          .eq("admin_id", adminId)
+          .eq("is_read", false)
+          .select();
+         return { success: true, statusCode: 200, message: "Notifications cleared", data: fallback.data };
+       }
+       throw error;
+    }
 
     return { success: true, statusCode: 200, message: "Notifications cleared successfully", data };
   } catch (error) {

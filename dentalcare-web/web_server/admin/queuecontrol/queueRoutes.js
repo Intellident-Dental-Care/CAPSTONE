@@ -5,7 +5,7 @@ import { applyQueueDelay, getQueueForAdminBranch, updateBookingQueueStatus } fro
 const router = express.Router();
 
 router.get("/today", requireAuth, requireRole("admin"), async (req, res) => {
-  const result = await getQueueForAdminBranch(req.user.profileId || req.user.id);
+  const result = await getQueueForAdminBranch(req.user.profileId || req.user.id, req.query.branch);
   return res.status(result.statusCode || 500).json(result);
 });
 
@@ -21,13 +21,13 @@ router.patch("/status", requireAuth, requireRole("admin"), async (req, res) => {
 });
 
 router.post("/delay", requireAuth, requireRole("admin"), async (req, res) => {
-  // ADDED: Destructure 'reset' from the body
-  const { delayMinutes, message, reset } = req.body || {};
+  const { delayMinutes, message, reset, branch } = req.body || {};
 
   const result = await applyQueueDelay(req.user.profileId || req.user.id, {
     delayMinutes,
     message,
-    reset, // Pass it to the service
+    reset,
+    branch, 
   });
 
   return res.status(result.statusCode || 500).json(result);

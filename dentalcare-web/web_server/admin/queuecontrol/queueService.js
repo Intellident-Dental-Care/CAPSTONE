@@ -70,12 +70,15 @@ const computeWaitMetrics = (bookings, totalDelayMinutes) => {
 };
 
 const getDelayState = async (branch, effectiveDate) => {
+  const branches = branch ? branch.split("|").map((b) => b.trim()) : [];
+
   const { data, error } = await supabaseAdmin
     .from("queue_delay_state")
     .select("id, branch, effective_date, total_delay_minutes, last_message, updated_at")
-    .eq("branch", branch)
+    .in("branch", branches)
     .eq("effective_date", effectiveDate)
-    .maybeSingle();
+    .order("total_delay_minutes", { ascending: false })
+    .limit(1);
 
   if (error && !isTableMissing(error)) {
     throw error;
@@ -85,76 +88,80 @@ const getDelayState = async (branch, effectiveDate) => {
     return { tableMissing: true, row: null };
   }
 
-  return { tableMissing: false, row: data || null };
+  return { tableMissing: false, row: data?.[0] || null };
 };
 
 const upsertDelayState = async ({ branch, effectiveDate, adminProfileId, delayMinutes, message, isReset }) => {
-  const existing = await getDelayState(branch, effectiveDate);
-  
-  // LOGIC FIX: Reset to 0 if requested, otherwise accumulate existing delay
-  const calculatedTotal = isReset ? 0 : Number(existing.row?.total_delay_minutes || 0) + delayMinutes;
+  const branches = branch ? branch.split("|").map((b) => b.trim()) : [];
+  let tableMissing = false;
+  let highestDelay = 0;
+  let lastData = null;
 
-  if (existing.tableMissing) {
-    return {
-      tableMissing: true,
-      delay: {
-        branch,
-        effectiveDate,
-        totalDelayMinutes: calculatedTotal,
-        lastMessage: message || "",
-      },
-    };
-  }
-
-  if (existing.row) {
-    const { data, error } = await supabaseAdmin
+  for (const singleBranch of branches) {
+    const existing = await supabaseAdmin
       .from("queue_delay_state")
-      .update({
-        total_delay_minutes: calculatedTotal,
-        last_message: message || existing.row.last_message || null,
-        updated_by_admin_id: adminProfileId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existing.row.id)
-      .select("id, branch, effective_date, total_delay_minutes, last_message, updated_at")
-      .single();
+      .select("id, total_delay_minutes, last_message")
+      .eq("branch", singleBranch)
+      .eq("effective_date", effectiveDate)
+      .maybeSingle();
 
-    if (error) throw error;
+    if (existing.error && isTableMissing(existing.error)) {
+      tableMissing = true;
+      highestDelay = isReset ? 0 : delayMinutes;
+      break;
+    }
 
-    return {
-      tableMissing: false,
-      delay: {
-        branch: data.branch,
-        effectiveDate: data.effective_date,
-        totalDelayMinutes: Number(data.total_delay_minutes || 0),
-        lastMessage: data.last_message || "",
-        updatedAt: data.updated_at,
-      },
-    };
+    const calculatedTotal = isReset ? 0 : Number(existing.data?.total_delay_minutes || 0) + delayMinutes;
+
+    if (existing.data) {
+      const { data, error } = await supabaseAdmin
+        .from("queue_delay_state")
+        .update({
+          total_delay_minutes: calculatedTotal,
+          last_message: message || existing.data.last_message || null,
+          updated_by_admin_id: adminProfileId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.data.id)
+        .select("id, branch, effective_date, total_delay_minutes, last_message, updated_at")
+        .single();
+
+      if (!error && data) {
+        lastData = data;
+        if (data.total_delay_minutes > highestDelay) highestDelay = data.total_delay_minutes;
+      }
+    } else {
+      const { data, error } = await supabaseAdmin
+        .from("queue_delay_state")
+        .insert({
+          branch: singleBranch,
+          effective_date: effectiveDate,
+          total_delay_minutes: calculatedTotal,
+          last_message: message || null,
+          updated_by_admin_id: adminProfileId,
+        })
+        .select("id, branch, effective_date, total_delay_minutes, last_message, updated_at")
+        .single();
+
+      if (error && isTableMissing(error)) {
+        tableMissing = true;
+        break;
+      }
+
+      if (!error && data) {
+        lastData = data;
+        if (data.total_delay_minutes > highestDelay) highestDelay = data.total_delay_minutes;
+      }
+    }
   }
-
-  const { data, error } = await supabaseAdmin
-    .from("queue_delay_state")
-    .insert({
-      branch,
-      effective_date: effectiveDate,
-      total_delay_minutes: calculatedTotal,
-      last_message: message || null,
-      updated_by_admin_id: adminProfileId,
-    })
-    .select("id, branch, effective_date, total_delay_minutes, last_message, updated_at")
-    .single();
-
-  if (error) throw error;
 
   return {
-    tableMissing: false,
+    tableMissing,
     delay: {
-      branch: data.branch,
-      effectiveDate: data.effective_date,
-      totalDelayMinutes: Number(data.total_delay_minutes || 0),
-      lastMessage: data.last_message || "",
-      updatedAt: data.updated_at,
+      branch,
+      effectiveDate,
+      totalDelayMinutes: highestDelay,
+      lastMessage: message || lastData?.last_message || "",
     },
   };
 };
@@ -165,7 +172,7 @@ const insertDelayNotifications = async ({ bookings, message, delayMinutes, admin
     .map((booking) => ({
       user_id: booking.userId,
       booking_id: booking.id,
-      branch,
+      branch: booking.branch || branch,
       effective_date: effectiveDate,
       delay_minutes: delayMinutes,
       message,
@@ -191,12 +198,12 @@ const insertDelayNotifications = async ({ bookings, message, delayMinutes, admin
   return { success: true, count: rows.length, tableMissing: false };
 };
 
-const normalizeQueueWithDelay = async (queueResult) => {
+const normalizeQueueWithDelay = async (queueResult, branch) => {
   const bookings = queueResult.data.bookings || [];
-  const branch = queueResult.data.admin.branch;
+  const targetBranch = branch || queueResult.data.admin.branch;
   const effectiveDate = queueResult.data.date;
 
-  const delayState = await getDelayState(branch, effectiveDate);
+  const delayState = await getDelayState(targetBranch, effectiveDate);
   const totalDelayMinutes = delayState.row ? Number(delayState.row.total_delay_minutes || 0) : 0;
   const waitMetrics = computeWaitMetrics(bookings, totalDelayMinutes);
 
@@ -205,7 +212,7 @@ const normalizeQueueWithDelay = async (queueResult) => {
     data: {
       ...queueResult.data,
       delay: {
-        branch,
+        branch: targetBranch,
         effectiveDate,
         totalDelayMinutes,
         lastMessage: delayState.row?.last_message || "",
@@ -217,14 +224,16 @@ const normalizeQueueWithDelay = async (queueResult) => {
   };
 };
 
-export const getQueueForAdminBranch = async (adminProfileId) => {
-  const queueResult = await getTodayBranchBookings(adminProfileId);
+export const getQueueForAdminBranch = async (adminProfileId, requestedBranch = null) => {
+  const queueResult = await getTodayBranchBookings(adminProfileId, requestedBranch);
   if (!queueResult.success) {
     return queueResult;
   }
 
+  const targetBranch = requestedBranch || queueResult.data.admin.branch;
+
   try {
-    return await normalizeQueueWithDelay(queueResult);
+    return await normalizeQueueWithDelay(queueResult, targetBranch);
   } catch (error) {
     const waitMetrics = computeWaitMetrics(queueResult.data.bookings || [], 0);
 
@@ -233,7 +242,7 @@ export const getQueueForAdminBranch = async (adminProfileId) => {
       data: {
         ...queueResult.data,
         delay: {
-          branch: queueResult.data.admin.branch,
+          branch: targetBranch,
           effectiveDate: queueResult.data.date,
           totalDelayMinutes: 0,
           lastMessage: "",
@@ -293,8 +302,8 @@ export const applyQueueDelay = async (adminProfileId, payload = {}) => {
   const isReset = !!payload.reset;
   const delayMinutes = Number(payload.delayMinutes || 0);
   const message = String(payload.message || "").trim();
+  const requestedBranch = payload.branch ? String(payload.branch).trim() : null;
 
-  // If it's NOT a reset, ensure delay is positive
   if (!isReset && (!Number.isFinite(delayMinutes) || delayMinutes <= 0)) {
     return {
       success: false,
@@ -303,17 +312,15 @@ export const applyQueueDelay = async (adminProfileId, payload = {}) => {
     };
   }
 
-  const queueResult = await getTodayBranchBookings(adminProfileId);
+  const queueResult = await getTodayBranchBookings(adminProfileId, requestedBranch);
   if (!queueResult.success) {
     return queueResult;
   }
 
-  const branch = queueResult.data.admin.branch;
+  const branch = requestedBranch || queueResult.data.admin.branch;
   const effectiveDate = queueResult.data.date;
   const affectedBookings = (queueResult.data.bookings || []).filter(
-    (booking) =>
-      booking.status === "In Queue" ||
-      booking.status === "In Treatment"
+    (booking) => booking.status === "In Queue" || booking.status === "In Treatment"
   );
 
   try {
@@ -326,9 +333,8 @@ export const applyQueueDelay = async (adminProfileId, payload = {}) => {
       isReset,
     });
 
-    // Determine what message is sent to users
-    const defaultMessage = isReset 
-      ? "Great news! The clinic is back on schedule." 
+    const defaultMessage = isReset
+      ? "Great news! The clinic is back on schedule."
       : `Queue update: Estimated wait has been delayed by ${delayMinutes} minute${delayMinutes > 1 ? "s" : ""}.`;
 
     const notifyResult = await insertDelayNotifications({
@@ -340,7 +346,7 @@ export const applyQueueDelay = async (adminProfileId, payload = {}) => {
       effectiveDate,
     });
 
-    const normalizedQueue = await normalizeQueueWithDelay(queueResult);
+    const normalizedQueue = await normalizeQueueWithDelay(queueResult, branch);
 
     return {
       success: true,

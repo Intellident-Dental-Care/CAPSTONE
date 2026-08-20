@@ -102,24 +102,25 @@ const toTwentyFourHourTime = (time12h) => {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
 };
 
-// Safety Check to prevent Postgres 500 errors from bad ID formats
 const isValidUuid = (id) => {
   if (!id) return false;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(id));
 };
 
-export const listAppointments = async (adminId) => {
+export const listAppointments = async (adminId, requestedBranch = null) => {
   let adminBranch = "All";
+  let isSuperAdmin = false;
 
   if (adminId) {
     const { data: adminData } = await supabaseAdmin
       .from("admin_list")
-      .select("branch")
+      .select("branch, admin_type")
       .eq("id", adminId)
       .maybeSingle();
     
-    if (adminData?.branch) {
-      adminBranch = adminData.branch;
+    if (adminData) {
+      adminBranch = adminData.branch || "All";
+      isSuperAdmin = adminData.admin_type === "super_admin";
     }
   }
 
@@ -144,8 +145,22 @@ export const listAppointments = async (adminId) => {
     return { success: false, statusCode: 500, message: "Failed to load appointments" };
   }
 
-  const dentistIds = [...new Set((bookings || []).map((row) => row.dentist_id).filter(Boolean))];
-  const userIds = [...new Set((bookings || []).map((row) => row.user_id).filter(Boolean))];
+  const adminBranches = adminBranch.split("|").map(b => normalizeText(b));
+  const targetBranch = requestedBranch && requestedBranch !== "All" ? normalizeText(requestedBranch) : null;
+
+  const filteredBookings = (bookings || []).filter(row => {
+    const rowBranch = normalizeText(row.branch);
+
+    if (targetBranch) {
+      return rowBranch === targetBranch;
+    }
+
+    if (isSuperAdmin || adminBranch === "All") return true;
+    return adminBranches.includes(rowBranch);
+  });
+
+  const dentistIds = [...new Set(filteredBookings.map((row) => row.dentist_id).filter(Boolean))];
+  const userIds = [...new Set(filteredBookings.map((row) => row.user_id).filter(Boolean))];
 
   const [dentistsResult, usersResult] = await Promise.all([
     dentistIds.length
@@ -165,7 +180,7 @@ export const listAppointments = async (adminId) => {
   const dentistById = new Map((dentistsResult.data || []).map((d) => [d.id, d]));
   const userById = new Map((usersResult.data || []).map((u) => [u.id, u]));
 
-  const mapped = (bookings || []).map((row) => {
+  const mapped = filteredBookings.map((row) => {
     const user = userById.get(row.user_id) || {};
     const dentist = dentistById.get(row.dentist_id) || {};
     const status = normalizeStatus(row.status);
@@ -251,7 +266,6 @@ export const createWalkInAppointment = async (payload) => {
   const dayOfWeek = toDayOfWeekInManila();
   const normalizedBranch = normalizeText(payload.branch);
 
-  // Soft-fail schedule check in case table is missing or malformed
   let hasBranchScheduleToday = true;
   try {
     const { data: dentistSchedule, error: dentistScheduleError } = await supabaseAdmin
@@ -287,14 +301,12 @@ export const createWalkInAppointment = async (payload) => {
 
   const safeDentistId = isValidUuid(payload.dentistId) ? payload.dentistId : null;
   
-  // --- SMART PROFILE ID RESOLUTION ---
   let finalUserId = null;
   let finalProfileId = null;
 
   if (payload.userId) {
     let rawId = String(payload.userId);
 
-    // If patientsService passed a composite key (e.g. "uuid::profile_name"), split it
     if (rawId.includes("::")) {
       rawId = rawId.split("::")[0];
     }
@@ -302,7 +314,6 @@ export const createWalkInAppointment = async (payload) => {
     if (isValidUuid(rawId)) {
       finalUserId = rawId;
 
-      // Query to see if the patient name specifically belongs to a sub-profile
       const { data: profileData } = await supabaseAdmin
         .from("user_profiles")
         .select("id")

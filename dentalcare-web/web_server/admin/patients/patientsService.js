@@ -4,7 +4,8 @@ const statusMap = (value) => {
   const key = String(value || "").toLowerCase();
   if (key === "completed") return "Completed";
   if (key === "cancelled") return "Cancelled";
-  if (key === "in_queue") return "In Queue";
+  if (key === "in_queue" || key === "in queue") return "In Queue";
+  if (key === "in_treatment" || key === "in treatment" || key === "intreatment") return "In Treatment";
   return "Waiting";
 };
 

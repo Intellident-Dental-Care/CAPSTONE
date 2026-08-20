@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import AdminSidebar from "../../components/admin/layout/AdminSidebar";
 import AdminTopbar from "../../components/admin/layout/AdminTopbar";
 import { applyQueueDelay, getTodayQueue, updateQueueStatus, resetQueueDelay } from "../../services/adminService";
+import { useBranch } from "../../context/BranchContext";
 
 import "../../styles/admin/dashboard/admin-layout.css";
 import "../../styles/admin/layout/admin-sidebar.css";
@@ -12,6 +13,7 @@ import "../../styles/admin/queue/queue.css";
 
 export default function Queue() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const { selectedBranch } = useBranch();
 
   const [notifications, setNotifications] = useState([
     {
@@ -49,7 +51,11 @@ export default function Queue() {
   const [nextPatientWaitMinutes, setNextPatientWaitMinutes] = useState(0);
 
   const loadQueue = async () => {
-    const response = await getTodayQueue({ forceRefresh: true });
+    const response = await getTodayQueue({
+      forceRefresh: true,
+      branch: selectedBranch,
+    });
+
     if (!response?.success) {
       return;
     }
@@ -89,18 +95,27 @@ export default function Queue() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [selectedBranch]);
 
   const currentPatient = useMemo(() => {
-    const inTreatment = queueList.find((item) => item.status === "In Treatment" || item.rawStatus === "in_treatment");
+    const inTreatment = queueList.find(
+      (item) => item.status === "In Treatment" || item.rawStatus === "in_treatment"
+    );
     if (inTreatment) return inTreatment;
-    return queueList.find((item) => item.status === "In Queue" || item.rawStatus === "confirmed") || null;
+    return (
+      queueList.find(
+        (item) => item.status === "In Queue" || item.rawStatus === "confirmed"
+      ) || null
+    );
   }, [queueList]);
 
   const waitingPatients = useMemo(
-    () => queueList.filter(
-      (item) => (item.rawStatus === "confirmed" || item.status === "In Queue") && item.id !== currentPatient?.id
-    ),
+    () =>
+      queueList.filter(
+        (item) =>
+          (item.rawStatus === "confirmed" || item.status === "In Queue") &&
+          item.id !== currentPatient?.id
+      ),
     [queueList, currentPatient]
   );
 
@@ -253,6 +268,7 @@ export default function Queue() {
     const response = await applyQueueDelay({
       delayMinutes,
       message: finalMessage,
+      branch: selectedBranch,
     });
 
     if (!response?.success) {
@@ -301,8 +317,7 @@ export default function Queue() {
             <div>
               <h2 className="queue-page-title">Queue Control</h2>
               <p className="queue-page-subtitle">
-                Manage the live queue, next patient, and schedule delays for
-                today.
+                Manage the live queue, next patient, and schedule delays for today.
               </p>
             </div>
 
@@ -418,8 +433,8 @@ export default function Queue() {
               </div>
 
               <div className="queue-lower-grid">
-                <div 
-                  className="queue-next-card" 
+                <div
+                  className="queue-next-card"
                   style={{ display: "flex", flexDirection: "column", justifyContent: "flex-start", height: "100%" }}
                 >
                   <div className="queue-card-head">
@@ -486,7 +501,7 @@ export default function Queue() {
                         className="queue-primary-btn"
                         onClick={async () => {
                           setIsApplyingDelay(true);
-                          const res = await resetQueueDelay();
+                          const res = await resetQueueDelay(selectedBranch);
                           if (res?.success) {
                             setDelayOffsetMinutes(0);
                             await loadQueue();
@@ -629,7 +644,6 @@ export default function Queue() {
             <div className="queue-modal queue-modal-delay">
               <div className="queue-delay-modal-head">
                 <h2>Delay Management</h2>
-
                 <button
                   className="queue-close-btn"
                   onClick={() => setShowDelayModal(false)}

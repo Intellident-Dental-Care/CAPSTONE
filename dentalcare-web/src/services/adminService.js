@@ -87,7 +87,7 @@ export const preloadAdminData = async () => {
 
     if (profileResult?.success && profileResult.data) {
       adminCache.profile = profileResult.data;
-      
+
       const dbPath = profileResult.data.avatarPath || profileResult.data.avatarUrl || "";
       if (dbPath) {
         const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
@@ -96,7 +96,7 @@ export const preloadAdminData = async () => {
         localStorage.setItem("user_data", JSON.stringify(userData));
       }
     }
-    
+
     if (appointmentsResult?.success) adminCache.appointments = appointmentsResult.data;
     if (dentistsResult?.success) adminCache.dentists = dentistsResult.data;
     if (patientsResult?.success) adminCache.patients = patientsResult.data;
@@ -115,14 +115,15 @@ export const preloadAdminData = async () => {
 
 export const getDashboardSnapshot = async (options = {}) => {
   const forceRefresh = !!options.forceRefresh;
+  const branchParam = options.branch ? `?branch=${encodeURIComponent(options.branch)}` : "";
 
-  if (!forceRefresh && adminCache.dashboard) {
+  if (!forceRefresh && adminCache.dashboard && !options.branch) {
     return { success: true, data: adminCache.dashboard };
   }
 
   try {
-    const data = await fetchJson("/admin/dashboard/snapshot", { method: "GET" });
-    if (data?.success) {
+    const data = await fetchJson(`/admin/dashboard/snapshot${branchParam}`, { method: "GET" });
+    if (data?.success && !options.branch) {
       adminCache.dashboard = data.data;
     }
     return data;
@@ -133,14 +134,15 @@ export const getDashboardSnapshot = async (options = {}) => {
 
 export const getTodayQueue = async (options = {}) => {
   const forceRefresh = !!options.forceRefresh;
+  const branchParam = options.branch ? `?branch=${encodeURIComponent(options.branch)}` : "";
 
-  if (!forceRefresh && adminCache.queue) {
+  if (!forceRefresh && adminCache.queue && !options.branch) {
     return { success: true, data: adminCache.queue };
   }
 
   try {
-    const data = await fetchJson("/admin/queuecontrol/today", { method: "GET" });
-    if (data?.success) {
+    const data = await fetchJson(`/admin/queuecontrol/today${branchParam}`, { method: "GET" });
+    if (data?.success && !options.branch) {
       adminCache.queue = data.data;
     }
     return data;
@@ -332,11 +334,15 @@ export const getAdminPatients = async () => {
   }
 };
 
-export const resetQueueDelay = async () => {
+export const resetQueueDelay = async (branch = "") => {
   try {
     const data = await fetchJson("/admin/queuecontrol/delay", {
       method: "POST",
-      body: JSON.stringify({ reset: true, message: "The dentist has caught up. The clinic is now back on schedule." }),
+      body: JSON.stringify({
+        reset: true,
+        branch,
+        message: "The dentist has caught up. The clinic is now back on schedule.",
+      }),
     });
 
     if (data?.success) {
@@ -414,20 +420,24 @@ export const checkLeaveConflict = async (dentistId, startDate, endDate) => {
   }
 };
 
-export const fetchUnreadNotifications = async () => {
+export const fetchUnreadNotifications = async (branch = "") => {
   try {
-    const data = await fetchJson("/admin/notifications", { method: "GET" });
-    return data; 
+    const branchParam = branch && branch !== "All" ? `?branch=${encodeURIComponent(branch)}` : "";
+    const data = await fetchJson(`/admin/notifications${branchParam}`, { method: "GET" });
+    return data;
   } catch (error) {
     console.error("Error fetching notifications:", error);
     return { success: false, message: "Failed to fetch notifications", data: [] };
   }
 };
 
-export const markNotificationsAsRead = async () => {
+export const markNotificationsAsRead = async (branch = "") => {
   try {
-    const data = await fetchJson("/admin/notifications/mark-read", { method: "PATCH" });
-    return data; 
+    const data = await fetchJson("/admin/notifications/mark-read", { 
+      method: "PATCH",
+      body: JSON.stringify({ branch }),
+    });
+    return data;
   } catch (error) {
     console.error("Error marking notifications as read:", error);
     return { success: false, message: "Failed to clear notifications" };

@@ -5,9 +5,8 @@ import { createWalkInAppointment, listAppointments, updateAppointmentStatus } fr
 const router = express.Router();
 
 router.get("/", requireAuth, requireRole("admin"), async (req, res) => {
-  // Pass the admin's ID down to fetch their assigned branch
   const adminId = req.user.profileId || req.user.id;
-  const result = await listAppointments(adminId);
+  const result = await listAppointments(adminId, req.query.branch);
   return res.status(result.statusCode || 500).json(result);
 });
 

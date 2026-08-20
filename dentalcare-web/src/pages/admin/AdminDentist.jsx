@@ -20,7 +20,6 @@ import "../../styles/admin/shared/admin-responsive.css";
 
 const defaultAssignedBranch = "General Trias";
 
-// Helper function to check if dentist is currently on leave
 function getDentistOnLeaveInfo(dentist) {
   if (!dentist.leave || !Array.isArray(dentist.leave) || dentist.leave.length === 0) {
     return { isOnLeave: false, leaveData: null };
@@ -160,7 +159,8 @@ function DentistDetailsModal({ dentist, onClose, adminAssignedBranch, onSetLeave
                 <div className="dentist-info-row">
                   <span>Duration</span>
                   <strong>
-                    {calculateLeaveDuration(leaveData.start_date, leaveData.end_date)} days
+                    {calculateLeaveDuration(leaveData.start_date, leaveData.end_date)}{" "}
+                    {calculateLeaveDuration(leaveData.start_date, leaveData.end_date) === 1 ? "day" : "days"}
                   </strong>
                 </div>
               </>
@@ -344,15 +344,15 @@ export default function AdminDentist() {
   }, []);
 
   const filteredDentists = useMemo(() => {
+    const adminBranches = adminAssignedBranch ? adminAssignedBranch.split("|").map(b => b.trim().toLowerCase()) : [];
+
     return dentists
       .filter((dentist) =>
         dentist.schedules.some(
           (schedule) =>
             !adminAssignedBranch ||
-            schedule.branch === adminAssignedBranch ||
-            String(schedule.branch || "")
-              .toLowerCase()
-              .includes(String(adminAssignedBranch).toLowerCase())
+            adminAssignedBranch === "All" ||
+            adminBranches.includes(String(schedule.branch || "").trim().toLowerCase())
         )
       )
       .filter((dentist) => {
@@ -414,7 +414,6 @@ export default function AdminDentist() {
     setIsSubmittingLeave(true);
 
     try {
-      // Check for conflicts
       const conflictCheck = await checkLeaveConflict(
         selectedLeaveDentist.id,
         leaveForm.startDate,
@@ -427,7 +426,6 @@ export default function AdminDentist() {
         return;
       }
 
-      // Set the leave
       const result = await setDentistLeave(
         selectedLeaveDentist.id,
         leaveForm.startDate,
@@ -436,12 +434,10 @@ export default function AdminDentist() {
       );
 
       if (result.success) {
-        // Reload dentists to get updated leave info
         const dentistsResult = await getAdminDentists();
         if (dentistsResult.success && Array.isArray(dentistsResult.data)) {
           setDentists(dentistsResult.data);
 
-          // Update selected dentist if it's the same one
           if (selectedDentist?.id === selectedLeaveDentist.id) {
             const updated = dentistsResult.data.find(
               (d) => d.id === selectedDentist.id

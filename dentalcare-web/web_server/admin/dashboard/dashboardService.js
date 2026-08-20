@@ -26,7 +26,7 @@ const isMissingBookingTypeColumnError = (error) => {
 
 const mapStatus = (status) => {
   const normalized = normalize(status);
-  if (normalized === "in_treatment") return "In Treatment";
+  if (normalized === "in_treatment" || normalized === "in treatment") return "In Treatment";
   if (normalized === "confirmed") return "In Queue";
   if (normalized === "pending" || normalized === "waiting") return "In Queue";
   if (normalized === "completed") return "Completed";
@@ -71,7 +71,7 @@ const formatRelativeTime = (value) => {
   if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
 
   const days = Math.floor(hours / 24);
-  return `${days} day${days > 1 ? "s" : ""} ago`;
+  return `${days} ${days === 1 ? "day" : "days"} ago`;
 };
 
 const monthKey = (dateValue) => {
@@ -138,6 +138,8 @@ const getAttendingDentistsByBranchSchedule = async (branch) => {
   const normalizedBranch = normalize(branch);
   if (!normalizedBranch) return [];
 
+  const targetBranches = normalizedBranch.split("|").map(b => branchKeyFromText(b.trim()));
+
   const { data: schedules, error: schedulesError } = await supabaseAdmin
     .from("dentist_schedule")
     .select("dentist_id, branch, day_of_week, is_active")
@@ -147,8 +149,8 @@ const getAttendingDentistsByBranchSchedule = async (branch) => {
     return [];
   }
 
-  const branchSchedules = (schedules || []).filter(
-    (row) => normalize(row.branch) === normalizedBranch
+  const branchSchedules = (schedules || []).filter((row) =>
+    targetBranches.includes(branchKeyFromText(row.branch))
   );
 
   if (!branchSchedules.length) {
@@ -212,7 +214,7 @@ const getAttendingDentistsByBranchSchedule = async (branch) => {
 
   const countByDentistAndDate = new Map();
   for (const booking of dayBookings || []) {
-    if (normalize(booking.branch) !== normalizedBranch) continue;
+    if (!targetBranches.includes(branchKeyFromText(booking.branch))) continue;
     if (normalize(booking.status) === "cancelled") continue;
 
     const key = `${booking.dentist_id}__${booking.appointment_date}`;
@@ -248,12 +250,15 @@ const getAttendingDentistsByBranchSchedule = async (branch) => {
 };
 
 const getBranchDelayForDate = async (branch, effectiveDate) => {
+  const branches = branch ? branch.split("|").map((b) => b.trim()) : [];
+
   const { data, error } = await supabaseAdmin
     .from("queue_delay_state")
     .select("total_delay_minutes, last_message, updated_at")
-    .eq("branch", branch)
+    .in("branch", branches)
     .eq("effective_date", effectiveDate)
-    .maybeSingle();
+    .order("total_delay_minutes", { ascending: false })
+    .limit(1);
 
   if (error) {
     const tableMissing =
@@ -269,9 +274,9 @@ const getBranchDelayForDate = async (branch, effectiveDate) => {
   }
 
   return {
-    totalDelayMinutes: Number(data?.total_delay_minutes || 0),
-    lastMessage: data?.last_message || "",
-    updatedAt: data?.updated_at || null,
+    totalDelayMinutes: Number(data?.[0]?.total_delay_minutes || 0),
+    lastMessage: data?.[0]?.last_message || "",
+    updatedAt: data?.[0]?.updated_at || null,
   };
 };
 
@@ -289,7 +294,7 @@ export const getAdminBranch = async (adminProfileId) => {
   return admin;
 };
 
-export const getTodayBranchBookings = async (adminProfileId) => {
+export const getTodayBranchBookings = async (adminProfileId, requestedBranch = null) => {
   const admin = await getAdminBranch(adminProfileId);
 
   if (!admin) {
@@ -346,13 +351,25 @@ export const getTodayBranchBookings = async (adminProfileId) => {
 
   const adminBranch = normalize(admin.branch);
   const isSuperAdmin = normalize(admin.admin_type) === "super_admin";
+  const adminBranches = adminBranch ? adminBranch.split("|").map(branchKeyFromText) : [];
+
+  let effectiveTargetBranchKey = null;
+  if (requestedBranch) {
+    const targetKey = branchKeyFromText(requestedBranch);
+    if (isSuperAdmin || adminBranches.includes(targetKey)) {
+      effectiveTargetBranchKey = targetKey;
+    }
+  }
+
   const filtered = (bookings || []).filter((row) => {
     const rowBranchKey = branchKeyFromText(row.branch);
+    if (effectiveTargetBranchKey) {
+      return rowBranchKey === effectiveTargetBranchKey;
+    }
     if (isSuperAdmin || !adminBranch) {
       return TRACKED_BRANCH_KEYS.includes(rowBranchKey);
     }
-
-    return rowBranchKey === branchKeyFromText(adminBranch);
+    return adminBranches.includes(rowBranchKey);
   });
 
   return {
@@ -361,6 +378,7 @@ export const getTodayBranchBookings = async (adminProfileId) => {
     data: {
       admin,
       date: today,
+      effectiveBranch: requestedBranch || admin.branch,
       bookings: filtered.map((row, index) => ({
         id: row.id,
         userId: row.user_id,
@@ -382,7 +400,7 @@ export const getTodayBranchBookings = async (adminProfileId) => {
   };
 };
 
-const getBranchBookingsForYear = async (branch) => {
+const getBranchBookingsForYear = async (branch, requestedBranch = null) => {
   const currentYear = new Date().getFullYear();
   const yearStart = `${currentYear}-01-01`;
   const yearEnd = `${currentYear}-12-31`;
@@ -434,33 +452,44 @@ const getBranchBookingsForYear = async (branch) => {
   }
 
   const normalizedBranch = normalize(branch);
+  const adminBranches = normalizedBranch ? normalizedBranch.split("|").map(branchKeyFromText) : [];
+
+  let effectiveTargetBranchKey = null;
+  if (requestedBranch) {
+    effectiveTargetBranchKey = branchKeyFromText(requestedBranch);
+  }
+
   const filtered = (data || []).filter((row) => {
     const rowBranchKey = branchKeyFromText(row.branch);
+    if (effectiveTargetBranchKey) {
+      return rowBranchKey === effectiveTargetBranchKey;
+    }
     if (!normalizedBranch) {
       return TRACKED_BRANCH_KEYS.includes(rowBranchKey);
     }
-
-    return rowBranchKey === branchKeyFromText(normalizedBranch);
+    return adminBranches.includes(rowBranchKey);
   });
 
   return { success: true, data: filtered };
 };
 
-export const getDashboardSnapshot = async (adminProfileId) => {
-  const queueResult = await getTodayBranchBookings(adminProfileId);
+export const getDashboardSnapshot = async (adminProfileId, requestedBranch = null) => {
+  const queueResult = await getTodayBranchBookings(adminProfileId, requestedBranch);
 
   if (!queueResult.success) {
     return queueResult;
   }
 
-  const annualResult = await getBranchBookingsForYear(queueResult.data.admin.branch);
+  const activeBranch = requestedBranch || queueResult.data.admin.branch;
+
+  const annualResult = await getBranchBookingsForYear(queueResult.data.admin.branch, requestedBranch);
   if (!annualResult.success) {
     return annualResult;
   }
 
   let delayInfo = { totalDelayMinutes: 0, lastMessage: "", updatedAt: null };
   try {
-    delayInfo = await getBranchDelayForDate(queueResult.data.admin.branch, queueResult.data.date);
+    delayInfo = await getBranchDelayForDate(activeBranch, queueResult.data.date);
   } catch {
     delayInfo = { totalDelayMinutes: 0, lastMessage: "", updatedAt: null };
   }
@@ -486,7 +515,7 @@ export const getDashboardSnapshot = async (adminProfileId) => {
   const nextPatientWaitMinutes = waiting.length ? nextPatientWaitBase + delayInfo.totalDelayMinutes : 0;
   const estimatedWaitMinutes = waiting.length ? estimatedWaitBase + delayInfo.totalDelayMinutes : 0;
 
-  const attendingDentists = await getAttendingDentistsByBranchSchedule(queueResult.data.admin.branch);
+  const attendingDentists = await getAttendingDentistsByBranchSchedule(activeBranch);
 
   const recentActivity = todayBookings
     .slice()
@@ -500,6 +529,9 @@ export const getDashboardSnapshot = async (adminProfileId) => {
       if (status === "confirmed") {
         title = "Patient checked in";
         description = `${item.patientName} is now in queue for ${item.procedure}`;
+      } else if (status === "in_treatment" || status === "in treatment") {
+        title = "Patient in treatment";
+        description = `${item.patientName} is now in treatment for ${item.procedure}`;
       } else if (status === "completed") {
         title = "Treatment completed";
         description = `${item.procedure} completed by ${item.dentist}`;
@@ -563,7 +595,7 @@ export const getDashboardSnapshot = async (adminProfileId) => {
     success: true,
     statusCode: 200,
     data: {
-      branch: queueResult.data.admin.branch,
+      branch: activeBranch,
       date: queueResult.data.date,
       totals: {
         appointments: todayBookings.length,

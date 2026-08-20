@@ -12,196 +12,6 @@ import "../../styles/admin/shared/admin-responsive.css";
 
 const defaultAssignedBranch = "General Trias";
 
-const patientData = [
-  {
-    id: 1,
-    name: "Sarah Kim",
-    gender: "Female",
-    age: 25,
-    phone: "09123456789",
-    visitDate: "2026-02-05",
-    email: "sarahkim@email.com",
-    birthday: "2001-08-12",
-    address: "General Trias, Cavite",
-    branch: "General Trias",
-    status: "Completed",
-    service: "Dental Consultation",
-    procedures: [
-      {
-        name: "Dental Consultation",
-        date: "2026-02-05",
-        time: "09:30 AM",
-        doctor: "Dr. Nicole Hernandez",
-        status: "Completed",
-      },
-      {
-        name: "Teeth Cleaning",
-        date: "2026-02-12",
-        time: "10:00 AM",
-        doctor: "Dr. Mark Villanueva",
-        status: "Completed",
-      },
-      {
-        name: "Dental Filling",
-        date: "2026-02-19",
-        time: "01:30 PM",
-        doctor: "Dr. Angela Santos",
-        status: "Follow-up",
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: "John Cruz",
-    gender: "Male",
-    age: 31,
-    phone: "09184561234",
-    visitDate: "2026-02-08",
-    email: "johncruz@email.com",
-    birthday: "1994-03-21",
-    address: "General Trias, Cavite",
-    branch: "General Trias",
-    status: "Scheduled",
-    service: "Teeth Cleaning",
-    procedures: [
-      {
-        name: "Dental Consultation",
-        date: "2026-02-08",
-        time: "11:00 AM",
-        doctor: "Dr. Nicole Hernandez",
-        status: "Completed",
-      },
-      {
-        name: "Teeth Cleaning",
-        date: "2026-02-22",
-        time: "02:00 PM",
-        doctor: "Dr. Samantha Hernandez",
-        status: "Scheduled",
-      },
-    ],
-  },
-  {
-    id: 3,
-    name: "Angela Reyes",
-    gender: "Female",
-    age: 28,
-    phone: "09981234567",
-    visitDate: "2026-02-10",
-    email: "angelareyes@email.com",
-    birthday: "1997-11-02",
-    address: "General Trias, Cavite",
-    branch: "General Trias",
-    status: "Completed",
-    service: "Tooth Extraction",
-    procedures: [
-      {
-        name: "X-Ray",
-        date: "2026-02-10",
-        time: "08:45 AM",
-        doctor: "Dr. Miguel Reyes",
-        status: "Completed",
-      },
-      {
-        name: "Tooth Extraction",
-        date: "2026-02-10",
-        time: "09:30 AM",
-        doctor: "Dr. Miguel Reyes",
-        status: "Completed",
-      },
-    ],
-  },
-  {
-    id: 4,
-    name: "Michael Santos",
-    gender: "Male",
-    age: 36,
-    phone: "09235551234",
-    visitDate: "2026-02-11",
-    email: "michaelsantos@email.com",
-    birthday: "1990-01-15",
-    address: "Dasmariñas, Cavite",
-    branch: "Dasmariñas",
-    status: "Scheduled",
-    service: "Braces Adjustment",
-    procedures: [
-      {
-        name: "Braces Adjustment",
-        date: "2026-02-11",
-        time: "03:00 PM",
-        doctor: "Dr. Andrea Santos",
-        status: "Scheduled",
-      },
-    ],
-  },
-  {
-    id: 5,
-    name: "Bea Flores",
-    gender: "Female",
-    age: 22,
-    phone: "09354441234",
-    visitDate: "2026-02-12",
-    email: "beaflores@email.com",
-    birthday: "2003-06-30",
-    address: "General Trias, Cavite",
-    branch: "General Trias",
-    status: "Completed",
-    service: "Dental Filling",
-    procedures: [
-      {
-        name: "Dental Consultation",
-        date: "2026-02-12",
-        time: "01:00 PM",
-        doctor: "Dr. Nicole Hernandez",
-        status: "Completed",
-      },
-      {
-        name: "Dental Filling",
-        date: "2026-02-14",
-        time: "09:00 AM",
-        doctor: "Dr. Carla Mendoza",
-        status: "Completed",
-      },
-    ],
-  },
-  {
-    id: 6,
-    name: "Carlo Mendoza",
-    gender: "Male",
-    age: 40,
-    phone: "09175552345",
-    visitDate: "2026-02-14",
-    email: "carlomendoza@email.com",
-    birthday: "1986-09-04",
-    address: "General Trias, Cavite",
-    branch: "General Trias",
-    status: "Follow-up",
-    service: "Root Canal",
-    procedures: [
-      {
-        name: "Dental Consultation",
-        date: "2026-02-14",
-        time: "10:30 AM",
-        doctor: "Dr. Miguel Reyes",
-        status: "Completed",
-      },
-      {
-        name: "Root Canal",
-        date: "2026-02-18",
-        time: "01:00 PM",
-        doctor: "Dr. Miguel Reyes",
-        status: "Ongoing",
-      },
-      {
-        name: "Post Treatment Check-up",
-        date: "2026-02-25",
-        time: "11:00 AM",
-        doctor: "Dr. Miguel Reyes",
-        status: "Follow-up",
-      },
-    ],
-  },
-];
-
 const initialNotifications = [
   {
     id: 1,
@@ -224,6 +34,7 @@ const initialNotifications = [
 ];
 
 function formatDate(dateString) {
+  if (!dateString) return "N/A";
   const date = new Date(dateString);
   return date.toLocaleDateString("en-US", {
     year: "numeric",
@@ -405,7 +216,13 @@ export default function AdminPatient() {
   }, []);
 
   const filteredPatients = useMemo(() => {
+    const adminBranches = adminAssignedBranch ? adminAssignedBranch.split("|").map(b => b.trim().toLowerCase()) : [];
+
     return patients
+      .filter((patient) => {
+        if (!adminAssignedBranch || adminAssignedBranch === "All") return true;
+        return adminBranches.includes(String(patient.branch || "").trim().toLowerCase());
+      })
       .filter((patient) => {
         const search = searchTerm.toLowerCase();
         return (
@@ -416,7 +233,7 @@ export default function AdminPatient() {
           patient.status.toLowerCase().includes(search)
         );
       });
-  }, [patients, searchTerm]);
+  }, [patients, searchTerm, adminAssignedBranch]);
 
   const totalPatients = filteredPatients.length;
   const completedPatients = filteredPatients.reduce((count, patient) => {
