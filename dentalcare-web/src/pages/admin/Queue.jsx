@@ -361,6 +361,8 @@ export default function Queue() {
     setIsApplyingDelay(false);
   };
 
+  const isPaymentDisabled = !amountPaid || String(amountPaid).trim() === "" || isNaN(Number(amountPaid)) || Number(amountPaid) <= 0;
+
   return (
     <div className="admin-dashboard-page">
       <AdminSidebar />
@@ -560,7 +562,6 @@ export default function Queue() {
 
                     {delayOffsetMinutes > 0 && (
                       <button
-                        style={{ flex: 1, backgroundColor: "#FFF1F6", color: "#e11d48", border: "1px solid #F8D4E0" }}
                         className="queue-primary-btn"
                         onClick={async () => {
                           setIsApplyingDelay(true);
@@ -572,6 +573,13 @@ export default function Queue() {
                           setIsApplyingDelay(false);
                         }}
                         disabled={isApplyingDelay}
+                        style={{
+                          flex: 1,
+                          backgroundColor: "#FFF1F6",
+                          color: "#e11d48",
+                          border: "1px solid #F8D4E0",
+                          ...(isApplyingDelay ? { opacity: 0.6, cursor: "not-allowed" } : {})
+                        }}
                       >
                         Reset Delay
                       </button>
@@ -716,7 +724,8 @@ export default function Queue() {
                   type="button"
                   className="queue-primary-btn"
                   onClick={handlePaymentContinue}
-                  disabled={!amountPaid || isNaN(Number(amountPaid)) || Number(amountPaid) <= 0}
+                  disabled={isPaymentDisabled}
+                  style={isPaymentDisabled ? { opacity: 0.6, cursor: "not-allowed" } : {}}
                 >
                   Continue
                 </button>
@@ -791,6 +800,7 @@ export default function Queue() {
                   className="queue-primary-btn"
                   onClick={confirmCompleteTreatment}
                   disabled={isCompletingTreatment}
+                  style={isCompletingTreatment ? { opacity: 0.6, cursor: "not-allowed" } : {}}
                 >
                   {isCompletingTreatment
                     ? "Completing..."
@@ -938,6 +948,7 @@ export default function Queue() {
                   className="queue-primary-btn"
                   onClick={handleDelayConfirm}
                   disabled={isApplyingDelay}
+                  style={isApplyingDelay ? { opacity: 0.6, cursor: "not-allowed" } : {}}
                 >
                   {isApplyingDelay ? "Applying..." : "Confirm Delay and Notify"}
                 </button>
