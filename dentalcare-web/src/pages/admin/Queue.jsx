@@ -41,6 +41,12 @@ export default function Queue() {
   const [showStartModal, setShowStartModal] = useState(false);
   const [showDelayModal, setShowDelayModal] = useState(false);
 
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
+  const [amountPaid, setAmountPaid] = useState("");
+  const [paymentError, setPaymentError] = useState("");
+  const [isCompletingTreatment, setIsCompletingTreatment] = useState(false);
+
   const [selectedDelay, setSelectedDelay] = useState("10");
   const [customDelay, setCustomDelay] = useState("");
   const [delayUnit, setDelayUnit] = useState("minutes");
@@ -161,36 +167,92 @@ export default function Queue() {
 
   const handleCompleteClick = () => {
     if (!currentPatient) return;
-    setShowCompleteConfirm(true);
+
+    setAmountPaid("");
+    setPaymentError("");
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentContinue = () => {
+    const amount = Number(amountPaid);
+
+    if (!amountPaid.trim()) {
+      setPaymentError("Please enter the amount paid by the patient.");
+      return;
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPaymentError("Please enter a valid payment amount.");
+      return;
+    }
+
+    setPaymentError("");
+    setShowPaymentModal(false);
+    setShowPaymentConfirm(true);
   };
 
   const confirmCompleteTreatment = async () => {
-    if (!currentPatient) return;
+    if (!currentPatient || isCompletingTreatment) return;
 
-    const result = await updateQueueStatus(currentPatient.id, "completed");
+    setIsCompletingTreatment(true);
+
+    const result = await updateQueueStatus(
+      currentPatient.id,
+      "completed"
+    );
+
     if (!result?.success) {
       setNotifications((prev) => [
         {
           id: Date.now(),
           title: "Queue Update Failed:",
-          message: result?.message || "Could not mark patient as completed",
+          message:
+            result?.message ||
+            "Could not mark patient as completed",
           time: "Just now",
         },
         ...prev,
       ]);
+
+      setIsCompletingTreatment(false);
       return;
     }
 
     setQueueList((prev) =>
       prev.map((item) =>
         item.id === currentPatient.id
-          ? { ...item, status: "Completed", rawStatus: "completed" }
+          ? {
+              ...item,
+              status: "Completed",
+              rawStatus: "completed",
+              amountPaid: Number(amountPaid),
+            }
           : item
       )
     );
 
-    setShowCompleteConfirm(false);
+    setNotifications((prev) => [
+      {
+        id: Date.now(),
+        title: "Treatment Completed:",
+        message: `${currentPatient.name}'s treatment was completed. Payment received: ₱${Number(
+          amountPaid
+        ).toLocaleString("en-PH", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`,
+        time: "Just now",
+      },
+      ...prev,
+    ]);
+
+    setShowPaymentConfirm(false);
+    setAmountPaid("");
+    setPaymentError("");
+
     await loadQueue();
+
+    setIsCompletingTreatment(false);
   };
 
   const startTreatment = async () => {
@@ -582,28 +644,155 @@ export default function Queue() {
           </div>
         </div>
 
-        {showCompleteConfirm && (
+        {showPaymentModal && currentPatient && (
           <div className="queue-modal-overlay">
-            <div className="queue-modal queue-modal-small">
-              <h2>Confirm Completion</h2>
-              <p>
-                Are you sure the procedure or treatment for{" "}
-                <strong>{currentPatient?.name}</strong> is already complete?
-              </p>
+            <div
+              className="queue-modal queue-payment-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="queue-payment-header">
+                <h2>Payment Details</h2>
+                <p>
+                  Enter the amount paid by{" "}
+                  <strong>{currentPatient.name}</strong> before
+                  completing the treatment.
+                </p>
+              </div>
+
+              <div className="queue-payment-patient">
+                <div>
+                  <span>Patient</span>
+                  <strong>{currentPatient.name}</strong>
+                </div>
+
+                <div>
+                  <span>Procedure</span>
+                  <strong>{currentPatient.procedure || "--"}</strong>
+                </div>
+              </div>
+
+              <div className="queue-payment-field">
+                <label>Amount Paid</label>
+
+                <div className="queue-payment-input-wrap">
+                  <span>₱</span>
+
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={amountPaid}
+                    onChange={(e) => {
+                      setAmountPaid(e.target.value);
+                      setPaymentError("");
+                    }}
+                    autoFocus
+                  />
+                </div>
+
+                {paymentError && (
+                  <p className="queue-payment-error">
+                    {paymentError}
+                  </p>
+                )}
+              </div>
 
               <div className="queue-modal-actions">
                 <button
+                  type="button"
                   className="queue-secondary-btn"
-                  onClick={() => setShowCompleteConfirm(false)}
+                  onClick={() => {
+                    setShowPaymentModal(false);
+                    setAmountPaid("");
+                    setPaymentError("");
+                  }}
                 >
                   Cancel
                 </button>
 
                 <button
+                  type="button"
+                  className="queue-primary-btn"
+                  onClick={handlePaymentContinue}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showPaymentConfirm && currentPatient && (
+          <div className="queue-modal-overlay">
+            <div className="queue-modal queue-payment-confirm-modal">
+              <div className="queue-payment-confirm-icon">
+                ₱
+              </div>
+
+              <h2>Confirm Payment</h2>
+
+              <p className="queue-payment-confirm-text">
+                Please confirm that the patient paid the
+                correct amount before completing the
+                treatment.
+              </p>
+
+              <div className="queue-payment-confirm-summary">
+                <div>
+                  <span>Patient</span>
+                  <strong>{currentPatient.name}</strong>
+                </div>
+
+                <div>
+                  <span>Procedure</span>
+                  <strong>
+                    {currentPatient.procedure || "--"}
+                  </strong>
+                </div>
+
+                <div className="queue-payment-total">
+                  <span>Amount Paid</span>
+
+                  <strong>
+                    ₱
+                    {Number(amountPaid || 0).toLocaleString(
+                      "en-PH",
+                      {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      }
+                    )}
+                  </strong>
+                </div>
+              </div>
+
+              <p className="queue-payment-warning">
+                Is this the correct amount?
+              </p>
+
+              <div className="queue-modal-actions queue-modal-actions-center">
+                <button
+                  type="button"
+                  className="queue-secondary-btn"
+                  onClick={() => {
+                    setShowPaymentConfirm(false);
+                    setShowPaymentModal(true);
+                  }}
+                  disabled={isCompletingTreatment}
+                >
+                  Edit Amount
+                </button>
+
+                <button
+                  type="button"
                   className="queue-primary-btn"
                   onClick={confirmCompleteTreatment}
+                  disabled={isCompletingTreatment}
                 >
-                  Yes, Complete
+                  {isCompletingTreatment
+                    ? "Completing..."
+                    : "Confirm & Complete Treatment"}
                 </button>
               </div>
             </div>
