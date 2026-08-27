@@ -1,49 +1,78 @@
-* {
-  box-sizing: border-box;
-  font-family: "Inter", Arial, Helvetica, sans-serif;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-  overflow: auto;
-  background: #f6f7fb;
-  color: #2f2f2f;
-}
-
-.dentist-dashboard {
-  display: flex;
-  height: 100vh;
-  background: #f6f7fb;
-  overflow: hidden;
-}
-
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  height: 100vh;
-  overflow: hidden;
-}
+/* =========================================================
+   DASHBOARD GRID
+   THIS IS THE ONLY MAIN SCROLLABLE AREA
+========================================================= */
 
 .dashboard-grid {
+  flex: 1;
+
+  min-width: 0;
+  min-height: 0;
+
+  width: 100%;
+
   display: grid;
-  grid-template-columns: 1.7fr 0.95fr;
+
+  grid-template-columns:
+    minmax(0, 1.7fr)
+    minmax(300px, 0.95fr);
+
   gap: 16px;
+
   padding: 14px 16px 16px;
-  height: calc(100vh - 72px);
-  overflow: hidden;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
   background:
-    radial-gradient(circle at top left, rgba(240, 90, 150, 0.08), transparent 28%),
-    linear-gradient(180deg, #fffafb 0%, #f9fafc 100%);
+    radial-gradient(
+      circle at top left,
+      rgba(240, 90, 150, 0.08),
+      transparent 28%
+    ),
+    linear-gradient(
+      180deg,
+      #fffafb 0%,
+      #f9fafc 100%
+    );
 }
+
+/* =========================================================
+   MAIN DASHBOARD SCROLLBAR
+========================================================= */
+
+.dashboard-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dashboard-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dashboard-grid::-webkit-scrollbar-thumb {
+  background: #d9dbe3;
+  border-radius: 20px;
+}
+
+.dashboard-grid::-webkit-scrollbar-thumb:hover {
+  background: #c2c5ce;
+}
+
+/* Firefox */
+.dashboard-grid {
+  scrollbar-width: thin;
+  scrollbar-color: #d9dbe3 transparent;
+}
+
+/* =========================================================
+   LEFT / RIGHT SECTIONS
+========================================================= */
 
 .left-section,
 .right-section {
+  min-width: 0;
   min-height: 0;
+
   display: flex;
   flex-direction: column;
 }
@@ -54,188 +83,461 @@ body,
 
 .right-section {
   gap: 10px;
-  overflow: hidden;
 }
+
+/* =========================================================
+   COMMON CARDS
+========================================================= */
 
 .welcome-card,
 .patients-card,
 .calendar-wrapper {
   background: #ffffff;
+
   border-radius: 20px;
-  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.04);
+
   border: 1px solid #ececf2;
+
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.04);
 }
+
+/* =========================================================
+   WELCOME CARD
+========================================================= */
 
 .welcome-card {
   padding: 16px 18px;
+
   flex-shrink: 0;
 }
 
 .welcome-label {
   margin: 0 0 6px;
+
   font-size: 10px;
   font-weight: 800;
+
   text-transform: uppercase;
+
   letter-spacing: 0.08em;
+
   color: #e34d86;
 }
 
 .welcome-card h2 {
   margin: 0 0 6px;
+
   font-size: 17px;
   font-weight: 800;
+
   color: #232733;
 }
 
 .welcome-description {
   margin: 0;
+
   font-size: 12px;
+
   line-height: 1.45;
+
   color: #6f7482;
 }
 
+/* =========================================================
+   PATIENTS CARD
+========================================================= */
+
 .patients-card {
   padding: 18px;
+
   flex: 1;
-  min-height: 0;
+
+  min-width: 0;
+  min-height: 400px;
+
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
+
+/* =========================================================
+   SECTION HEADER
+========================================================= */
 
 .section-title {
   display: flex;
+
   justify-content: space-between;
+
   align-items: flex-start;
+
   gap: 12px;
+
   margin-bottom: 12px;
+
   flex-shrink: 0;
 }
 
 .section-title h3 {
   margin: 0;
+
   font-size: 17px;
   font-weight: 800;
+
   color: #232733;
 }
 
 .section-subtitle {
   margin: 4px 0 0;
+
   font-size: 11px;
+
   color: #8a8f9d;
 }
 
+/* =========================================================
+   SECTION ACTIONS
+========================================================= */
+
 .section-actions {
   display: flex;
+
   align-items: center;
+
   gap: 8px;
+
+  flex-shrink: 0;
 }
 
 .branch-select {
   min-width: 142px;
   height: 34px;
+
   border: 1px solid #e8e9ef;
+
   background: #ffffff;
+
   border-radius: 12px;
+
   padding: 0 12px;
+
   font-size: 12px;
+
   color: #444;
+
   outline: none;
+
+  cursor: pointer;
 }
+
+.branch-select:focus {
+  border-color: #e34d86;
+
+  box-shadow: 0 0 0 2px rgba(227, 77, 134, 0.08);
+}
+
+/* =========================================================
+   DATE BADGE
+========================================================= */
 
 .date-badge {
   height: 34px;
+
   display: inline-flex;
+
   align-items: center;
   justify-content: center;
+
   padding: 0 12px;
+
   border-radius: 12px;
+
   background: #ffffff;
+
   border: 1px solid #ececf2;
+
   color: #656b78;
+
   font-size: 11px;
   font-weight: 700;
+
   white-space: nowrap;
 }
 
+/* =========================================================
+   PATIENT LIST
+========================================================= */
+
 .patient-list {
   flex: 1;
+
+  min-width: 0;
   min-height: 0;
 }
 
 .patient-list-scroll {
   overflow-y: auto;
+  overflow-x: hidden;
+
+  max-height: 520px;
+
   padding-right: 4px;
 }
 
+.patient-list-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.patient-list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.patient-list-scroll::-webkit-scrollbar-thumb {
+  background: #d9dbe3;
+
+  border-radius: 20px;
+}
+
+.patient-list-scroll::-webkit-scrollbar-thumb:hover {
+  background: #c4c7d0;
+}
+
+/* =========================================================
+   LEFT MINI STATS
+========================================================= */
+
 .left-mini-stats-grid {
   display: grid;
+
   grid-template-columns: 1fr 1fr;
+
   gap: 10px;
-  flex-shrink: 0;
+
   margin-top: 12px;
+
+  flex-shrink: 0;
 }
 
 .mini-stat-card {
   background: #ffffff;
+
   border: 1px solid #ececf2;
+
   border-radius: 16px;
+
   padding: 12px 14px;
+
   box-shadow: 0 6px 16px rgba(16, 24, 40, 0.03);
+
   min-height: 84px;
 }
 
 .mini-stat-title {
   margin: 0 0 6px;
+
   font-size: 11px;
+
   color: #8a8f9d;
+
   font-weight: 700;
 }
 
 .mini-stat-card h4 {
   margin: 0 0 4px;
+
   font-size: 18px;
+
   color: #232733;
 }
 
 .mini-stat-card span {
   font-size: 11px;
+
   color: #8a8f9d;
 }
 
-.save-toast {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 10020;
-  background: #2fb46e;
-  color: #ffffff;
-  padding: 12px 18px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 700;
-  box-shadow: 0 10px 24px rgba(47, 180, 110, 0.28);
-  animation: toastInOut 1.8s ease forwards;
+/* =========================================================
+   SMALLER LAPTOP
+========================================================= */
+
+@media (max-width: 1300px) {
+  .dashboard-grid {
+    grid-template-columns:
+      minmax(0, 1.5fr)
+      minmax(280px, 1fr);
+
+    gap: 12px;
+
+    padding: 12px;
+  }
+
+  .welcome-card {
+    padding: 14px 16px;
+  }
+
+  .patients-card {
+    padding: 16px;
+  }
 }
 
-@keyframes toastInOut {
-  0% {
-    opacity: 0;
-    transform: translateY(12px);
+/* =========================================================
+   SMALL LAPTOP / TABLET
+========================================================= */
+
+@media (max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+
+    align-content: start;
   }
 
-  12% {
-    opacity: 1;
-    transform: translateY(0);
+  .left-section,
+  .right-section {
+    width: 100%;
   }
 
-  82% {
-    opacity: 1;
-    transform: translateY(0);
+  .patients-card {
+    flex: none;
+
+    min-height: 420px;
   }
 
-  100% {
-    opacity: 0;
-    transform: translateY(8px);
+  .patient-list-scroll {
+    max-height: 450px;
+  }
+}
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 768px) {
+  .dashboard-grid {
+    display: flex;
+
+    flex-direction: column;
+
+    padding: 12px;
+
+    gap: 12px;
+  }
+
+  .welcome-card,
+  .patients-card,
+  .calendar-wrapper {
+    width: 100%;
+
+    border-radius: 16px;
+  }
+
+  .welcome-card {
+    padding: 14px;
+  }
+
+  .patients-card {
+    padding: 14px;
+
+    min-height: auto;
+  }
+
+  .section-title {
+    flex-direction: column;
+
+    align-items: stretch;
+
+    gap: 10px;
+  }
+
+  .section-actions {
+    width: 100%;
+  }
+
+  .branch-select {
+    flex: 1;
+
+    min-width: 0;
+  }
+
+  .date-badge {
+    flex-shrink: 0;
+  }
+
+  .patient-list-scroll {
+    max-height: 400px;
+  }
+
+  .left-mini-stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 520px) {
+  .dashboard-grid {
+    padding: 10px;
+
+    gap: 10px;
+  }
+
+  .welcome-card,
+  .patients-card,
+  .calendar-wrapper {
+    border-radius: 14px;
+  }
+
+  .welcome-card {
+    padding: 14px;
+  }
+
+  .welcome-card h2 {
+    font-size: 16px;
+  }
+
+  .welcome-description {
+    font-size: 11px;
+  }
+
+  .patients-card {
+    padding: 14px;
+  }
+
+  .section-title h3 {
+    font-size: 16px;
+  }
+
+  .section-actions {
+    flex-direction: column;
+
+    align-items: stretch;
+
+    width: 100%;
+  }
+
+  .branch-select {
+    width: 100%;
+
+    min-width: 100%;
+  }
+
+  .date-badge {
+    width: 100%;
+  }
+
+  .patient-list-scroll {
+    max-height: none;
+
+    overflow-y: visible;
+
+    padding-right: 0;
+  }
+
+  .left-mini-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mini-stat-card {
+    min-height: auto;
   }
 }

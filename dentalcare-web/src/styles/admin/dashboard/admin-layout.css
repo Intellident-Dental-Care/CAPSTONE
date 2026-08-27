@@ -1,40 +1,113 @@
 html,
 body,
 #root {
+  width: 100%;
+  height: 100%;
   margin: 0;
   padding: 0;
-  height: 100%;
+
+  overflow: hidden;
+
+  background: #f8f7f8;
 }
 
 * {
   box-sizing: border-box;
 }
 
+/* =========================================================
+   ADMIN PAGE
+========================================================= */
+
 .admin-dashboard-page {
   display: flex;
+
+  width: 100%;
   height: 100vh;
+
   background: #f8f7f8;
+
   overflow: hidden;
 }
+
+/* =========================================================
+   ADMIN MAIN CONTENT
+========================================================= */
 
 .admin-main-content {
   flex: 1;
+
   min-width: 0;
+  width: 100%;
+
   height: 100vh;
+
   display: flex;
   flex-direction: column;
+
   overflow: hidden;
 }
 
+/* =========================================================
+   ADMIN DASHBOARD GRID
+   ONLY THIS AREA SCROLLS
+========================================================= */
+
 .admin-dashboard-grid {
   flex: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(370px, 1fr);
-  gap: 16px;
-  padding: 16px;
+
+  min-width: 0;
   min-height: 0;
-  overflow: hidden;
+
+  width: 100%;
+
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1.65fr)
+    minmax(370px, 1fr);
+
+  gap: 16px;
+
+  padding: 16px;
+
+  background: #f8f7f8;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  align-content: start;
 }
+
+/* =========================================================
+   DASHBOARD SCROLLBAR
+========================================================= */
+
+.admin-dashboard-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.admin-dashboard-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-dashboard-grid::-webkit-scrollbar-thumb {
+  background: #e4c8d3;
+  border-radius: 999px;
+}
+
+.admin-dashboard-grid::-webkit-scrollbar-thumb:hover {
+  background: #d9afbf;
+}
+
+
+.admin-dashboard-grid {
+  scrollbar-width: thin;
+  scrollbar-color: #e4c8d3 transparent;
+}
+
+/* =========================================================
+   LEFT / RIGHT
+========================================================= */
 
 .admin-left-section,
 .admin-right-section {
@@ -42,23 +115,83 @@ body,
   min-height: 0;
 }
 
+/* =========================================================
+   SMALLER LAPTOP
+========================================================= */
+
 @media (max-width: 1280px) {
-  .admin-dashboard-page,
+
+  .admin-dashboard-page {
+    height: 100vh;
+    overflow: hidden;
+  }
+
   .admin-main-content {
-    height: auto;
-    overflow: visible;
+    height: 100vh;
+    overflow: hidden;
   }
 
   .admin-dashboard-grid {
-    grid-template-columns: 1fr;
-    min-height: auto;
-    overflow: visible;
+    grid-template-columns:
+      minmax(0, 1.5fr)
+      minmax(330px, 1fr);
+
+    gap: 14px;
+
+    padding: 14px;
+
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 }
+
+/* =========================================================
+   SMALL LAPTOP / TABLET
+========================================================= */
+
+@media (max-width: 1100px) {
+  .admin-dashboard-grid {
+    grid-template-columns: 1fr;
+
+    gap: 14px;
+
+    align-content: start;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .admin-left-section,
+  .admin-right-section {
+    width: 100%;
+  }
+}
+
+/* =========================================================
+   TABLET
+========================================================= */
 
 @media (max-width: 768px) {
   .admin-dashboard-grid {
     padding: 12px;
+
     gap: 12px;
+
+    grid-template-columns: 1fr;
+
+    overflow-y: auto;
+    overflow-x: hidden;
   }
-}                                                                                                                      
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 520px) {
+  .admin-dashboard-grid {
+    padding: 10px;
+
+    gap: 10px;
+  }
+}
