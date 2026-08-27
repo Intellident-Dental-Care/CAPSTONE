@@ -86,7 +86,7 @@ export const listDentistsWithSchedules = async () => {
       sex: "-",
       schedules: dentistSchedules,
       leave: dentistLeaves,
-      currentBranchToday: todaySchedule?.branch || "No Branch Today",
+      currentBranchToday: todaySchedule?.branch || "No Schedule Today",
       currentScheduleToday: todaySchedule?.time || "No Schedule Today",
       currentDayToday: dayLabel(todayDayOfWeek),
     };
