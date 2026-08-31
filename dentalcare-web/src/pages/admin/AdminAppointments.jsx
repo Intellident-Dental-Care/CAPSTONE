@@ -570,6 +570,13 @@ export default function AdminAppointments() {
     setWalkInStep(4);
   };
 
+  const invalidSelectedCount = selectedIds.filter((id) => {
+    const appt = appointments.find((a) => a.id === id);
+    return appt && appt.date !== today;
+  }).length;
+
+  const hasInvalidDates = invalidSelectedCount > 0;
+
   return (
     <div className="admin-dashboard-page">
       <AdminSidebar />
@@ -677,34 +684,39 @@ export default function AdminAppointments() {
                 <strong>{selectedIds.length}</strong> selected
               </div>
 
-              <div className="appointments-bulk-actions">
-                <button
-                  className="bulk-action-btn soft-btn"
-                  onClick={() => handleBulkStatusChange("In Treatment")}
-                >
-                  Mark as In Treatment
-                </button>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                <div className="appointments-bulk-actions">
+                  <button
+                    className="bulk-action-btn soft-btn"
+                    onClick={() => handleBulkStatusChange("In Treatment")}
+                    disabled={hasInvalidDates}
+                    style={hasInvalidDates ? { opacity: 0.5, cursor: "not-allowed" } : {}}
+                  >
+                    Mark as In Treatment
+                  </button>
 
-                <button
-                  className="bulk-action-btn soft-btn"
-                  onClick={() => handleBulkStatusChange("In Queue")}
-                >
-                  Mark as In Queue
-                </button>
+                  <button
+                    className="bulk-action-btn soft-btn"
+                    onClick={() => handleBulkStatusChange("In Queue")}
+                    disabled={hasInvalidDates}
+                    style={hasInvalidDates ? { opacity: 0.5, cursor: "not-allowed" } : {}}
+                  >
+                    Mark as In Queue
+                  </button>
 
-                <button
-                  className="bulk-action-btn soft-btn"
-                  onClick={() => handleBulkStatusChange("Completed")}
-                >
-                  Mark as Completed
-                </button>
+                  <button
+                    className="bulk-action-btn danger-bulk-btn"
+                    onClick={() => handleBulkStatusChange("Cancelled")}
+                  >
+                    Cancel Selected
+                  </button>
+                </div>
 
-                <button
-                  className="bulk-action-btn danger-bulk-btn"
-                  onClick={() => handleBulkStatusChange("Cancelled")}
-                >
-                  Cancel Selected
-                </button>
+                {hasInvalidDates && (
+                  <div style={{ fontSize: "13px", color: "#ef4444", fontStyle: "italic", marginTop: "6px" }}>
+                    * {invalidSelectedCount} selected appointment{invalidSelectedCount > 1 ? "s" : ""} cannot be marked as "In Queue" or "In Treatment" because they are not scheduled for today.
+                  </div>
+                )}
               </div>
             </div>
           )}
