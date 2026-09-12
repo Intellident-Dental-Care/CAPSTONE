@@ -31,7 +31,6 @@ const normalizeDate = (date) => new Date(date.getFullYear(), date.getMonth(), da
 const parseDateValue = (value) => {
   if (!value) return null;
 
-  // Treat YYYY-MM-DD as a local calendar date (not UTC) to avoid off-by-one filtering.
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
     const [year, month, day] = value.split("-").map(Number);
     return new Date(year, month - 1, day);
@@ -188,11 +187,7 @@ export default function DentistDashboard() {
 
   const filteredPatients = useMemo(() => {
     return patients.filter((patient) => {
-      if (selectedBranch === "All Branches") {
-        return true;
-      }
-
-      const branchMatch = patient.branch === selectedBranch;
+      const branchMatch = selectedBranch === "All Branches" || patient.branch === selectedBranch;
       const dateMatch = withinSelectedRange(patient.appointmentDate, selectedDateRange);
       return branchMatch && dateMatch;
     });
@@ -236,7 +231,6 @@ export default function DentistDashboard() {
       bookingId: resolvedBookingId,
     });
 
-    // Explicitly seed properties into contextual scope packet for modal lifecycle transitions
     setSelectedPreAssessment(patient.preAssessment ? {
       ...patient.preAssessment,
       bookingId: resolvedBookingId,
@@ -260,7 +254,6 @@ export default function DentistDashboard() {
   };
 
   const handleAddProcedure = (data) => {
-    // Re-assert target context securely to ensure payload mappings match
     setProcedurePatientContext({
       patientId: data?.patientId || null,
       bookingId: data?.bookingId || null,
