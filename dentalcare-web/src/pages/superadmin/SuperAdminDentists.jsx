@@ -7,6 +7,8 @@ import {
   createSuperAdminDentist,
   updateSuperAdminDentistStatus,
   updateSuperAdminDentistSchedules,
+  getScheduleRequests,
+  reviewScheduleRequest,
 } from "../../services/superAdminService";
 
 import "../../styles/admin/layout/admin-sidebar.css";
@@ -191,59 +193,51 @@ const buildRequestScheduleFromDentist = (schedules = []) =>
     };
   });
 
-const buildMockRequestedSchedules = (currentSchedules = [], variant = 0) => {
-  const normalized = buildRequestScheduleFromDentist(currentSchedules);
-  const fallback = [
-    {
-      days: ["Monday", "Wednesday", "Friday"],
-      branch: "General Trias, Cavite",
-      startTime: "08:00 AM",
-      endTime: "12:00 PM",
-    },
-  ];
+const DAY_NUMBER_LABELS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
-  const base = normalized.length > 0 ? normalized : fallback;
-  const first = base[0];
+const to12HourTimeString = (rawValue) => {
+  const [hourStr = "0", minuteStr = "00"] = String(rawValue || "").split(":");
+  let hour = Number(hourStr);
+  const period = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${String(hour).padStart(2, "0")}:${minuteStr} ${period}`;
+};
 
-  if (variant === 1) {
-    return [
-      {
-        ...first,
-        startTime: "09:00 AM",
-        endTime: "01:00 PM",
-      },
-      {
-        days: [first.days[0]],
-        branch: first.branch,
-        startTime: "02:00 PM",
-        endTime: "05:00 PM",
-      },
-    ];
-  }
+const mapScheduleRequestRow = (row, dentistsById) => {
+  const dentist = dentistsById.get(String(row.dentist_id));
 
-  if (variant === 2) {
-    return [
-      {
-        ...first,
-        startTime: "10:00 AM",
-        endTime: "02:00 PM",
-      },
-    ];
-  }
-
-  return [
-    {
-      ...first,
-      startTime: "08:00 AM",
-      endTime: "10:00 AM",
-    },
-    {
-      days: [first.days[0]],
-      branch: first.branch,
-      startTime: "01:00 PM",
-      endTime: "05:00 PM",
-    },
-  ];
+  return {
+    id: row.id,
+    dentistId: row.dentist_id,
+    dentistEmail: row.dentist_list?.email || dentist?.email || "",
+    dentistName: row.dentist_list?.name || dentist?.name || "New Dentist",
+    submittedAt: row.created_at ? String(row.created_at).slice(0, 10) : "",
+    effectiveDate: row.effective_date,
+    status: row.status,
+    currentSchedule: buildRequestScheduleFromDentist(dentist?.schedules || []),
+    requestedSchedule: (Array.isArray(row.requested_schedules)
+      ? row.requested_schedules
+      : []
+    ).map((schedule) => ({
+      days: (Array.isArray(schedule.days) ? schedule.days : []).map(
+        (day) => DAY_NUMBER_LABELS[Number(day)] || String(day)
+      ),
+      branch: schedule.branch,
+      startTime: to12HourTimeString(schedule.startTime),
+      endTime: to12HourTimeString(schedule.endTime),
+    })),
+    reason: row.reason,
+    notes: row.notes || "",
+    rejectionReason: row.rejection_reason || "",
+  };
 };
 
 function ModalHeader({ title, subtitle, onClose }) {
@@ -317,7 +311,6 @@ export default function SuperAdminDentists() {
 
   const [viewScheduleTab, setViewScheduleTab] = useState("schedule");
   const [scheduleRequests, setScheduleRequests] = useState([]);
-  const [mockRequestsInitialized, setMockRequestsInitialized] = useState(false);
   const [selectedScheduleRequest, setSelectedScheduleRequest] = useState(null);
   const [rejectScheduleRequest, setRejectScheduleRequest] = useState(null);
   const [scheduleRejectionReason, setScheduleRejectionReason] = useState("");
@@ -340,58 +333,24 @@ export default function SuperAdminDentists() {
     fetchDentists();
   }, []);
 
+  const fetchScheduleRequests = async () => {
+    const res = await getScheduleRequests();
+    if (!res?.success || !Array.isArray(res.data)) return;
+
+    const dentistsById = new Map(
+      dentists.map((dentist) => [String(dentist.id), dentist])
+    );
+
+    setScheduleRequests(
+      res.data.map((row) => mapScheduleRequestRow(row, dentistsById))
+    );
+  };
+
   useEffect(() => {
-    if (mockRequestsInitialized || dentists.length === 0) return;
-
-    const sourceDentists = dentists.slice(0, 3);
-    const mockRequests = sourceDentists.flatMap((dentist, dentistIndex) => {
-      const currentSchedule = buildRequestScheduleFromDentist(dentist.schedules || []);
-      const baseRequest = {
-        dentistId: dentist.id,
-        dentistEmail: dentist.email,
-        dentistName: dentist.name || "New Dentist",
-        currentSchedule,
-      };
-
-      const requests = [
-        {
-          id: `SR-${String(dentistIndex + 1).padStart(3, "0")}`,
-          ...baseRequest,
-          submittedAt: "2026-09-16",
-          effectiveDate: dentistIndex === 0 ? "2026-09-28" : dentistIndex === 1 ? "2026-10-01" : "2026-10-05",
-          status: "Pending",
-          requestedSchedule: buildMockRequestedSchedules(dentist.schedules || [], dentistIndex),
-          reason:
-            dentistIndex === 0
-              ? "I need to adjust my clinic availability for the upcoming weeks."
-              : dentistIndex === 1
-              ? "I would like to align my schedule with my updated availability."
-              : "I need to change my working hours due to a personal schedule adjustment.",
-          notes: dentistIndex === 1 ? "Available to discuss the requested hours if needed." : "",
-          rejectionReason: "",
-        },
-      ];
-
-      if (dentistIndex === 0) {
-        requests.push({
-          id: "SR-004",
-          ...baseRequest,
-          submittedAt: "2026-08-20",
-          effectiveDate: "2026-09-01",
-          status: "Approved",
-          requestedSchedule: buildMockRequestedSchedules(dentist.schedules || [], 2),
-          reason: "Temporary adjustment to my morning clinic schedule.",
-          notes: "",
-          rejectionReason: "",
-        });
-      }
-
-      return requests;
-    });
-
-    setScheduleRequests(mockRequests);
-    setMockRequestsInitialized(true);
-  }, [dentists, mockRequestsInitialized]);
+    if (dentists.length === 0) return;
+    fetchScheduleRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dentists]);
 
 
   const resetViewScheduleEditor = () => {
@@ -962,12 +921,23 @@ export default function SuperAdminDentists() {
     setRequestConfirmModal({ open: false, action: "", request: null });
   };
 
-  const confirmScheduleRequestAction = () => {
+  const confirmScheduleRequestAction = async () => {
     const { action, request } = requestConfirmModal;
     if (!request) return;
 
     const nextStatus = action === "approve" ? "Approved" : "Rejected";
     const rejectionReason = action === "reject" ? scheduleRejectionReason.trim() : "";
+
+    const result = await reviewScheduleRequest(request.id, nextStatus, rejectionReason);
+
+    if (!result?.success) {
+      alert(result?.message || "Failed to update the schedule request.");
+      return;
+    }
+
+    if (nextStatus === "Approved") {
+      await fetchDentists();
+    }
 
     setScheduleRequests((prev) =>
       prev.map((item) =>

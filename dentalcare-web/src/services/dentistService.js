@@ -7,6 +7,7 @@ const dentistCache = {
   scheduleByKey: new Map(),
   profile: null,
   patientHistory: null,
+  requests: null,
   loadedAt: null,
   avatarBlobCache: {},
 };
@@ -38,6 +39,7 @@ export const clearDentistCache = () => {
   dentistCache.scheduleByKey = new Map();
   dentistCache.profile = null;
   dentistCache.patientHistory = null;
+  dentistCache.requests = null;
   dentistCache.loadedAt = null;
   dentistCache.avatarBlobCache = {};
 };
@@ -301,6 +303,41 @@ export const fetchUnreadDentistNotifications = async () => {
   } catch (error) {
     console.error("Error fetching dentist notifications:", error);
     return { success: false, message: "Failed to fetch notifications", data: [] };
+  }
+};
+
+export const getDentistRequests = async (options = {}) => {
+  const forceRefresh = !!options.forceRefresh;
+
+  if (!forceRefresh && dentistCache.requests) {
+    return { success: true, data: dentistCache.requests };
+  }
+
+  try {
+    const data = await fetchJson("/dentist/requests", { method: "GET" });
+    if (data?.success) {
+      dentistCache.requests = data.data;
+    }
+    return data;
+  } catch {
+    return { success: false, message: "Failed to load requests" };
+  }
+};
+
+export const submitDentistRequest = async (payload) => {
+  try {
+    const data = await fetchJson("/dentist/requests", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    if (data?.success) {
+      dentistCache.requests = null;
+    }
+
+    return data;
+  } catch {
+    return { success: false, message: "Failed to submit request" };
   }
 };
 

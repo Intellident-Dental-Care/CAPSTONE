@@ -5,6 +5,8 @@ import AdminSummaryCard from "../../components/admin/dashboard/AdminSummaryCard"
 import {
   getDashboardSnapshot,
   getTodayQueue,
+  getLeaveRequests,
+  reviewLeaveRequest,
 } from "../../services/adminService";
 import { useBranch } from "../../context/BranchContext";
 
@@ -17,76 +19,36 @@ import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
 
 /* =========================================================
-   MOCK DENTIST LEAVE REQUESTS
-   FRONTEND ONLY FOR NOW
-========================================================= */
-
-const INITIAL_LEAVE_REQUESTS = [
-  {
-    id: "LR-001",
-    dentistName: "Dr. Shin Tamura",
-    leaveType: "Vacation",
-    dates: ["2026-09-22", "2026-09-24", "2026-09-28"],
-    reason: "Family vacation and personal time.",
-    notes: "I have already arranged my pending patient follow-ups.",
-    submittedAt: "September 16, 2026",
-    status: "Pending",
-  },
-  {
-    id: "LR-002",
-    dentistName: "Dr. Angela Reyes",
-    leaveType: "Personal",
-    dates: ["2026-09-30"],
-    reason: "Personal appointment that requires my attendance.",
-    notes: "",
-    submittedAt: "September 16, 2026",
-    status: "Pending",
-  },
-  {
-    id: "LR-003",
-    dentistName: "Dr. Marco Santos",
-    leaveType: "Emergency",
-    dates: ["2026-10-02"],
-    reason: "Family emergency.",
-    notes: "I may be available again the following day.",
-    submittedAt: "September 17, 2026",
-    status: "Pending",
-  },
-  {
-    id: "LR-004",
-    dentistName: "Dr. Shin Tamura",
-    leaveType: "Personal",
-    dates: ["2026-10-05"],
-    reason: "Important personal commitment.",
-    notes: "",
-    submittedAt: "September 17, 2026",
-    status: "Pending",
-  },
-  {
-    id: "LR-005",
-    dentistName: "Dr. Angela Reyes",
-    leaveType: "Vacation",
-    dates: ["2026-10-07", "2026-10-08"],
-    reason: "Scheduled short vacation.",
-    notes: "",
-    submittedAt: "September 17, 2026",
-    status: "Pending",
-  },
-  {
-    id: "LR-006",
-    dentistName: "Dr. Marco Santos",
-    leaveType: "Sick Leave",
-    dates: ["2026-10-10"],
-    reason: "Medical rest.",
-    notes: "",
-    submittedAt: "September 17, 2026",
-    status: "Pending",
-  },
-];
-
-/* =========================================================
    HELPERS
 ========================================================= */
+
+const formatLeaveSubmittedAt = (dateString) => {
+  if (!dateString) return "-";
+
+  const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const mapLeaveRequestRow = (row) => ({
+  id: row.id,
+  dentistId: row.dentist_id,
+  dentistName: row.dentist_list?.name || "Unknown Dentist",
+  specialty: row.dentist_list?.specialization || "",
+  leaveType: row.leave_type,
+  dates: Array.isArray(row.leave_dates) ? row.leave_dates : [],
+  reason: row.reason,
+  notes: row.notes || "",
+  submittedAt: formatLeaveSubmittedAt(row.created_at),
+  status: row.status,
+  rejectionReason: row.rejection_reason || "",
+});
 
 const formatLeaveDate = (dateString) => {
   if (!dateString) return "-";
@@ -479,9 +441,7 @@ export default function AdminDashboard() {
      LEAVE REQUEST STATES
   ======================================================= */
 
-  const [leaveRequests, setLeaveRequests] = useState(
-    INITIAL_LEAVE_REQUESTS
-  );
+  const [leaveRequests, setLeaveRequests] = useState([]);
 
   const [selectedLeaveRequest, setSelectedLeaveRequest] =
     useState(null);
@@ -584,6 +544,24 @@ export default function AdminDashboard() {
       mounted = false;
     };
   }, [selectedBranch]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadLeaveRequests = async () => {
+      const response = await getLeaveRequests();
+
+      if (mounted && response?.success && Array.isArray(response.data)) {
+        setLeaveRequests(response.data.map(mapLeaveRequestRow));
+      }
+    };
+
+    loadLeaveRequests();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   /* =======================================================
      EXISTING DASHBOARD VALUES
@@ -726,7 +704,7 @@ export default function AdminDashboard() {
     });
   };
 
-  const handleConfirmRequestAction = () => {
+  const handleConfirmRequestAction = async () => {
     const request = confirmationModal.request;
 
     if (!request) return;
@@ -737,6 +715,17 @@ export default function AdminDashboard() {
     const newStatus = isApprove
       ? "Approved"
       : "Rejected";
+
+    const result = await reviewLeaveRequest(
+      request.id,
+      newStatus,
+      isApprove ? "" : rejectionReason.trim()
+    );
+
+    if (!result?.success) {
+      alert(result?.message || "Failed to update the leave request.");
+      return;
+    }
 
     setLeaveRequests((currentRequests) =>
       currentRequests.map((item) =>

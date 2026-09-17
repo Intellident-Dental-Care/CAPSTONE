@@ -90,6 +90,17 @@ export const updateSuperAdminDentistSchedules = async (id, schedules) => {
   });
 };
 
+export const getScheduleRequests = async () => {
+  return await fetchJson("/super_admin/requests/schedule", { method: "GET" });
+};
+
+export const reviewScheduleRequest = async (id, status, rejectionReason = "") => {
+  return await fetchJson(`/super_admin/requests/schedule/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status, rejectionReason }),
+  });
+};
+
 export const getSuperAdminPatients = async () => {
   return await fetchJson("/super_admin/patients", { method: "GET" });
 };

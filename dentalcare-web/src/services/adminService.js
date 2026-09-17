@@ -420,6 +420,34 @@ export const checkLeaveConflict = async (dentistId, startDate, endDate) => {
   }
 };
 
+export const getLeaveRequests = async () => {
+  try {
+    const data = await fetchJson("/admin/requests/leave", { method: "GET" });
+    return data;
+  } catch (error) {
+    console.error("Error fetching leave requests:", error);
+    return { success: false, message: "Failed to fetch leave requests", data: [] };
+  }
+};
+
+export const reviewLeaveRequest = async (id, status, rejectionReason = "") => {
+  try {
+    const data = await fetchJson(`/admin/requests/leave/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status, rejectionReason }),
+    });
+
+    if (data?.success) {
+      adminCache.dentists = null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error reviewing leave request:", error);
+    return { success: false, message: "Failed to review leave request" };
+  }
+};
+
 export const fetchUnreadNotifications = async (branch = "") => {
   try {
     const branchParam = branch && branch !== "All" ? `?branch=${encodeURIComponent(branch)}` : "";
