@@ -1,14 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminSidebar from "../../components/admin/layout/AdminSidebar";
 import AdminTopbar from "../../components/admin/layout/AdminTopbar";
-import AuthService from "../../services/authService";
 import {
   getAdminDentists,
   getAdminProfile,
-  setDentistLeave,
-  cancelDentistLeave,
-  getDentistLeaves,
-  checkLeaveConflict,
 } from "../../services/adminService";
 
 import "../../styles/admin/dentist/admin-dentist.css";
@@ -19,35 +14,6 @@ import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
 
 const defaultAssignedBranch = "General Trias";
-
-function getDentistOnLeaveInfo(dentist) {
-  if (!dentist.leave || !Array.isArray(dentist.leave) || dentist.leave.length === 0) {
-    return { isOnLeave: false, leaveData: null };
-  }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  for (const leave of dentist.leave) {
-    const startDate = new Date(leave.start_date);
-    const endDate = new Date(leave.end_date);
-    startDate.setHours(0, 0, 0, 0);
-    endDate.setHours(0, 0, 0, 0);
-
-    if (today >= startDate && today <= endDate) {
-      return { isOnLeave: true, leaveData: leave };
-    }
-  }
-
-  return { isOnLeave: false, leaveData: null };
-}
-
-function calculateLeaveDuration(startDate, endDate) {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-  return days;
-}
 
 const initialNotifications = [
   {
@@ -64,8 +30,8 @@ const initialNotifications = [
   },
   {
     id: 3,
-    title: "Schedule Updated",
-    message: "A dentist schedule was updated for General Trias.",
+    title: "Dentist Leave Request",
+    message: "A dentist submitted a new leave request.",
     time: "1 hour ago",
   },
 ];
@@ -73,7 +39,7 @@ const initialNotifications = [
 function formatDate(dateString) {
   if (!dateString) return "N/A";
 
-  const date = new Date(dateString);
+  const date = new Date(`${dateString}T00:00:00`);
 
   return date.toLocaleDateString("en-US", {
     year: "numeric",
@@ -82,22 +48,440 @@ function formatDate(dateString) {
   });
 }
 
-function DentistDetailsModal({ dentist, onClose, adminAssignedBranch, onSetLeave }) {
-  if (!dentist) return null;
+function formatShortDate(dateString) {
+  if (!dateString) return "";
 
-  const { isOnLeave, leaveData } = getDentistOnLeaveInfo(dentist);
-  const displayStatus = isOnLeave ? "On Leave" : dentist.status;
+  const date = new Date(`${dateString}T00:00:00`);
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function getDentistOnLeaveInfo(dentist) {
+  if (
+    !dentist?.leave ||
+    !Array.isArray(dentist.leave) ||
+    dentist.leave.length === 0
+  ) {
+    return {
+      isOnLeave: false,
+      leaveData: null,
+    };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (const leave of dentist.leave) {
+    const startDate = new Date(leave.start_date);
+    const endDate = new Date(leave.end_date);
+
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+
+    if (today >= startDate && today <= endDate) {
+      return {
+        isOnLeave: true,
+        leaveData: leave,
+      };
+    }
+  }
+
+  return {
+    isOnLeave: false,
+    leaveData: null,
+  };
+}
+
+/* =========================================================
+   LEAVE REQUEST DETAILS MODAL
+========================================================= */
+
+function LeaveRequestModal({
+  request,
+  onClose,
+  onApprove,
+  onReject,
+}) {
+  if (!request) return null;
 
   return (
-    <div className="dentist-details-overlay" onClick={onClose}>
-      <div className="dentist-details-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="dentist-details-close" onClick={onClose}>
+    <div
+      className="dentist-details-overlay"
+      onMouseDown={onClose}
+    >
+      <div
+        className="leave-request-modal"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="dentist-details-close"
+          onClick={onClose}
+        >
+          ×
+        </button>
+
+        <div className="leave-request-modal-header">
+          <div>
+            <span className="leave-request-eyebrow">
+              Dentist Leave Request
+            </span>
+
+            <h2>{request.dentistName}</h2>
+
+            <p>
+              Review the dentist's requested leave dates before
+              approving or rejecting the request.
+            </p>
+          </div>
+
+          <span
+            className={`leave-request-status ${request.status.toLowerCase()}`}
+          >
+            {request.status}
+          </span>
+        </div>
+
+        <div className="leave-request-summary-grid">
+          <div className="leave-request-summary-card">
+            <span>Leave Type</span>
+            <strong>{request.leaveType}</strong>
+          </div>
+
+          <div className="leave-request-summary-card">
+            <span>Branch</span>
+            <strong>{request.branch}</strong>
+          </div>
+
+          <div className="leave-request-summary-card">
+            <span>Submitted</span>
+            <strong>{formatDate(request.submittedAt)}</strong>
+          </div>
+        </div>
+
+        <div className="leave-request-section">
+          <h4>Requested Leave Dates</h4>
+
+          <div className="leave-request-date-list">
+            {request.dates.map((date) => (
+              <div
+                className="leave-request-date-chip"
+                key={date}
+              >
+                {formatDate(date)}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="leave-request-section">
+          <h4>Reason</h4>
+
+          <div className="leave-request-text-box">
+            {request.reason}
+          </div>
+        </div>
+
+        {request.notes && (
+          <div className="leave-request-section">
+            <h4>Additional Notes</h4>
+
+            <div className="leave-request-text-box">
+              {request.notes}
+            </div>
+          </div>
+        )}
+
+        {request.status === "Rejected" &&
+          request.rejectionReason && (
+            <div className="leave-request-section">
+              <h4>Reason for Rejection</h4>
+
+              <div className="leave-request-text-box rejected-box">
+                {request.rejectionReason}
+              </div>
+            </div>
+          )}
+
+        {request.status === "Pending" ? (
+          <div className="leave-request-modal-actions">
+            <button
+              type="button"
+              className="leave-request-reject-btn"
+              onClick={() => onReject(request)}
+            >
+              Reject
+            </button>
+
+            <button
+              type="button"
+              className="leave-request-approve-btn"
+              onClick={() => onApprove(request)}
+            >
+              Approve Request
+            </button>
+          </div>
+        ) : (
+          <div className="leave-request-modal-actions">
+            <button
+              type="button"
+              className="leave-request-close-btn"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   REJECTION REASON MODAL
+========================================================= */
+
+function RejectLeaveRequestModal({
+  request,
+  rejectionReason,
+  setRejectionReason,
+  errorMessage,
+  onClose,
+  onContinue,
+}) {
+  if (!request) return null;
+
+  return (
+    <div
+      className="dentist-details-overlay leave-reject-overlay"
+      onMouseDown={onClose}
+    >
+      <div
+        className="reject-leave-modal"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="dentist-details-close"
+          onClick={onClose}
+        >
+          ×
+        </button>
+
+        <div className="reject-leave-icon">!</div>
+
+        <h2>Reject Leave Request</h2>
+
+        <p>
+          Please provide a reason for rejecting{" "}
+          <strong>{request.dentistName}</strong>'s leave request.
+        </p>
+
+        <div className="reject-leave-field">
+          <label>Reason for Rejection</label>
+
+          <textarea
+            rows="5"
+            placeholder="Enter the reason why this leave request is being rejected..."
+            value={rejectionReason}
+            onChange={(e) => {
+              setRejectionReason(e.target.value);
+            }}
+          />
+        </div>
+
+        {errorMessage && (
+          <div className="leave-request-error">
+            {errorMessage}
+          </div>
+        )}
+
+        <div className="reject-leave-actions">
+          <button
+            type="button"
+            className="reject-cancel-btn"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            className="reject-confirm-btn"
+            onClick={onContinue}
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   FINAL CONFIRMATION MODAL
+========================================================= */
+
+function RequestConfirmationModal({
+  request,
+  action,
+  rejectionReason,
+  onClose,
+  onConfirm,
+}) {
+  if (!request || !action) return null;
+
+  const isApprove = action === "approve";
+
+  return (
+    <div
+      className="dentist-details-overlay request-confirm-overlay"
+      onMouseDown={onClose}
+    >
+      <div
+        className="request-confirm-modal"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="request-confirm-close"
+          onClick={onClose}
+        >
+          ×
+        </button>
+
+        <div
+          className={`request-confirm-icon ${
+            isApprove ? "approve" : "reject"
+          }`}
+        >
+          {isApprove ? "✓" : "!"}
+        </div>
+
+        <h2>
+          {isApprove
+            ? "Approve Leave Request?"
+            : "Reject Leave Request?"}
+        </h2>
+
+        <p>
+          {isApprove
+            ? "Are you sure you want to approve this leave request? The request will be marked as approved after confirmation."
+            : "Are you sure you want to reject this leave request? The dentist will be able to see the reason for rejection."}
+        </p>
+
+        <div className="request-confirm-summary">
+          <div>
+            <span>Dentist</span>
+            <strong>{request.dentistName}</strong>
+          </div>
+
+          <div>
+            <span>Leave Type</span>
+            <strong>{request.leaveType}</strong>
+          </div>
+
+          <div>
+            <span>Branch</span>
+            <strong>{request.branch}</strong>
+          </div>
+
+          <div>
+            <span>Leave Date(s)</span>
+            <strong>
+              {request.dates
+                .map((date) => formatShortDate(date))
+                .join(", ")}
+            </strong>
+          </div>
+        </div>
+
+        {!isApprove && rejectionReason && (
+          <div className="request-confirm-reason">
+            <span>Reason for Rejection</span>
+
+            <p>{rejectionReason}</p>
+          </div>
+        )}
+
+        <div className="request-confirm-actions">
+          <button
+            type="button"
+            className="request-confirm-cancel"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            className={
+              isApprove
+                ? "request-confirm-approve"
+                : "request-confirm-reject"
+            }
+            onClick={onConfirm}
+          >
+            {isApprove
+              ? "Yes, Approve Request"
+              : "Yes, Reject Request"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   DENTIST DETAILS MODAL
+========================================================= */
+
+function DentistDetailsModal({
+  dentist,
+  onClose,
+  adminAssignedBranch,
+  leaveRequests,
+  onViewRequest,
+}) {
+  if (!dentist) return null;
+
+  const { isOnLeave } = getDentistOnLeaveInfo(dentist);
+
+  const displayStatus = isOnLeave
+    ? "On Leave"
+    : dentist.status;
+
+  const dentistRequests = leaveRequests.filter(
+    (request) =>
+      String(request.dentistId) === String(dentist.id)
+  );
+
+  return (
+    <div
+      className="dentist-details-overlay"
+      onMouseDown={onClose}
+    >
+      <div
+        className="dentist-details-modal"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="dentist-details-close"
+          onClick={onClose}
+        >
           ×
         </button>
 
         <div className="dentist-details-header">
           <div className="dentist-details-avatar">
-            {dentist.name.replace("Dr. ", "").charAt(0).toUpperCase()}
+            {dentist.name
+              .replace("Dr. ", "")
+              .charAt(0)
+              .toUpperCase()}
           </div>
 
           <div className="dentist-details-header-text">
@@ -105,7 +489,9 @@ function DentistDetailsModal({ dentist, onClose, adminAssignedBranch, onSetLeave
             <p>{dentist.specialty}</p>
 
             <span
-              className={`dentist-badge ${displayStatus
+              className={`dentist-badge ${String(
+                displayStatus || ""
+              )
                 .toLowerCase()
                 .replace(/\s+/g, "-")}`}
             >
@@ -147,192 +533,203 @@ function DentistDetailsModal({ dentist, onClose, adminAssignedBranch, onSetLeave
               <strong>{displayStatus}</strong>
             </div>
 
-            {isOnLeave && leaveData ? (
-              <>
-                <div className="dentist-info-row">
-                  <span>Leave Date</span>
-                  <strong>
-                    {formatDate(leaveData.start_date)} - {formatDate(leaveData.end_date)}
-                  </strong>
-                </div>
+            <div className="dentist-info-row">
+              <span>Assigned Branch View</span>
+              <strong>
+                {dentist.currentBranchToday ||
+                  adminAssignedBranch}
+              </strong>
+            </div>
 
-                <div className="dentist-info-row">
-                  <span>Duration</span>
-                  <strong>
-                    {calculateLeaveDuration(leaveData.start_date, leaveData.end_date)}{" "}
-                    {calculateLeaveDuration(leaveData.start_date, leaveData.end_date) === 1 ? "day" : "days"}
-                  </strong>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="dentist-info-row">
-                  <span>Assigned Branch View</span>
-                  <strong>{dentist.currentBranchToday || adminAssignedBranch}</strong>
-                </div>
-
-                <div className="dentist-info-row">
-                  <span>Today's Schedule</span>
-                  <strong>{dentist.currentScheduleToday || "No Schedule Today"}</strong>
-                </div>
-              </>
-            )}
+            <div className="dentist-info-row">
+              <span>Today's Schedule</span>
+              <strong>
+                {dentist.currentScheduleToday ||
+                  "No Schedule Today"}
+              </strong>
+            </div>
           </div>
 
           <div className="dentist-info-card dentist-schedule-card">
             <h4>Schedule in All Branches</h4>
 
             <div className="dentist-schedule-list">
-              {dentist.schedules.map((schedule, index) => (
-                <div className="dentist-schedule-item" key={index}>
-                  <div className="dentist-schedule-top">
-                    <strong>{schedule.branch}</strong>
-                  </div>
+              {Array.isArray(dentist.schedules) &&
+              dentist.schedules.length > 0 ? (
+                dentist.schedules.map((schedule, index) => (
+                  <div
+                    className="dentist-schedule-item"
+                    key={index}
+                  >
+                    <div className="dentist-schedule-top">
+                      <strong>{schedule.branch}</strong>
+                    </div>
 
-                  <p>{schedule.days}</p>
-                  <span>{schedule.time}</span>
+                    <p>{schedule.days}</p>
+                    <span>{schedule.time}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="dentist-request-empty">
+                  No schedule information available.
                 </div>
-              ))}
+              )}
             </div>
           </div>
+
+          <div className="dentist-info-card dentist-leave-request-card">
+            <div className="dentist-request-card-heading">
+              <div>
+                <h4>Leave Requests</h4>
+                <p>
+                  Leave requests submitted by this dentist.
+                </p>
+              </div>
+
+              {dentistRequests.some(
+                (request) => request.status === "Pending"
+              ) && (
+                <span className="dentist-pending-count">
+                  {
+                    dentistRequests.filter(
+                      (request) =>
+                        request.status === "Pending"
+                    ).length
+                  }{" "}
+                  Pending
+                </span>
+              )}
+            </div>
+
+            {dentistRequests.length > 0 ? (
+              <div className="dentist-request-history">
+                {dentistRequests.map((request) => (
+                  <div
+                    className="dentist-request-history-item"
+                    key={request.id}
+                  >
+                    <div className="dentist-request-history-main">
+                      <div className="dentist-request-history-top">
+                        <strong>{request.leaveType}</strong>
+
+                        <span
+                          className={`leave-request-status small ${request.status.toLowerCase()}`}
+                        >
+                          {request.status}
+                        </span>
+                      </div>
+
+                      <p>
+                        {request.dates
+                          .map((date) =>
+                            formatShortDate(date)
+                          )
+                          .join(", ")}
+                      </p>
+
+                      <span>
+                        Submitted{" "}
+                        {formatDate(request.submittedAt)}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="dentist-request-view-btn"
+                      onClick={() =>
+                        onViewRequest(request)
+                      }
+                    >
+                      View Request
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="dentist-request-empty">
+                No leave requests submitted by this dentist.
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function DentistLeaveModal({
-  dentist,
-  leaveForm,
-  setLeaveForm,
-  onClose,
-  onSubmit,
-  isSubmitting,
-  errorMessage,
-}) {
-  if (!dentist) return null;
-
-  return (
-    <div className="dentist-details-overlay" onClick={onClose}>
-      <div className="dentist-leave-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="dentist-details-close" onClick={onClose}>
-          ×
-        </button>
-
-        <h2>Set Dentist Leave</h2>
-
-        <p className="leave-modal-subtitle">
-          Set leave schedule for <strong>{dentist.name}</strong>.
-        </p>
-
-        {errorMessage && (
-          <div className="leave-error-message">{errorMessage}</div>
-        )}
-
-        <div className="leave-form-grid">
-          <div className="leave-field">
-            <label>Start Date</label>
-            <input
-              type="date"
-              value={leaveForm.startDate}
-              onChange={(e) =>
-                setLeaveForm((prev) => ({
-                  ...prev,
-                  startDate: e.target.value,
-                }))
-              }
-            />
-          </div>
-
-          <div className="leave-field">
-            <label>End Date</label>
-            <input
-              type="date"
-              value={leaveForm.endDate}
-              onChange={(e) =>
-                setLeaveForm((prev) => ({
-                  ...prev,
-                  endDate: e.target.value,
-                }))
-              }
-            />
-          </div>
-
-          <div className="leave-field full">
-            <label>Reason</label>
-            <textarea
-              rows="5"
-              placeholder="Enter reason for leave..."
-              value={leaveForm.reason}
-              onChange={(e) =>
-                setLeaveForm((prev) => ({
-                  ...prev,
-                  reason: e.target.value,
-                }))
-              }
-            />
-          </div>
-        </div>
-
-        <div className="leave-modal-actions">
-          <button
-            className="leave-cancel-btn"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </button>
-
-          <button
-            className="leave-submit-btn"
-            onClick={onSubmit}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Saving..." : "Save Leave"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+/* =========================================================
+   MAIN PAGE
+========================================================= */
 
 export default function AdminDentist() {
-  const currentUser = AuthService.getCurrentUser() || {};
-
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedDentist, setSelectedDentist] = useState(null);
-  const [selectedLeaveDentist, setSelectedLeaveDentist] = useState(null);
 
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [selectedDentist, setSelectedDentist] =
+    useState(null);
+
+  const [selectedRequest, setSelectedRequest] =
+    useState(null);
+
+  const [requestToReject, setRequestToReject] =
+    useState(null);
+
+  const [rejectionReason, setRejectionReason] =
+    useState("");
+
+  const [rejectionError, setRejectionError] =
+    useState("");
+
+  const [confirmationModal, setConfirmationModal] =
+    useState({
+      isOpen: false,
+      action: "",
+      request: null,
+    });
+
+  const [isNotificationOpen, setIsNotificationOpen] =
+    useState(false);
+
+  const [notifications, setNotifications] =
+    useState(initialNotifications);
 
   const [dentists, setDentists] = useState([]);
-  const [adminAssignedBranch, setAdminAssignedBranch] = useState(defaultAssignedBranch);
 
-  const [leaveForm, setLeaveForm] = useState({
-    startDate: "",
-    endDate: "",
-    reason: "",
-  });
+  const [adminAssignedBranch, setAdminAssignedBranch] =
+    useState(defaultAssignedBranch);
 
-  const [isSubmittingLeave, setIsSubmittingLeave] = useState(false);
-  const [leaveErrorMessage, setLeaveErrorMessage] = useState("");
+  const [leaveRequests, setLeaveRequests] = useState([]);
+
+  const [
+    mockRequestsInitialized,
+    setMockRequestsInitialized,
+  ] = useState(false);
 
   useEffect(() => {
     let active = true;
 
     const load = async () => {
-      const [dentistsResult, profileResult] = await Promise.all([
-        getAdminDentists(),
-        getAdminProfile(),
-      ]);
+      const [dentistsResult, profileResult] =
+        await Promise.all([
+          getAdminDentists(),
+          getAdminProfile(),
+        ]);
 
-      if (active && dentistsResult?.success && Array.isArray(dentistsResult.data)) {
+      if (
+        active &&
+        dentistsResult?.success &&
+        Array.isArray(dentistsResult.data)
+      ) {
         setDentists(dentistsResult.data);
       }
 
-      if (active && profileResult?.success && profileResult?.data?.branch) {
-        setAdminAssignedBranch(profileResult.data.branch);
+      if (
+        active &&
+        profileResult?.success &&
+        profileResult?.data?.branch
+      ) {
+        setAdminAssignedBranch(
+          profileResult.data.branch
+        );
       }
     };
 
@@ -343,35 +740,207 @@ export default function AdminDentist() {
     };
   }, []);
 
+  const branchDentists = useMemo(() => {
+    const adminBranches = adminAssignedBranch
+      ? adminAssignedBranch
+          .split("|")
+          .map((branch) =>
+            branch.trim().toLowerCase()
+          )
+      : [];
+
+    return dentists.filter((dentist) =>
+      Array.isArray(dentist.schedules)
+        ? dentist.schedules.some(
+            (schedule) =>
+              !adminAssignedBranch ||
+              adminAssignedBranch === "All" ||
+              adminBranches.includes(
+                String(schedule.branch || "")
+                  .trim()
+                  .toLowerCase()
+              )
+          )
+        : false
+    );
+  }, [adminAssignedBranch, dentists]);
+
+  useEffect(() => {
+    if (
+      mockRequestsInitialized ||
+      branchDentists.length === 0
+    ) {
+      return;
+    }
+
+    const firstDentist = branchDentists[0];
+
+    const secondDentist =
+      branchDentists[1] || branchDentists[0];
+
+    const thirdDentist =
+      branchDentists[2] || branchDentists[0];
+
+    const firstBranch =
+      firstDentist.currentBranchToday ||
+      firstDentist.schedules?.[0]?.branch ||
+      adminAssignedBranch;
+
+    const secondBranch =
+      secondDentist.currentBranchToday ||
+      secondDentist.schedules?.[0]?.branch ||
+      adminAssignedBranch;
+
+    const thirdBranch =
+      thirdDentist.currentBranchToday ||
+      thirdDentist.schedules?.[0]?.branch ||
+      adminAssignedBranch;
+
+    setLeaveRequests([
+      {
+        id: "leave-request-001",
+        dentistId: firstDentist.id,
+        dentistName: firstDentist.name,
+        specialty: firstDentist.specialty,
+        branch: firstBranch,
+        leaveType: "Vacation",
+        dates: [
+          "2026-09-22",
+          "2026-09-24",
+          "2026-09-28",
+        ],
+        reason:
+          "Family vacation and personal matters that require me to be unavailable on the selected dates.",
+        notes:
+          "I will return to my regular schedule after the selected leave dates.",
+        submittedAt: "2026-09-17",
+        status: "Pending",
+        rejectionReason: "",
+      },
+      {
+        id: "leave-request-002",
+        dentistId: secondDentist.id,
+        dentistName: secondDentist.name,
+        specialty: secondDentist.specialty,
+        branch: secondBranch,
+        leaveType: "Personal",
+        dates: ["2026-09-30"],
+        reason:
+          "I need to attend to an important personal matter.",
+        notes: "",
+        submittedAt: "2026-09-16",
+        status: "Pending",
+        rejectionReason: "",
+      },
+      {
+        id: "leave-request-003",
+        dentistId: thirdDentist.id,
+        dentistName: thirdDentist.name,
+        specialty: thirdDentist.specialty,
+        branch: thirdBranch,
+        leaveType: "Emergency",
+        dates: ["2026-10-02"],
+        reason:
+          "I need to attend to an urgent family matter.",
+        notes:
+          "I will immediately inform the clinic if there are any changes.",
+        submittedAt: "2026-09-17",
+        status: "Pending",
+        rejectionReason: "",
+      },
+      {
+        id: "leave-request-004",
+        dentistId: firstDentist.id,
+        dentistName: firstDentist.name,
+        specialty: firstDentist.specialty,
+        branch: firstBranch,
+        leaveType: "Personal",
+        dates: ["2026-10-05"],
+        reason:
+          "I need to attend an important personal appointment.",
+        notes: "",
+        submittedAt: "2026-09-17",
+        status: "Pending",
+        rejectionReason: "",
+      },
+      {
+        id: "leave-request-005",
+        dentistId: secondDentist.id,
+        dentistName: secondDentist.name,
+        specialty: secondDentist.specialty,
+        branch: secondBranch,
+        leaveType: "Vacation",
+        dates: [
+          "2026-10-07",
+          "2026-10-08",
+        ],
+        reason:
+          "I am requesting two days of planned vacation leave.",
+        notes: "",
+        submittedAt: "2026-09-17",
+        status: "Pending",
+        rejectionReason: "",
+      },
+      {
+        id: "leave-request-006",
+        dentistId: thirdDentist.id,
+        dentistName: thirdDentist.name,
+        specialty: thirdDentist.specialty,
+        branch: thirdBranch,
+        leaveType: "Sick Leave",
+        dates: ["2026-10-10"],
+        reason:
+          "Requesting sick leave for the selected date.",
+        notes: "",
+        submittedAt: "2026-09-17",
+        status: "Pending",
+        rejectionReason: "",
+      },
+    ]);
+
+    setMockRequestsInitialized(true);
+  }, [
+    adminAssignedBranch,
+    branchDentists,
+    mockRequestsInitialized,
+  ]);
+
   const filteredDentists = useMemo(() => {
-    const adminBranches = adminAssignedBranch ? adminAssignedBranch.split("|").map(b => b.trim().toLowerCase()) : [];
+    const search = searchTerm.trim().toLowerCase();
 
-    return dentists
-      .filter((dentist) =>
-        dentist.schedules.some(
-          (schedule) =>
-            !adminAssignedBranch ||
-            adminAssignedBranch === "All" ||
-            adminBranches.includes(String(schedule.branch || "").trim().toLowerCase())
-        )
-      )
-      .filter((dentist) => {
-        const search = searchTerm.toLowerCase();
+    if (!search) {
+      return branchDentists;
+    }
 
-        return (
-          dentist.name.toLowerCase().includes(search) ||
-          dentist.specialty.toLowerCase().includes(search) ||
-          dentist.status.toLowerCase().includes(search) ||
-          dentist.phone.toLowerCase().includes(search)
-        );
-      });
-  }, [adminAssignedBranch, dentists, searchTerm]);
+    return branchDentists.filter((dentist) => {
+      return (
+        String(dentist.name || "")
+          .toLowerCase()
+          .includes(search) ||
+        String(dentist.specialty || "")
+          .toLowerCase()
+          .includes(search) ||
+        String(dentist.status || "")
+          .toLowerCase()
+          .includes(search) ||
+        String(dentist.phone || "")
+          .toLowerCase()
+          .includes(search)
+      );
+    });
+  }, [branchDentists, searchTerm]);
 
-  const totalDentists = filteredDentists.length;
+  const totalDentists = branchDentists.length;
 
-  const activeDentists = filteredDentists.filter(
-    (dentist) => dentist.status === "Available" || dentist.status === "On Duty"
+  const activeDentists = branchDentists.filter(
+    (dentist) =>
+      dentist.status === "Available" ||
+      dentist.status === "On Duty"
   ).length;
+
+  const pendingLeaveRequests = leaveRequests.filter(
+    (request) => request.status === "Pending"
+  );
 
   const handleToggleNotifications = () => {
     setIsNotificationOpen((prev) => !prev);
@@ -385,80 +954,163 @@ export default function AdminDentist() {
     setNotifications([]);
   };
 
-  const handleOpenLeaveModal = (dentist) => {
-    setSelectedLeaveDentist(dentist);
-    const { isOnLeave, leaveData } = getDentistOnLeaveInfo(dentist);
-
-    setLeaveForm({
-      startDate: isOnLeave && leaveData ? leaveData.start_date : "",
-      endDate: isOnLeave && leaveData ? leaveData.end_date : "",
-      reason: isOnLeave && leaveData ? leaveData.reason : "",
-    });
-
-    setLeaveErrorMessage("");
+  const handleViewRequest = (request) => {
+    setSelectedRequest(request);
   };
 
-  const handleSubmitLeave = async () => {
-    setLeaveErrorMessage("");
+  /* =======================================================
+     APPROVE FLOW
+  ======================================================= */
 
-    if (!leaveForm.startDate || !leaveForm.endDate || !leaveForm.reason.trim()) {
-      setLeaveErrorMessage("Please complete the leave date range and reason.");
+  const handleOpenApproveConfirmation = (request) => {
+    setConfirmationModal({
+      isOpen: true,
+      action: "approve",
+      request,
+    });
+  };
+
+  /* =======================================================
+     REJECT FLOW
+  ======================================================= */
+
+  const handleOpenRejectModal = (request) => {
+    setRequestToReject(request);
+    setRejectionReason("");
+    setRejectionError("");
+  };
+
+  const handleCloseRejectModal = () => {
+    setRequestToReject(null);
+    setRejectionReason("");
+    setRejectionError("");
+  };
+
+  const handleContinueReject = () => {
+    if (!rejectionReason.trim()) {
+      setRejectionError(
+        "Please provide a reason for rejecting this request."
+      );
       return;
     }
 
-    if (new Date(leaveForm.endDate) < new Date(leaveForm.startDate)) {
-      setLeaveErrorMessage("End date cannot be earlier than start date.");
-      return;
-    }
+    const request = requestToReject;
 
-    setIsSubmittingLeave(true);
+    setRejectionError("");
+    setRequestToReject(null);
 
-    try {
-      const conflictCheck = await checkLeaveConflict(
-        selectedLeaveDentist.id,
-        leaveForm.startDate,
-        leaveForm.endDate
+    setConfirmationModal({
+      isOpen: true,
+      action: "reject",
+      request,
+    });
+  };
+
+  /* =======================================================
+     CONFIRMATION
+  ======================================================= */
+
+  const handleCloseConfirmation = () => {
+    setConfirmationModal({
+      isOpen: false,
+      action: "",
+      request: null,
+    });
+  };
+
+  const handleConfirmRequestAction = () => {
+    const request = confirmationModal.request;
+
+    if (!request) return;
+
+    const requestId = request.id;
+
+    if (confirmationModal.action === "approve") {
+      const reviewedAt = new Date().toISOString();
+
+      setLeaveRequests((prev) =>
+        prev.map((item) =>
+          item.id === requestId
+            ? {
+                ...item,
+                status: "Approved",
+                reviewedAt,
+                rejectionReason: "",
+              }
+            : item
+        )
       );
 
-      if (!conflictCheck.success) {
-        setLeaveErrorMessage(conflictCheck.message || "Failed to set leave");
-        setIsSubmittingLeave(false);
-        return;
-      }
-
-      const result = await setDentistLeave(
-        selectedLeaveDentist.id,
-        leaveForm.startDate,
-        leaveForm.endDate,
-        leaveForm.reason
-      );
-
-      if (result.success) {
-        const dentistsResult = await getAdminDentists();
-        if (dentistsResult.success && Array.isArray(dentistsResult.data)) {
-          setDentists(dentistsResult.data);
-
-          if (selectedDentist?.id === selectedLeaveDentist.id) {
-            const updated = dentistsResult.data.find(
-              (d) => d.id === selectedDentist.id
-            );
-            if (updated) {
-              setSelectedDentist(updated);
+      setSelectedRequest((prev) =>
+        prev?.id === requestId
+          ? {
+              ...prev,
+              status: "Approved",
+              reviewedAt,
+              rejectionReason: "",
             }
-          }
-        }
+          : prev
+      );
 
-        setSelectedLeaveDentist(null);
-        setLeaveForm({ startDate: "", endDate: "", reason: "" });
-      } else {
-        setLeaveErrorMessage(result.message || "Failed to set leave");
-      }
-    } catch (error) {
-      console.error("Error submitting leave:", error);
-      setLeaveErrorMessage("An error occurred. Please try again.");
-    } finally {
-      setIsSubmittingLeave(false);
+      setNotifications((prev) => [
+        {
+          id: Date.now(),
+          title: "Leave Request Approved",
+          message: `${request.dentistName}'s leave request was approved successfully.`,
+          time: "Just now",
+        },
+        ...prev,
+      ]);
     }
+
+    if (confirmationModal.action === "reject") {
+      const reviewedAt = new Date().toISOString();
+      const finalReason = rejectionReason.trim();
+
+      setLeaveRequests((prev) =>
+        prev.map((item) =>
+          item.id === requestId
+            ? {
+                ...item,
+                status: "Rejected",
+                rejectionReason: finalReason,
+                reviewedAt,
+              }
+            : item
+        )
+      );
+
+      setSelectedRequest((prev) =>
+        prev?.id === requestId
+          ? {
+              ...prev,
+              status: "Rejected",
+              rejectionReason: finalReason,
+              reviewedAt,
+            }
+          : prev
+      );
+
+      setNotifications((prev) => [
+        {
+          id: Date.now(),
+          title: "Leave Request Rejected",
+          message: `${request.dentistName}'s leave request was rejected.`,
+          time: "Just now",
+        },
+        ...prev,
+      ]);
+    }
+
+    setConfirmationModal({
+      isOpen: false,
+      action: "",
+      request: null,
+    });
+
+    setRequestToReject(null);
+    setRejectionReason("");
+    setRejectionError("");
   };
 
   return (
@@ -470,8 +1122,12 @@ export default function AdminDentist() {
           title="Dentist"
           notifications={notifications}
           isNotificationOpen={isNotificationOpen}
-          onToggleNotifications={handleToggleNotifications}
-          onCloseNotifications={handleCloseNotifications}
+          onToggleNotifications={
+            handleToggleNotifications
+          }
+          onCloseNotifications={
+            handleCloseNotifications
+          }
           onMarkAllRead={handleMarkAllRead}
         />
 
@@ -479,8 +1135,10 @@ export default function AdminDentist() {
           <div className="admin-dentist-heading">
             <div>
               <h1>Dentists</h1>
+
               <p>
-                Manage and view dentist records assigned to {adminAssignedBranch}.
+                Manage and view dentist records assigned to{" "}
+                {adminAssignedBranch}.
               </p>
             </div>
           </div>
@@ -496,17 +1154,97 @@ export default function AdminDentist() {
               <h3>{activeDentists}</h3>
             </div>
 
-            <div className="dentist-stat-card">
-              <span>Assigned Branch</span>
-              <h3 className="branch-name-card">{adminAssignedBranch}</h3>
+            <div className="dentist-stat-card pending-request-stat">
+              <div className="pending-stat-heading">
+                <span>
+                  Pending Leave Requests
+                </span>
+
+                {pendingLeaveRequests.length > 0 && (
+                  <div className="pending-stat-dot" />
+                )}
+              </div>
+
+              <h3>
+                {pendingLeaveRequests.length}
+              </h3>
+
+              <p>Waiting for Admin review</p>
             </div>
+          </div>
+
+          <div className="admin-pending-leave-card">
+            <div className="admin-pending-leave-header">
+              <div>
+                <h3>Dentist Leave Requests</h3>
+
+                <p>
+                  Review pending requests submitted by dentists
+                  assigned to your branch.
+                </p>
+              </div>
+
+              <span className="admin-pending-leave-count">
+                {pendingLeaveRequests.length} Pending
+              </span>
+            </div>
+
+            {pendingLeaveRequests.length > 0 ? (
+              <div className="admin-pending-leave-list">
+                {pendingLeaveRequests.map((request) => (
+                  <div
+                    className="admin-pending-leave-item"
+                    key={request.id}
+                  >
+                    <div className="admin-pending-leave-avatar">
+                      {request.dentistName
+                        .replace("Dr. ", "")
+                        .charAt(0)
+                        .toUpperCase()}
+                    </div>
+
+                    <div className="admin-pending-leave-info">
+                      <strong>
+                        {request.dentistName}
+                      </strong>
+
+                      <span>
+                        {request.leaveType} •{" "}
+                        {request.dates
+                          .map((date) =>
+                            formatShortDate(date)
+                          )
+                          .join(", ")}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="admin-review-request-btn"
+                      onClick={() =>
+                        handleViewRequest(request)
+                      }
+                    >
+                      Review
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-pending-empty">
+                No pending leave requests.
+              </div>
+            )}
           </div>
 
           <div className="admin-dentist-table-card">
             <div className="admin-dentist-table-top">
               <div>
                 <h3>Dentist List</h3>
-                <p>{filteredDentists.length} dentist(s) found</p>
+
+                <p>
+                  {filteredDentists.length} dentist(s) found
+                </p>
               </div>
 
               <div className="admin-dentist-search">
@@ -514,7 +1252,9 @@ export default function AdminDentist() {
                   type="text"
                   placeholder="Search dentist, specialty, phone..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) =>
+                    setSearchTerm(e.target.value)
+                  }
                 />
               </div>
             </div>
@@ -528,6 +1268,7 @@ export default function AdminDentist() {
                     <th>Branch</th>
                     <th>Phone Number</th>
                     <th>Status</th>
+                    <th>Leave Request</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -535,20 +1276,40 @@ export default function AdminDentist() {
                 <tbody>
                   {filteredDentists.length > 0 ? (
                     filteredDentists.map((dentist) => {
-                      const { isOnLeave, leaveData } = getDentistOnLeaveInfo(dentist);
-                      const displayStatus = isOnLeave ? "On Leave" : dentist.status;
+                      const { isOnLeave } =
+                        getDentistOnLeaveInfo(dentist);
+
+                      const displayStatus = isOnLeave
+                        ? "On Leave"
+                        : dentist.status;
+
                       const visibleBranch =
-                        dentist.currentBranchToday || adminAssignedBranch;
+                        dentist.currentBranchToday ||
+                        adminAssignedBranch;
+
+                      const dentistPendingRequests =
+                        leaveRequests.filter(
+                          (request) =>
+                            String(request.dentistId) ===
+                              String(dentist.id) &&
+                            request.status === "Pending"
+                        );
 
                       return (
                         <tr key={dentist.id}>
                           <td>{dentist.name}</td>
+
                           <td>{dentist.specialty}</td>
+
                           <td>{visibleBranch}</td>
+
                           <td>{dentist.phone}</td>
+
                           <td>
                             <span
-                              className={`dentist-badge ${displayStatus
+                              className={`dentist-badge ${String(
+                                displayStatus || ""
+                              )
                                 .toLowerCase()
                                 .replace(/\s+/g, "-")}`}
                             >
@@ -557,28 +1318,43 @@ export default function AdminDentist() {
                           </td>
 
                           <td>
-                            <div className="dentist-action-buttons">
-                              <button
-                                className="dentist-view-btn"
-                                onClick={() => setSelectedDentist(dentist)}
-                              >
-                                View Details
-                              </button>
+                            {dentistPendingRequests.length >
+                            0 ? (
+                              <span className="table-pending-request">
+                                {
+                                  dentistPendingRequests.length
+                                }{" "}
+                                Pending
+                              </span>
+                            ) : (
+                              <span className="table-no-request">
+                                None
+                              </span>
+                            )}
+                          </td>
 
-                              <button
-                                className="dentist-leave-btn"
-                                onClick={() => handleOpenLeaveModal(dentist)}
-                              >
-                                {isOnLeave ? "Update Leave" : "Set Leave"}
-                              </button>
-                            </div>
+                          <td>
+                            <button
+                              type="button"
+                              className="dentist-view-btn"
+                              onClick={() =>
+                                setSelectedDentist(
+                                  dentist
+                                )
+                              }
+                            >
+                              View Details
+                            </button>
                           </td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan="6" className="dentist-empty-state">
+                      <td
+                        colSpan="7"
+                        className="dentist-empty-state"
+                      >
                         No dentists found.
                       </td>
                     </tr>
@@ -592,19 +1368,44 @@ export default function AdminDentist() {
 
       <DentistDetailsModal
         dentist={selectedDentist}
-        onClose={() => setSelectedDentist(null)}
-        adminAssignedBranch={adminAssignedBranch}
-        onSetLeave={handleOpenLeaveModal}
+        onClose={() =>
+          setSelectedDentist(null)
+        }
+        adminAssignedBranch={
+          adminAssignedBranch
+        }
+        leaveRequests={leaveRequests}
+        onViewRequest={handleViewRequest}
       />
 
-      <DentistLeaveModal
-        dentist={selectedLeaveDentist}
-        leaveForm={leaveForm}
-        setLeaveForm={setLeaveForm}
-        onClose={() => setSelectedLeaveDentist(null)}
-        onSubmit={handleSubmitLeave}
-        isSubmitting={isSubmittingLeave}
-        errorMessage={leaveErrorMessage}
+      <LeaveRequestModal
+        request={selectedRequest}
+        onClose={() =>
+          setSelectedRequest(null)
+        }
+        onApprove={
+          handleOpenApproveConfirmation
+        }
+        onReject={handleOpenRejectModal}
+      />
+
+      <RejectLeaveRequestModal
+        request={requestToReject}
+        rejectionReason={rejectionReason}
+        setRejectionReason={
+          setRejectionReason
+        }
+        errorMessage={rejectionError}
+        onClose={handleCloseRejectModal}
+        onContinue={handleContinueReject}
+      />
+
+      <RequestConfirmationModal
+        request={confirmationModal.request}
+        action={confirmationModal.action}
+        rejectionReason={rejectionReason}
+        onClose={handleCloseConfirmation}
+        onConfirm={handleConfirmRequestAction}
       />
     </div>
   );

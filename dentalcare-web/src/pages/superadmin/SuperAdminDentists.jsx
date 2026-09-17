@@ -167,6 +167,85 @@ function buildEmptyEditScheduleForm() {
   };
 }
 
+
+
+const formatRequestDate = (dateString) => {
+  if (!dateString) return "—";
+  const date = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return dateString;
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const buildRequestScheduleFromDentist = (schedules = []) =>
+  schedules.map((schedule) => {
+    const { startTime, endTime } = splitTimeRange(schedule.time);
+    return {
+      days: [normalizeDay(schedule.day)],
+      branch: normalizeBranchStr(schedule.branch),
+      startTime,
+      endTime,
+    };
+  });
+
+const buildMockRequestedSchedules = (currentSchedules = [], variant = 0) => {
+  const normalized = buildRequestScheduleFromDentist(currentSchedules);
+  const fallback = [
+    {
+      days: ["Monday", "Wednesday", "Friday"],
+      branch: "General Trias, Cavite",
+      startTime: "08:00 AM",
+      endTime: "12:00 PM",
+    },
+  ];
+
+  const base = normalized.length > 0 ? normalized : fallback;
+  const first = base[0];
+
+  if (variant === 1) {
+    return [
+      {
+        ...first,
+        startTime: "09:00 AM",
+        endTime: "01:00 PM",
+      },
+      {
+        days: [first.days[0]],
+        branch: first.branch,
+        startTime: "02:00 PM",
+        endTime: "05:00 PM",
+      },
+    ];
+  }
+
+  if (variant === 2) {
+    return [
+      {
+        ...first,
+        startTime: "10:00 AM",
+        endTime: "02:00 PM",
+      },
+    ];
+  }
+
+  return [
+    {
+      ...first,
+      startTime: "08:00 AM",
+      endTime: "10:00 AM",
+    },
+    {
+      days: [first.days[0]],
+      branch: first.branch,
+      startTime: "01:00 PM",
+      endTime: "05:00 PM",
+    },
+  ];
+};
+
 function ModalHeader({ title, subtitle, onClose }) {
   return (
     <div className="superadmin-dentists-modal-topbar">
@@ -236,6 +315,20 @@ export default function SuperAdminDentists() {
     scheduleForm: buildEmptyEditScheduleForm(),
   });
 
+  const [viewScheduleTab, setViewScheduleTab] = useState("schedule");
+  const [scheduleRequests, setScheduleRequests] = useState([]);
+  const [mockRequestsInitialized, setMockRequestsInitialized] = useState(false);
+  const [selectedScheduleRequest, setSelectedScheduleRequest] = useState(null);
+  const [rejectScheduleRequest, setRejectScheduleRequest] = useState(null);
+  const [scheduleRejectionReason, setScheduleRejectionReason] = useState("");
+  const [scheduleRejectionError, setScheduleRejectionError] = useState("");
+  const [requestConfirmModal, setRequestConfirmModal] = useState({
+    open: false,
+    action: "",
+    request: null,
+  });
+
+
   const fetchDentists = async () => {
     const res = await getSuperAdminDentists();
     if (res?.success) {
@@ -246,6 +339,60 @@ export default function SuperAdminDentists() {
   useEffect(() => {
     fetchDentists();
   }, []);
+
+  useEffect(() => {
+    if (mockRequestsInitialized || dentists.length === 0) return;
+
+    const sourceDentists = dentists.slice(0, 3);
+    const mockRequests = sourceDentists.flatMap((dentist, dentistIndex) => {
+      const currentSchedule = buildRequestScheduleFromDentist(dentist.schedules || []);
+      const baseRequest = {
+        dentistId: dentist.id,
+        dentistEmail: dentist.email,
+        dentistName: dentist.name || "New Dentist",
+        currentSchedule,
+      };
+
+      const requests = [
+        {
+          id: `SR-${String(dentistIndex + 1).padStart(3, "0")}`,
+          ...baseRequest,
+          submittedAt: "2026-09-16",
+          effectiveDate: dentistIndex === 0 ? "2026-09-28" : dentistIndex === 1 ? "2026-10-01" : "2026-10-05",
+          status: "Pending",
+          requestedSchedule: buildMockRequestedSchedules(dentist.schedules || [], dentistIndex),
+          reason:
+            dentistIndex === 0
+              ? "I need to adjust my clinic availability for the upcoming weeks."
+              : dentistIndex === 1
+              ? "I would like to align my schedule with my updated availability."
+              : "I need to change my working hours due to a personal schedule adjustment.",
+          notes: dentistIndex === 1 ? "Available to discuss the requested hours if needed." : "",
+          rejectionReason: "",
+        },
+      ];
+
+      if (dentistIndex === 0) {
+        requests.push({
+          id: "SR-004",
+          ...baseRequest,
+          submittedAt: "2026-08-20",
+          effectiveDate: "2026-09-01",
+          status: "Approved",
+          requestedSchedule: buildMockRequestedSchedules(dentist.schedules || [], 2),
+          reason: "Temporary adjustment to my morning clinic schedule.",
+          notes: "",
+          rejectionReason: "",
+        });
+      }
+
+      return requests;
+    });
+
+    setScheduleRequests(mockRequests);
+    setMockRequestsInitialized(true);
+  }, [dentists, mockRequestsInitialized]);
+
 
   const resetViewScheduleEditor = () => {
     setEditingScheduleIndex(null);
@@ -334,6 +481,18 @@ export default function SuperAdminDentists() {
 
     return grouped;
   }, [pendingSchedules]);
+
+
+  const selectedDentistScheduleRequests = useMemo(() => {
+    if (!viewScheduleModal.dentistId) return [];
+    return scheduleRequests
+      .filter((request) => request.dentistId === viewScheduleModal.dentistId)
+      .sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
+  }, [scheduleRequests, viewScheduleModal.dentistId]);
+
+  const selectedDentistPendingRequestCount = selectedDentistScheduleRequests.filter(
+    (request) => request.status === "Pending"
+  ).length;
 
   const totalDentists = filteredDentists.length;
   const activeDentists = filteredDentists.filter(
@@ -604,6 +763,8 @@ export default function SuperAdminDentists() {
     });
     setEditingScheduleIndex(null);
     setIsEditingExistingSchedule(false);
+    setViewScheduleTab("schedule");
+    setSelectedScheduleRequest(null);
   };
 
   const closeViewScheduleModal = () => {
@@ -619,7 +780,9 @@ export default function SuperAdminDentists() {
       scheduleForm: buildEmptyEditScheduleForm(),
     });
     setEditingScheduleIndex(null);
-  setIsEditingExistingSchedule(false);
+    setIsEditingExistingSchedule(false);
+    setViewScheduleTab("schedule");
+    setSelectedScheduleRequest(null);
   };
 
   const handleAddViewSchedule = () => {
@@ -749,6 +912,90 @@ export default function SuperAdminDentists() {
 
     await fetchDentists();
     closeViewScheduleModal();
+  };
+
+
+  const openScheduleRequestDetails = (request) => {
+    setSelectedScheduleRequest(request);
+  };
+
+  const closeScheduleRequestDetails = () => {
+    setSelectedScheduleRequest(null);
+  };
+
+  const openApproveScheduleConfirmation = (request) => {
+    setRequestConfirmModal({
+      open: true,
+      action: "approve",
+      request,
+    });
+  };
+
+  const openRejectScheduleModal = (request) => {
+    setRejectScheduleRequest(request);
+    setScheduleRejectionReason("");
+    setScheduleRejectionError("");
+  };
+
+  const closeRejectScheduleModal = () => {
+    setRejectScheduleRequest(null);
+    setScheduleRejectionReason("");
+    setScheduleRejectionError("");
+  };
+
+  const continueRejectScheduleRequest = () => {
+    if (!scheduleRejectionReason.trim()) {
+      setScheduleRejectionError("Please enter a reason for rejecting this request.");
+      return;
+    }
+
+    setRequestConfirmModal({
+      open: true,
+      action: "reject",
+      request: rejectScheduleRequest,
+    });
+    setRejectScheduleRequest(null);
+    setScheduleRejectionError("");
+  };
+
+  const closeRequestConfirmation = () => {
+    setRequestConfirmModal({ open: false, action: "", request: null });
+  };
+
+  const confirmScheduleRequestAction = () => {
+    const { action, request } = requestConfirmModal;
+    if (!request) return;
+
+    const nextStatus = action === "approve" ? "Approved" : "Rejected";
+    const rejectionReason = action === "reject" ? scheduleRejectionReason.trim() : "";
+
+    setScheduleRequests((prev) =>
+      prev.map((item) =>
+        item.id === request.id
+          ? { ...item, status: nextStatus, rejectionReason }
+          : item
+      )
+    );
+
+    setSelectedScheduleRequest((prev) =>
+      prev?.id === request.id
+        ? { ...prev, status: nextStatus, rejectionReason }
+        : prev
+    );
+
+    setNotifications((prev) => [
+      {
+        id: Date.now(),
+        title: `Schedule Request ${nextStatus}`,
+        message: `${request.dentistName}'s schedule change request was ${nextStatus.toLowerCase()}.`,
+        time: "Just now",
+      },
+      ...prev,
+    ]);
+
+    setRequestConfirmModal({ open: false, action: "", request: null });
+    setScheduleRejectionReason("");
+    setScheduleRejectionError("");
   };
 
   const handleExportPDF = () => {
@@ -1710,280 +1957,630 @@ export default function SuperAdminDentists() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="superadmin-dentists-edit-modal-inner">
-            <ModalHeader
-              title={viewScheduleModal.isEditMode ? "Edit Schedule" : "View Schedule"}
-              subtitle={`${viewScheduleModal.dentistName} • ${viewScheduleModal.dentistEmail}`}
-              onClose={closeViewScheduleModal}
-            />
+              <ModalHeader
+                title={viewScheduleModal.isEditMode ? "Edit Schedule" : "Dentist Schedule"}
+                subtitle={`${viewScheduleModal.dentistName} • ${viewScheduleModal.dentistEmail}`}
+                onClose={closeViewScheduleModal}
+              />
 
-            <div className="superadmin-dentists-view-schedule-header">
-              <span>
-                Total Schedule: {viewScheduleModal.schedules.length}
-              </span>
-
-              {!viewScheduleModal.isEditMode ? (
-                <button
-                  type="button"
-                  className="superadmin-dentists-secondary-btn add-schedule-btn"
-                  onClick={() =>
-                    setViewScheduleModal((prev) => ({
-                      ...prev,
-                      isEditMode: true,
-                    }))
-                  }
-                >
-                  Edit Schedule
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="superadmin-dentists-secondary-btn"
-                  onClick={() => {
-                    setViewScheduleModal((prev) => ({
-                      ...prev,
-                      isEditMode: false,
-                    }));
-                    resetViewScheduleEditor();
-                  }}
-                >
-                  Cancel Edit
-                </button>
-              )}
-            </div>
-
-            <div className="superadmin-dentists-view-calendar-wrap">
-              <div className="superadmin-dentists-view-calendar-grid">
-                <div className="superadmin-dentists-calendar-header-cell">Branch</div>
-                {DAYS.map((day) => (
-                  <div
-                    key={`view-header-${day}`}
-                    className="superadmin-dentists-calendar-header-cell"
+              {!viewScheduleModal.isEditMode && (
+                <div className="superadmin-dentists-schedule-tabs">
+                  <button
+                    type="button"
+                    className={`superadmin-dentists-schedule-tab ${
+                      viewScheduleTab === "schedule" ? "active" : ""
+                    }`}
+                    onClick={() => setViewScheduleTab("schedule")}
                   >
-                    {day}
-                  </div>
-                ))}
+                    Current Schedule
+                  </button>
 
-                {REGISTER_BRANCHES.map((branch) => (
-                  <div className="superadmin-dentists-calendar-row" key={`view-row-${branch}`}>
-                    <div className="superadmin-dentists-calendar-branch-cell">
-                      {branch}
-                    </div>
+                  <button
+                    type="button"
+                    className={`superadmin-dentists-schedule-tab ${
+                      viewScheduleTab === "requests" ? "active" : ""
+                    }`}
+                    onClick={() => setViewScheduleTab("requests")}
+                  >
+                    Schedule Requests
+                    {selectedDentistPendingRequestCount > 0 && (
+                      <span className="superadmin-dentists-tab-count">
+                        {selectedDentistPendingRequestCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              )}
 
-                    {DAYS.map((day) => {
-                      const items = viewScheduleCalendarMap?.[branch]?.[day] || [];
+              {(viewScheduleTab === "schedule" || viewScheduleModal.isEditMode) && (
+                <>
+                  <div className="superadmin-dentists-view-schedule-header">
+                    <span>Total Schedule: {viewScheduleModal.schedules.length}</span>
 
-                      return (
-                        <div
-                          key={`${branch}-${day}`}
-                          className={`superadmin-dentists-calendar-day-cell superadmin-dentists-view-day-cell ${
-                            viewScheduleModal.isEditMode ? "is-editing" : ""
-                          }`}
-                        >
-                          {items.length > 0 ? (
-                            items.map((item) => (
-                              <div
-                                key={`${item.branch}-${item.day}-${item.time}-${item.index}`}
-                                className={`superadmin-dentists-calendar-event is-active superadmin-dentists-view-event ${
-                                  viewScheduleModal.isEditMode ? "is-clickable" : ""
-                                } ${
-                                  isEditingExistingSchedule && editingScheduleIndex === item.index
-                                    ? "is-selected"
-                                    : ""
-                                }`}
-                                onClick={() =>
-                                  viewScheduleModal.isEditMode
-                                    ? handleEditExistingSchedule(item, item.index)
-                                    : null
-                                }
-                              >
-                                <strong>{item.time}</strong>
-                                <span>{item.branch}</span>
-
-                                {viewScheduleModal.isEditMode && (
-                                  <button
-                                    type="button"
-                                    className="superadmin-dentists-schedule-remove inline-remove calendar-remove"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleRemoveViewSchedule(item.index);
-                                    }}
-                                  >
-                                    ✕
-                                  </button>
-                                )}
-                              </div>
-                            ))
-                          ) : (
-                            <span className="superadmin-dentists-calendar-empty">—</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {viewScheduleModal.isEditMode && (
-              <>
-                <div className="superadmin-dentists-schedule-builder superadmin-dentists-schedule-builder-wide superadmin-dentists-edit-schedule-builder">
-                  <div className="superadmin-dentists-schedule-top-grid">
-                    <div className="superadmin-dentists-field">
-                      <label>Branch</label>
-                      <select
-                        value={viewScheduleModal.scheduleForm.branch}
-                        onChange={(e) =>
+                    {!viewScheduleModal.isEditMode ? (
+                      <button
+                        type="button"
+                        className="superadmin-dentists-secondary-btn add-schedule-btn"
+                        onClick={() =>
                           setViewScheduleModal((prev) => ({
                             ...prev,
-                            scheduleForm: {
-                              ...prev.scheduleForm,
-                              branch: e.target.value,
-                            },
+                            isEditMode: true,
                           }))
                         }
                       >
-                        {REGISTER_BRANCHES.map((branch) => (
-                          <option key={branch} value={branch}>
-                            {branch}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="superadmin-dentists-time-range-group">
-                      <div className="superadmin-dentists-field">
-                        <label>Start Time</label>
-                        <select
-                          value={viewScheduleModal.scheduleForm.startTime}
-                          onChange={(e) =>
-                            setViewScheduleModal((prev) => ({
-                              ...prev,
-                              scheduleForm: {
-                                ...prev.scheduleForm,
-                                startTime: e.target.value,
-                              },
-                            }))
-                          }
-                        >
-                          {TIME_SLOT_OPTIONS.map((time) => (
-                            <option key={time} value={time}>
-                              {time}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="superadmin-dentists-field">
-                        <label>End Time</label>
-                        <select
-                          value={viewScheduleModal.scheduleForm.endTime}
-                          onChange={(e) =>
-                            setViewScheduleModal((prev) => ({
-                              ...prev,
-                              scheduleForm: {
-                                ...prev.scheduleForm,
-                                endTime: e.target.value,
-                              },
-                            }))
-                          }
-                        >
-                          {TIME_SLOT_OPTIONS.map((time) => (
-                            <option key={time} value={time}>
-                              {time}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="superadmin-dentists-form-action">
+                        Edit Schedule
+                      </button>
+                    ) : (
                       <button
                         type="button"
-                        onClick={handleAddViewSchedule}
-                        className="superadmin-dentists-secondary-btn add-schedule-btn"
+                        className="superadmin-dentists-secondary-btn"
+                        onClick={() => {
+                          setViewScheduleModal((prev) => ({
+                            ...prev,
+                            isEditMode: false,
+                          }));
+                          resetViewScheduleEditor();
+                        }}
                       >
-                        {isEditingExistingSchedule ? "Update Schedule" : "Add Schedule"}
+                        Cancel Edit
                       </button>
-                       {isEditingExistingSchedule && (
-                        <button
-                          type="button"
-                          className="superadmin-dentists-secondary-btn clear-selected-btn"
-                          onClick={resetViewScheduleEditor}
+                    )}
+                  </div>
+
+                  <div className="superadmin-dentists-view-calendar-wrap">
+                    <div className="superadmin-dentists-view-calendar-grid">
+                      <div className="superadmin-dentists-calendar-header-cell">Branch</div>
+                      {DAYS.map((day) => (
+                        <div
+                          key={`view-header-${day}`}
+                          className="superadmin-dentists-calendar-header-cell"
                         >
-                          Clear Selected
-                        </button>
-                      )}
+                          {day}
+                        </div>
+                      ))}
+
+                      {REGISTER_BRANCHES.map((branch) => (
+                        <div
+                          className="superadmin-dentists-calendar-row"
+                          key={`view-row-${branch}`}
+                        >
+                          <div className="superadmin-dentists-calendar-branch-cell">
+                            {branch}
+                          </div>
+
+                          {DAYS.map((day) => {
+                            const items = viewScheduleCalendarMap?.[branch]?.[day] || [];
+
+                            return (
+                              <div
+                                key={`${branch}-${day}`}
+                                className={`superadmin-dentists-calendar-day-cell superadmin-dentists-view-day-cell ${
+                                  viewScheduleModal.isEditMode ? "is-editing" : ""
+                                }`}
+                              >
+                                {items.length > 0 ? (
+                                  items.map((item) => (
+                                    <div
+                                      key={`${item.branch}-${item.day}-${item.time}-${item.index}`}
+                                      className={`superadmin-dentists-calendar-event is-active superadmin-dentists-view-event ${
+                                        viewScheduleModal.isEditMode ? "is-clickable" : ""
+                                      } ${
+                                        isEditingExistingSchedule &&
+                                        editingScheduleIndex === item.index
+                                          ? "is-selected"
+                                          : ""
+                                      }`}
+                                      onClick={() =>
+                                        viewScheduleModal.isEditMode
+                                          ? handleEditExistingSchedule(item, item.index)
+                                          : null
+                                      }
+                                    >
+                                      <strong>{item.time}</strong>
+                                      <span>{item.branch}</span>
+
+                                      {viewScheduleModal.isEditMode && (
+                                        <button
+                                          type="button"
+                                          className="superadmin-dentists-schedule-remove inline-remove calendar-remove"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRemoveViewSchedule(item.index);
+                                          }}
+                                        >
+                                          ✕
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))
+                                ) : (
+                                  <span className="superadmin-dentists-calendar-empty">—</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
                     </div>
                   </div>
 
-                  <div className="superadmin-dentists-field">
-                    <label>Select Day(s)</label>
-                    <div className="superadmin-dentists-day-picker">
-                      {DAYS.map((day) => {
-                        const isSelected = viewScheduleModal.scheduleForm.days.includes(day);
-
-                        return (
-                          <button
-                            key={day}
-                            type="button"
-                            className={`superadmin-dentists-day-chip ${isSelected ? "active" : ""}`}
-                            onClick={() => {
-                              if (isEditingExistingSchedule) {
+                  {viewScheduleModal.isEditMode && (
+                    <>
+                      <div className="superadmin-dentists-schedule-builder superadmin-dentists-schedule-builder-wide superadmin-dentists-edit-schedule-builder">
+                        <div className="superadmin-dentists-schedule-top-grid">
+                          <div className="superadmin-dentists-field">
+                            <label>Branch</label>
+                            <select
+                              value={viewScheduleModal.scheduleForm.branch}
+                              onChange={(e) =>
                                 setViewScheduleModal((prev) => ({
                                   ...prev,
                                   scheduleForm: {
                                     ...prev.scheduleForm,
-                                    days: [day],
+                                    branch: e.target.value,
                                   },
-                                }));
-                                return;
+                                }))
                               }
+                            >
+                              {REGISTER_BRANCHES.map((branch) => (
+                                <option key={branch} value={branch}>
+                                  {branch}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
 
-                              setViewScheduleModal((prev) => {
-                                const exists = prev.scheduleForm.days.includes(day);
+                          <div className="superadmin-dentists-time-range-group">
+                            <div className="superadmin-dentists-field">
+                              <label>Start Time</label>
+                              <select
+                                value={viewScheduleModal.scheduleForm.startTime}
+                                onChange={(e) =>
+                                  setViewScheduleModal((prev) => ({
+                                    ...prev,
+                                    scheduleForm: {
+                                      ...prev.scheduleForm,
+                                      startTime: e.target.value,
+                                    },
+                                  }))
+                                }
+                              >
+                                {TIME_SLOT_OPTIONS.map((time) => (
+                                  <option key={time} value={time}>
+                                    {time}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
 
-                                return {
-                                  ...prev,
-                                  scheduleForm: {
-                                    ...prev.scheduleForm,
-                                    days: exists
-                                      ? prev.scheduleForm.days.filter((item) => item !== day)
-                                      : [...prev.scheduleForm.days, day],
-                                  },
-                                };
-                              });
-                            }}
-                          >
-                            {day}
-                          </button>
-                        );
-                      })}
+                            <div className="superadmin-dentists-field">
+                              <label>End Time</label>
+                              <select
+                                value={viewScheduleModal.scheduleForm.endTime}
+                                onChange={(e) =>
+                                  setViewScheduleModal((prev) => ({
+                                    ...prev,
+                                    scheduleForm: {
+                                      ...prev.scheduleForm,
+                                      endTime: e.target.value,
+                                    },
+                                  }))
+                                }
+                              >
+                                {TIME_SLOT_OPTIONS.map((time) => (
+                                  <option key={time} value={time}>
+                                    {time}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="superadmin-dentists-form-action">
+                            <button
+                              type="button"
+                              onClick={handleAddViewSchedule}
+                              className="superadmin-dentists-secondary-btn add-schedule-btn"
+                            >
+                              {isEditingExistingSchedule
+                                ? "Update Schedule"
+                                : "Add Schedule"}
+                            </button>
+
+                            {isEditingExistingSchedule && (
+                              <button
+                                type="button"
+                                className="superadmin-dentists-secondary-btn clear-selected-btn"
+                                onClick={resetViewScheduleEditor}
+                              >
+                                Clear Selected
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="superadmin-dentists-field">
+                          <label>Select Day(s)</label>
+                          <div className="superadmin-dentists-day-picker">
+                            {DAYS.map((day) => {
+                              const isSelected =
+                                viewScheduleModal.scheduleForm.days.includes(day);
+
+                              return (
+                                <button
+                                  key={day}
+                                  type="button"
+                                  className={`superadmin-dentists-day-chip ${
+                                    isSelected ? "active" : ""
+                                  }`}
+                                  onClick={() => {
+                                    if (isEditingExistingSchedule) {
+                                      setViewScheduleModal((prev) => ({
+                                        ...prev,
+                                        scheduleForm: {
+                                          ...prev.scheduleForm,
+                                          days: [day],
+                                        },
+                                      }));
+                                      return;
+                                    }
+
+                                    setViewScheduleModal((prev) => {
+                                      const exists =
+                                        prev.scheduleForm.days.includes(day);
+
+                                      return {
+                                        ...prev,
+                                        scheduleForm: {
+                                          ...prev.scheduleForm,
+                                          days: exists
+                                            ? prev.scheduleForm.days.filter(
+                                                (item) => item !== day
+                                              )
+                                            : [...prev.scheduleForm.days, day],
+                                        },
+                                      };
+                                    });
+                                  }}
+                                >
+                                  {day}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="superadmin-dentists-modal-actions">
+                        <button
+                          type="button"
+                          className="superadmin-dentists-modal-cancel"
+                          onClick={closeViewScheduleModal}
+                        >
+                          Cancel
+                        </button>
+
+                        <button
+                          type="button"
+                          className="superadmin-dentists-modal-confirm"
+                          onClick={handleSaveViewedSchedules}
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? "Saving..." : "Save Schedule"}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
+              {viewScheduleTab === "requests" && !viewScheduleModal.isEditMode && (
+                <div className="superadmin-dentists-request-history">
+                  <div className="superadmin-dentists-request-history-head">
+                    <div>
+                      <h4>Schedule Request History</h4>
+                      <p>
+                        Review schedule changes submitted by this dentist.
+                      </p>
                     </div>
+                    <span className="superadmin-dentists-request-total">
+                      {selectedDentistScheduleRequests.length} Request(s)
+                    </span>
+                  </div>
+
+                  <div className="superadmin-dentists-request-list">
+                    {selectedDentistScheduleRequests.length > 0 ? (
+                      selectedDentistScheduleRequests.map((request) => (
+                        <div
+                          key={request.id}
+                          className="superadmin-dentists-request-card"
+                        >
+                          <div className="superadmin-dentists-request-card-main">
+                            <div className="superadmin-dentists-request-card-top">
+                              <strong>{request.id}</strong>
+                              <span
+                                className={`superadmin-dentists-request-status ${request.status.toLowerCase()}`}
+                              >
+                                {request.status}
+                              </span>
+                            </div>
+
+                            <div className="superadmin-dentists-request-card-meta">
+                              <span>
+                                <b>Effective:</b> {formatRequestDate(request.effectiveDate)}
+                              </span>
+                              <span>
+                                <b>Submitted:</b> {formatRequestDate(request.submittedAt)}
+                              </span>
+                              <span>
+                                <b>Requested:</b> {request.requestedSchedule.length} schedule(s)
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="superadmin-dentists-request-view-btn"
+                            onClick={() => openScheduleRequestDetails(request)}
+                          >
+                            View Details
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="superadmin-dentists-request-empty">
+                        <strong>No schedule requests yet.</strong>
+                        <p>
+                          Requests submitted by this dentist will appear here.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedScheduleRequest && (
+        <div
+          className="superadmin-dentists-request-overlay"
+          onClick={closeScheduleRequestDetails}
+        >
+          <div
+            className="superadmin-dentists-request-detail-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="superadmin-dentists-request-detail-scroll">
+              <ModalHeader
+                title="Schedule Change Request"
+                subtitle={`${selectedScheduleRequest.dentistName} • ${selectedScheduleRequest.id}`}
+                onClose={closeScheduleRequestDetails}
+              />
+
+              <div className="superadmin-dentists-request-summary-grid">
+                <div>
+                  <span>Status</span>
+                  <strong
+                    className={`superadmin-dentists-request-status ${selectedScheduleRequest.status.toLowerCase()}`}
+                  >
+                    {selectedScheduleRequest.status}
+                  </strong>
+                </div>
+                <div>
+                  <span>Effective Date</span>
+                  <strong>{formatRequestDate(selectedScheduleRequest.effectiveDate)}</strong>
+                </div>
+                <div>
+                  <span>Submitted</span>
+                  <strong>{formatRequestDate(selectedScheduleRequest.submittedAt)}</strong>
+                </div>
+              </div>
+
+              <div className="superadmin-dentists-request-compare-grid">
+                <div className="superadmin-dentists-request-schedule-box current">
+                  <div className="superadmin-dentists-request-box-head">
+                    <h4>Current Schedule</h4>
+                    <span>Existing</span>
+                  </div>
+
+                  <div className="superadmin-dentists-request-schedule-list">
+                    {selectedScheduleRequest.currentSchedule.length > 0 ? (
+                      selectedScheduleRequest.currentSchedule.map((schedule, index) => (
+                        <div
+                          key={`current-${index}`}
+                          className="superadmin-dentists-request-schedule-item"
+                        >
+                          <strong>{schedule.days.join(", ")}</strong>
+                          <span>{schedule.branch}</span>
+                          <span>{schedule.startTime} - {schedule.endTime}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="superadmin-dentists-request-no-schedule">
+                        No current schedule available.
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                <div className="superadmin-dentists-modal-actions">
-                  <button
-                    type="button"
-                    className="superadmin-dentists-modal-cancel"
-                    onClick={closeViewScheduleModal}
-                  >
-                    Cancel
-                  </button>
+                <div className="superadmin-dentists-request-arrow">→</div>
 
-                  <button
-                    type="button"
-                    className="superadmin-dentists-modal-confirm"
-                    onClick={handleSaveViewedSchedules}
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? "Saving..." : "Save Schedule"}
-                  </button>
+                <div className="superadmin-dentists-request-schedule-box requested">
+                  <div className="superadmin-dentists-request-box-head">
+                    <h4>Requested Schedule</h4>
+                    <span>Proposed</span>
+                  </div>
+
+                  <div className="superadmin-dentists-request-schedule-list">
+                    {selectedScheduleRequest.requestedSchedule.map((schedule, index) => (
+                      <div
+                        key={`requested-${index}`}
+                        className="superadmin-dentists-request-schedule-item"
+                      >
+                        <strong>{schedule.days.join(", ")}</strong>
+                        <span>{schedule.branch}</span>
+                        <span>{schedule.startTime} - {schedule.endTime}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </>
-            )}
+              </div>
+
+              <div className="superadmin-dentists-request-text-grid">
+                <div className="superadmin-dentists-request-text-card">
+                  <span>Reason</span>
+                  <p>{selectedScheduleRequest.reason || "No reason provided."}</p>
+                </div>
+
+                <div className="superadmin-dentists-request-text-card">
+                  <span>Notes</span>
+                  <p>{selectedScheduleRequest.notes || "No additional notes."}</p>
+                </div>
+              </div>
+
+              {selectedScheduleRequest.status === "Rejected" &&
+                selectedScheduleRequest.rejectionReason && (
+                  <div className="superadmin-dentists-request-rejection-box">
+                    <span>Rejection Reason</span>
+                    <p>{selectedScheduleRequest.rejectionReason}</p>
+                  </div>
+                )}
+
+              <div className="superadmin-dentists-request-detail-actions">
+                <button
+                  type="button"
+                  className="superadmin-dentists-modal-cancel"
+                  onClick={closeScheduleRequestDetails}
+                >
+                  Close
+                </button>
+
+                {selectedScheduleRequest.status === "Pending" && (
+                  <>
+                    <button
+                      type="button"
+                      className="superadmin-dentists-request-reject-btn"
+                      onClick={() => openRejectScheduleModal(selectedScheduleRequest)}
+                    >
+                      Reject
+                    </button>
+                    <button
+                      type="button"
+                      className="superadmin-dentists-request-approve-btn"
+                      onClick={() =>
+                        openApproveScheduleConfirmation(selectedScheduleRequest)
+                      }
+                    >
+                      Approve
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
+      )}
+
+      {rejectScheduleRequest && (
+        <div
+          className="superadmin-dentists-request-overlay superadmin-dentists-request-overlay-front"
+          onClick={closeRejectScheduleModal}
+        >
+          <div
+            className="superadmin-dentists-reject-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ModalHeader
+              title="Reject Schedule Request"
+              subtitle={`${rejectScheduleRequest.dentistName} • ${rejectScheduleRequest.id}`}
+              onClose={closeRejectScheduleModal}
+            />
+
+            <div className="superadmin-dentists-reject-field">
+              <label>Reason for Rejection</label>
+              <textarea
+                value={scheduleRejectionReason}
+                onChange={(e) => {
+                  setScheduleRejectionReason(e.target.value);
+                  setScheduleRejectionError("");
+                }}
+                placeholder="Enter the reason why this schedule request is being rejected..."
+                rows="5"
+              />
+              {scheduleRejectionError && (
+                <span className="superadmin-dentists-reject-error">
+                  {scheduleRejectionError}
+                </span>
+              )}
+            </div>
+
+            <div className="superadmin-dentists-modal-actions">
+              <button
+                type="button"
+                className="superadmin-dentists-modal-cancel"
+                onClick={closeRejectScheduleModal}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="superadmin-dentists-request-reject-btn"
+                onClick={continueRejectScheduleRequest}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {requestConfirmModal.open && requestConfirmModal.request && (
+        <div
+          className="superadmin-dentists-request-overlay superadmin-dentists-request-overlay-confirm"
+          onClick={closeRequestConfirmation}
+        >
+          <div
+            className="superadmin-dentists-request-confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className={`superadmin-dentists-request-confirm-icon ${requestConfirmModal.action}`}
+            >
+              {requestConfirmModal.action === "approve" ? "✓" : "!"}
+            </div>
+
+            <h3>
+              {requestConfirmModal.action === "approve"
+                ? "Approve Schedule Request?"
+                : "Reject Schedule Request?"}
+            </h3>
+            <p>
+              {requestConfirmModal.action === "approve"
+                ? `Are you sure you want to approve ${requestConfirmModal.request.dentistName}'s schedule change request?`
+                : `Are you sure you want to reject ${requestConfirmModal.request.dentistName}'s schedule change request?`}
+            </p>
+
+            <div className="superadmin-dentists-modal-actions">
+              <button
+                type="button"
+                className="superadmin-dentists-modal-cancel"
+                onClick={closeRequestConfirmation}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={`superadmin-dentists-request-confirm-action ${requestConfirmModal.action}`}
+                onClick={confirmScheduleRequestAction}
+              >
+                {requestConfirmModal.action === "approve"
+                  ? "Yes, Approve"
+                  : "Yes, Reject"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
