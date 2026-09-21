@@ -4,6 +4,7 @@ import SuperAdminTopbar from "../../components/superadmin/layout/SuperAdminTopba
 import {
   getSuperAdminServices,
   createSuperAdminService,
+  updateSuperAdminService,
   getSuperAdminServiceCategories,
   createSuperAdminServiceCategory,
   updateSuperAdminServiceCategory,
@@ -33,6 +34,8 @@ export default function SuperAdminServices() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
+  const [isEditServiceModalOpen, setIsEditServiceModalOpen] = useState(false);
+  const [editingServiceId, setEditingServiceId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ✅ DYNAMIC CATEGORY STATE
@@ -55,6 +58,7 @@ export default function SuperAdminServices() {
     price_min: "",
     price_max: "",
     description: "",
+    service_duration: "",
   });
 
   const [confirmModal, setConfirmModal] = useState({
@@ -127,6 +131,18 @@ export default function SuperAdminServices() {
     return `${format(minPrice)} - ${format(maxPrice)}`;
   };
 
+  const formatDuration = (minutesValue) => {
+    const minutes = Number(minutesValue);
+    if (!minutes || Number.isNaN(minutes) || minutes <= 0) return "Not set";
+
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    if (hours === 0) return `${remainingMinutes} min${remainingMinutes === 1 ? "" : "s"}`;
+    if (remainingMinutes === 0) return `${hours} hr${hours === 1 ? "" : "s"}`;
+    return `${hours} hr${hours === 1 ? "" : "s"} ${remainingMinutes} min${remainingMinutes === 1 ? "" : "s"}`;
+  };
+
   const filteredServices = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
 
@@ -166,6 +182,7 @@ export default function SuperAdminServices() {
       price_min: "",
       price_max: "",
       description: "",
+      service_duration: "",
     });
   };
 
@@ -176,6 +193,26 @@ export default function SuperAdminServices() {
 
   const handleCloseAddServiceModal = () => {
     setIsAddServiceModalOpen(false);
+    resetForm();
+  };
+
+  const handleOpenEditServiceModal = (service) => {
+    setEditingServiceId(service.id);
+    setForm({
+      name: service.name || "",
+      category: service.category || activeCategories[0]?.category_name || "",
+      price_min: "",
+      price_max: "",
+      description:
+        service.description === "No description provided." ? "" : service.description || "",
+      service_duration: service.service_duration ? String(service.service_duration) : "",
+    });
+    setIsEditServiceModalOpen(true);
+  };
+
+  const handleCloseEditServiceModal = () => {
+    setIsEditServiceModalOpen(false);
+    setEditingServiceId(null);
     resetForm();
   };
 
@@ -304,6 +341,7 @@ export default function SuperAdminServices() {
 
     const minPrice = Number(form.price_min);
     const maxPrice = Number(form.price_max);
+    const duration = Number(form.service_duration);
 
     if (
       !form.name.trim() ||
@@ -322,6 +360,11 @@ export default function SuperAdminServices() {
       return;
     }
 
+    if (!form.service_duration || Number.isNaN(duration) || duration <= 0) {
+      showAlert("Please enter a valid expected duration in minutes.");
+      return;
+    }
+
     const priceDisplay = formatPriceRange(minPrice, maxPrice);
 
     setConfirmModal({
@@ -329,7 +372,7 @@ export default function SuperAdminServices() {
       type: "add-service",
       ids: [],
       title: "Add Service",
-      message: `Are you sure you want to add "${form.name.trim()}" with a price range of ${priceDisplay}?`,
+      message: `Are you sure you want to add "${form.name.trim()}" with a price range of ${priceDisplay} and an expected duration of ${formatDuration(duration)}?`,
       payload: {
         name: form.name.trim(),
         category: form.category,
@@ -337,6 +380,37 @@ export default function SuperAdminServices() {
         price_max: maxPrice,
         price_display: priceDisplay,
         description: form.description.trim(),
+        service_duration: duration,
+      },
+    });
+  };
+
+  const openEditServiceConfirmModal = (e) => {
+    e.preventDefault();
+
+    const duration = Number(form.service_duration);
+
+    if (!form.name.trim() || !form.description.trim()) {
+      showAlert("Please enter valid service details.");
+      return;
+    }
+
+    if (!form.service_duration || Number.isNaN(duration) || duration <= 0) {
+      showAlert("Please enter a valid expected duration in minutes.");
+      return;
+    }
+
+    setConfirmModal({
+      open: true,
+      type: "edit-service",
+      ids: [editingServiceId],
+      title: "Save Service Changes",
+      message: `Save changes to "${form.name.trim()}" with an expected duration of ${formatDuration(duration)}?`,
+      payload: {
+        name: form.name.trim(),
+        category: form.category,
+        description: form.description.trim(),
+        service_duration: duration,
       },
     });
   };
@@ -403,6 +477,21 @@ export default function SuperAdminServices() {
         setServices((prev) => [res.data, ...prev]);
         closeConfirmModal();
         handleCloseAddServiceModal();
+        return;
+      }
+    }
+
+    if (type === "edit-service" && payload) {
+      const res = await updateSuperAdminService(ids[0], payload);
+
+      if (res?.success) {
+        setServices((prev) =>
+          prev.map((service) =>
+            service.id === ids[0] ? { ...service, ...res.data } : service
+          )
+        );
+        closeConfirmModal();
+        handleCloseEditServiceModal();
         return;
       }
     }
@@ -543,6 +632,7 @@ export default function SuperAdminServices() {
                         <th>Service Name</th>
                         <th>Category</th>
                         <th>Price</th>
+                        <th>Duration</th>
                         <th>Description</th>
                         <th>Status</th>
                         <th>Action</th>
@@ -576,6 +666,10 @@ export default function SuperAdminServices() {
                               )}
                           </td>
 
+                          <td className="superadmin-services-duration-cell">
+                            {formatDuration(service.service_duration)}
+                          </td>
+
                           <td className="superadmin-services-description-cell">
                             {service.description}
                           </td>
@@ -595,6 +689,14 @@ export default function SuperAdminServices() {
                           <td className="superadmin-services-action-cell">
                             <button
                               type="button"
+                              onClick={() => handleOpenEditServiceModal(service)}
+                              className="superadmin-services-action-btn edit-btn"
+                            >
+                              Edit
+                            </button>
+
+                            <button
+                              type="button"
                               onClick={() => openSingleStatusModal(service)}
                               className={`superadmin-services-action-btn ${
                                 service.status === "Active"
@@ -612,7 +714,7 @@ export default function SuperAdminServices() {
 
                       {filteredServices.length === 0 && (
                         <tr>
-                          <td colSpan="7">
+                          <td colSpan="8">
                             <div className="superadmin-services-empty-state">
                               No service records found.
                             </div>
@@ -722,6 +824,30 @@ export default function SuperAdminServices() {
                 />
               </div>
 
+              <div className="superadmin-services-field">
+                <label>Expected Duration (Minutes)</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputMode="numeric"
+                  placeholder="e.g. 30"
+                  value={form.service_duration}
+                  onChange={(e) => {
+                    const digitsOnly = e.target.value.replace(/[^0-9]/g, "");
+                    setForm((prev) => ({
+                      ...prev,
+                      service_duration: digitsOnly,
+                    }));
+                  }}
+                />
+                <span className="superadmin-services-field-hint">
+                  {form.service_duration
+                    ? `≈ ${formatDuration(form.service_duration)}`
+                    : "Used to compute available booking slots."}
+                </span>
+              </div>
+
               <div className="superadmin-services-field superadmin-services-field-full">
                 <label>Description</label>
                 <textarea
@@ -751,6 +877,126 @@ export default function SuperAdminServices() {
                   className="superadmin-services-modal-confirm"
                 >
                   Add Service
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ EDIT SERVICE MODAL */}
+      {isEditServiceModalOpen && (
+        <div
+          className="superadmin-services-modal-overlay"
+          onClick={handleCloseEditServiceModal}
+        >
+          <div
+            className="superadmin-services-modal superadmin-services-add-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="superadmin-services-modal-top">
+              <div>
+                <h3>Edit Service</h3>
+                <p>Update the service details, including its expected duration.</p>
+              </div>
+
+              <button
+                type="button"
+                className="superadmin-services-modal-close"
+                onClick={handleCloseEditServiceModal}
+              >
+                ×
+              </button>
+            </div>
+
+            <form
+              onSubmit={openEditServiceConfirmModal}
+              className="superadmin-services-form-grid superadmin-services-modal-form-grid"
+            >
+              <div className="superadmin-services-field">
+                <label>Service Name</label>
+                <input
+                  type="text"
+                  placeholder="Service name"
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="superadmin-services-field">
+                <label>Category</label>
+                <select
+                  value={form.category}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, category: e.target.value }))
+                  }
+                >
+                  {activeCategories.map((cat) => (
+                    <option key={cat.id} value={cat.category_name}>
+                      {cat.category_name}
+                    </option>
+                  ))}
+                  {activeCategories.length === 0 && (
+                    <option value="" disabled>No active categories</option>
+                  )}
+                </select>
+              </div>
+
+              <div className="superadmin-services-field">
+                <label>Expected Duration (Minutes)</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputMode="numeric"
+                  placeholder="e.g. 30"
+                  value={form.service_duration}
+                  onChange={(e) => {
+                    const digitsOnly = e.target.value.replace(/[^0-9]/g, "");
+                    setForm((prev) => ({
+                      ...prev,
+                      service_duration: digitsOnly,
+                    }));
+                  }}
+                />
+                <span className="superadmin-services-field-hint">
+                  {form.service_duration
+                    ? `≈ ${formatDuration(form.service_duration)}`
+                    : "Used to compute available booking slots."}
+                </span>
+              </div>
+
+              <div className="superadmin-services-field superadmin-services-field-full">
+                <label>Description</label>
+                <textarea
+                  placeholder="Service description"
+                  rows={5}
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="superadmin-services-modal-actions">
+                <button
+                  type="button"
+                  className="superadmin-services-modal-cancel"
+                  onClick={handleCloseEditServiceModal}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="superadmin-services-modal-confirm"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>

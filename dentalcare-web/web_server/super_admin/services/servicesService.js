@@ -12,7 +12,8 @@ export const getServicesList = async () => {
       category: service.category,
       description: service.notes || "No description provided.",
       status: service.is_active ? "Active" : "Disabled",
-      price_display: service.price_display
+      price_display: service.price_display,
+      service_duration: service.service_duration
     }));
 
     return { success: true, statusCode: 200, data: mapped };
@@ -30,8 +31,9 @@ export const createService = async (payload) => {
         category: payload.category,
         notes: payload.description,
         is_active: true,
-        display_order: 999, 
-        price_display: payload.price_display || "Starts at ₱0"
+        display_order: 999,
+        price_display: payload.price_display || "Starts at ₱0",
+        service_duration: payload.service_duration ? Number(payload.service_duration) : null
       }])
       .select();
 
@@ -47,7 +49,43 @@ export const createService = async (payload) => {
         category: newRecord.category,
         description: newRecord.notes,
         status: "Active",
-        price_display: newRecord.price_display
+        price_display: newRecord.price_display,
+        service_duration: newRecord.service_duration
+      },
+    };
+  } catch (error) {
+    return { success: false, statusCode: 500, message: error.message };
+  }
+};
+
+export const updateService = async (id, payload) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("dental_services")
+      .update({
+        name: payload.name,
+        category: payload.category,
+        notes: payload.description,
+        price_display: payload.price_display,
+        service_duration: payload.service_duration ? Number(payload.service_duration) : null
+      })
+      .eq("id", id)
+      .select();
+
+    if (error) throw error;
+
+    const updated = data[0];
+    return {
+      success: true,
+      statusCode: 200,
+      data: {
+        id: updated.id,
+        name: updated.name,
+        category: updated.category,
+        description: updated.notes,
+        status: updated.is_active ? "Active" : "Disabled",
+        price_display: updated.price_display,
+        service_duration: updated.service_duration
       },
     };
   } catch (error) {

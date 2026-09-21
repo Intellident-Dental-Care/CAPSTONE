@@ -112,6 +112,13 @@ export const createSuperAdminService = async (payload) => {
   });
 };
 
+export const updateSuperAdminService = async (id, payload) => {
+  return await fetchJson(`/super_admin/services/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+};
+
 export const getSuperAdminServices = async () => {
   return await fetchJson("/super_admin/services", { method: "GET" });
 };

@@ -197,6 +197,14 @@ export const getAdminProfile = async () => {
     const data = await fetchJson("/admin/profile/me", { method: "GET" });
     if (data?.success) {
       adminCache.profile = data.data;
+
+      const dbPath = data.data.avatarPath || data.data.avatarUrl || "";
+      if (dbPath) {
+        const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
+        userData.avatarPath = dbPath;
+        userData.avatarUrl = dbPath;
+        localStorage.setItem("user_data", JSON.stringify(userData));
+      }
     }
     return data;
   } catch (error) {
