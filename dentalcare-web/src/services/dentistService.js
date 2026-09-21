@@ -2,7 +2,12 @@ import AuthService from "./authService";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
+// Cached data is reused across page/tab switches and only refetched once it is
+// older than CACHE_TTL_MS, after a mutation clears it, or when forceRefresh is passed.
+const CACHE_TTL_MS = 60 * 1000;
+
 const dentistCache = {
+  fetchedAt: {},
   dashboard: null,
   scheduleByKey: new Map(),
   profile: null,
@@ -32,9 +37,17 @@ const fetchJson = async (path, options = {}) => {
   return data;
 };
 
+const markFetched = (name) => {
+  dentistCache.fetchedAt[name] = Date.now();
+};
+
+const isFresh = (name) =>
+  Date.now() - (dentistCache.fetchedAt[name] || 0) < CACHE_TTL_MS;
+
 export const getDentistCache = () => ({ ...dentistCache });
 
 export const clearDentistCache = () => {
+  dentistCache.fetchedAt = {};
   dentistCache.dashboard = null;
   dentistCache.scheduleByKey = new Map();
   dentistCache.profile = null;
@@ -43,6 +56,8 @@ export const clearDentistCache = () => {
   dentistCache.loadedAt = null;
   dentistCache.avatarBlobCache = {};
 };
+
+window.addEventListener("auth:cleared", clearDentistCache);
 
 export const buildDentistAvatarImageUrl = (avatarPath) => {
   const cleanPath = String(avatarPath || "").trim();
@@ -91,6 +106,7 @@ export const preloadDentistData = async () => {
 
     if (profileResult?.success && profileResult.data) {
       dentistCache.profile = profileResult.data;
+      markFetched("profile");
       
       const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
       
@@ -108,9 +124,18 @@ export const preloadDentistData = async () => {
       localStorage.setItem("user_data", JSON.stringify(userData));
     }
 
-    if (dashboardResult?.success) dentistCache.dashboard = dashboardResult.data;
-    if (historyResult?.success) dentistCache.patientHistory = historyResult.data;
-    if (scheduleResult?.success) dentistCache.scheduleByKey.set(`date=${today}`, scheduleResult.data);
+    if (dashboardResult?.success) {
+      dentistCache.dashboard = dashboardResult.data;
+      markFetched("dashboard");
+    }
+    if (historyResult?.success) {
+      dentistCache.patientHistory = historyResult.data;
+      markFetched("patientHistory");
+    }
+    if (scheduleResult?.success) {
+      dentistCache.scheduleByKey.set(`date=${today}`, scheduleResult.data);
+      markFetched(`schedule:date=${today}`);
+    }
     
     dentistCache.loadedAt = new Date().toISOString();
 
@@ -126,7 +151,7 @@ export const preloadDentistData = async () => {
 export const getDentistDashboardSnapshot = async (options = {}) => {
   const forceRefresh = !!options.forceRefresh;
 
-  if (!forceRefresh && dentistCache.dashboard) {
+  if (!forceRefresh && dentistCache.dashboard && isFresh("dashboard")) {
     return { success: true, data: dentistCache.dashboard };
   }
 
@@ -134,6 +159,7 @@ export const getDentistDashboardSnapshot = async (options = {}) => {
     const data = await fetchJson("/dentist/dashboard/snapshot", { method: "GET" });
     if (data?.success) {
       dentistCache.dashboard = data.data;
+      markFetched("dashboard");
     }
     return data;
   } catch {
@@ -147,7 +173,7 @@ export const getDentistSchedule = async ({ date, branch, forceRefresh } = {}) =>
   if (branch) params.set("branch", branch);
 
   const key = params.toString() || "default";
-  if (!forceRefresh && dentistCache.scheduleByKey.has(key)) {
+  if (!forceRefresh && dentistCache.scheduleByKey.has(key) && isFresh(`schedule:${key}`)) {
     return { success: true, data: dentistCache.scheduleByKey.get(key) };
   }
 
@@ -158,6 +184,7 @@ export const getDentistSchedule = async ({ date, branch, forceRefresh } = {}) =>
 
     if (data?.success) {
       dentistCache.scheduleByKey.set(key, data.data);
+      markFetched(`schedule:${key}`);
     }
 
     return data;
@@ -169,7 +196,7 @@ export const getDentistSchedule = async ({ date, branch, forceRefresh } = {}) =>
 export const getDentistProfile = async (options = {}) => {
   const forceRefresh = !!options.forceRefresh;
 
-  if (!forceRefresh && dentistCache.profile) {
+  if (!forceRefresh && dentistCache.profile && isFresh("profile")) {
     return { success: true, data: dentistCache.profile };
   }
 
@@ -177,6 +204,7 @@ export const getDentistProfile = async (options = {}) => {
     const data = await fetchJson("/dentist/profile/me", { method: "GET" });
     if (data?.success) {
       dentistCache.profile = data.data;
+      markFetched("profile");
     }
     return data;
   } catch {
@@ -193,6 +221,7 @@ export const updateDentistProfile = async (payload) => {
 
     if (data?.success) {
       dentistCache.profile = data.data;
+      markFetched("profile");
     } else {
       dentistCache.profile = null;
     }
@@ -214,6 +243,7 @@ export const uploadDentistProfileAvatar = async ({ avatarBase64, fileName }) => 
 
     if (data?.success) {
       dentistCache.profile = data.data;
+      markFetched("profile");
     } else {
       dentistCache.profile = null;
     }
@@ -229,7 +259,7 @@ export const uploadDentistProfileAvatar = async ({ avatarBase64, fileName }) => 
 export const getDentistPatientHistory = async (options = {}) => {
   const forceRefresh = !!options.forceRefresh;
 
-  if (!forceRefresh && dentistCache.patientHistory) {
+  if (!forceRefresh && dentistCache.patientHistory && isFresh("patientHistory")) {
     return { success: true, data: dentistCache.patientHistory };
   }
 
@@ -237,6 +267,7 @@ export const getDentistPatientHistory = async (options = {}) => {
     const data = await fetchJson("/dentist/patients/history", { method: "GET" });
     if (data?.success) {
       dentistCache.patientHistory = data.data;
+      markFetched("patientHistory");
     }
     return data;
   } catch {
@@ -309,7 +340,7 @@ export const fetchUnreadDentistNotifications = async () => {
 export const getDentistRequests = async (options = {}) => {
   const forceRefresh = !!options.forceRefresh;
 
-  if (!forceRefresh && dentistCache.requests) {
+  if (!forceRefresh && dentistCache.requests && isFresh("requests")) {
     return { success: true, data: dentistCache.requests };
   }
 
@@ -317,6 +348,7 @@ export const getDentistRequests = async (options = {}) => {
     const data = await fetchJson("/dentist/requests", { method: "GET" });
     if (data?.success) {
       dentistCache.requests = data.data;
+      markFetched("requests");
     }
     return data;
   } catch {

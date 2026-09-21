@@ -94,7 +94,6 @@ export default function DentistSchedule() {
       const fresh = await getDentistSchedule({
         date: selectedDate,
         branch: selectedBranch || undefined,
-        forceRefresh: true,
       });
 
       if (!mounted || !fresh?.success) return;

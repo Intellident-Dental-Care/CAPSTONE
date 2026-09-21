@@ -2,7 +2,13 @@ import AuthService from "./authService";
 
 const API_BASE_URL = import.meta.env.VITE_LIVE_ORIGIN;
 
+// Cached data is reused across page/tab switches and only refetched once it is
+// older than CACHE_TTL_MS, after a mutation clears it, or when forceRefresh is passed.
+// dashboard and queue hold one entry per branch ("" = default/all).
+const CACHE_TTL_MS = 60 * 1000;
+
 const adminCache = {
+  fetchedAt: {},
   profile: null,
   appointments: null,
   dentists: null,
@@ -61,9 +67,25 @@ export const loadAdminAvatarObjectUrl = async (avatarPath) => {
   return URL.createObjectURL(blob);
 };
 
+const markFetched = (name) => {
+  adminCache.fetchedAt[name] = Date.now();
+};
+
+const isFresh = (name) =>
+  Date.now() - (adminCache.fetchedAt[name] || 0) < CACHE_TTL_MS;
+
+const readKeyed = (name, key) =>
+  adminCache[name] && isFresh(`${name}:${key}`) ? adminCache[name][key] || null : null;
+
+const writeKeyed = (name, key, data) => {
+  adminCache[name] = { ...(adminCache[name] || {}), [key]: data };
+  markFetched(`${name}:${key}`);
+};
+
 export const getAdminCache = () => ({ ...adminCache });
 
 export const clearAdminCache = () => {
+  adminCache.fetchedAt = {};
   adminCache.profile = null;
   adminCache.appointments = null;
   adminCache.dentists = null;
@@ -72,6 +94,11 @@ export const clearAdminCache = () => {
   adminCache.dashboard = null;
   adminCache.loadedAt = null;
 };
+
+window.addEventListener("auth:cleared", () => {
+  clearAdminCache();
+  adminCache.avatarBlobCache = {};
+});
 
 export const preloadAdminData = async () => {
   try {
@@ -87,6 +114,7 @@ export const preloadAdminData = async () => {
 
     if (profileResult?.success && profileResult.data) {
       adminCache.profile = profileResult.data;
+      markFetched("profile");
 
       const dbPath = profileResult.data.avatarPath || profileResult.data.avatarUrl || "";
       if (dbPath) {
@@ -97,11 +125,20 @@ export const preloadAdminData = async () => {
       }
     }
 
-    if (appointmentsResult?.success) adminCache.appointments = appointmentsResult.data;
-    if (dentistsResult?.success) adminCache.dentists = dentistsResult.data;
-    if (patientsResult?.success) adminCache.patients = patientsResult.data;
-    if (queueResult?.success) adminCache.queue = queueResult.data;
-    if (dashboardResult?.success) adminCache.dashboard = dashboardResult.data;
+    if (appointmentsResult?.success) {
+      adminCache.appointments = appointmentsResult.data;
+      markFetched("appointments");
+    }
+    if (dentistsResult?.success) {
+      adminCache.dentists = dentistsResult.data;
+      markFetched("dentists");
+    }
+    if (patientsResult?.success) {
+      adminCache.patients = patientsResult.data;
+      markFetched("patients");
+    }
+    if (queueResult?.success) writeKeyed("queue", "", queueResult.data);
+    if (dashboardResult?.success) writeKeyed("dashboard", "", dashboardResult.data);
     adminCache.loadedAt = new Date().toISOString();
 
     return {
@@ -117,14 +154,16 @@ export const getDashboardSnapshot = async (options = {}) => {
   const forceRefresh = !!options.forceRefresh;
   const branchParam = options.branch ? `?branch=${encodeURIComponent(options.branch)}` : "";
 
-  if (!forceRefresh && adminCache.dashboard && !options.branch) {
-    return { success: true, data: adminCache.dashboard };
+  const cacheKey = options.branch || "";
+  const cachedDashboard = forceRefresh ? null : readKeyed("dashboard", cacheKey);
+  if (cachedDashboard) {
+    return { success: true, data: cachedDashboard };
   }
 
   try {
     const data = await fetchJson(`/admin/dashboard/snapshot${branchParam}`, { method: "GET" });
-    if (data?.success && !options.branch) {
-      adminCache.dashboard = data.data;
+    if (data?.success) {
+      writeKeyed("dashboard", cacheKey, data.data);
     }
     return data;
   } catch (error) {
@@ -136,14 +175,16 @@ export const getTodayQueue = async (options = {}) => {
   const forceRefresh = !!options.forceRefresh;
   const branchParam = options.branch ? `?branch=${encodeURIComponent(options.branch)}` : "";
 
-  if (!forceRefresh && adminCache.queue && !options.branch) {
-    return { success: true, data: adminCache.queue };
+  const cacheKey = options.branch || "";
+  const cachedQueue = forceRefresh ? null : readKeyed("queue", cacheKey);
+  if (cachedQueue) {
+    return { success: true, data: cachedQueue };
   }
 
   try {
     const data = await fetchJson(`/admin/queuecontrol/today${branchParam}`, { method: "GET" });
-    if (data?.success && !options.branch) {
-      adminCache.queue = data.data;
+    if (data?.success) {
+      writeKeyed("queue", cacheKey, data.data);
     }
     return data;
   } catch (error) {
@@ -189,7 +230,7 @@ export const applyQueueDelay = async (payload) => {
 };
 
 export const getAdminProfile = async () => {
-  if (adminCache.profile) {
+  if (adminCache.profile && isFresh("profile")) {
     return { success: true, data: adminCache.profile };
   }
 
@@ -197,6 +238,7 @@ export const getAdminProfile = async () => {
     const data = await fetchJson("/admin/profile/me", { method: "GET" });
     if (data?.success) {
       adminCache.profile = data.data;
+      markFetched("profile");
 
       const dbPath = data.data.avatarPath || data.data.avatarUrl || "";
       if (dbPath) {
@@ -221,6 +263,7 @@ export const updateAdminProfile = async (payload) => {
 
     if (data?.success) {
       adminCache.profile = data.data;
+      markFetched("profile");
     } else {
       adminCache.profile = null;
     }
@@ -242,6 +285,7 @@ export const uploadAdminProfileAvatar = async ({ avatarBase64, fileName }) => {
 
     if (data?.success) {
       adminCache.profile = data.data;
+      markFetched("profile");
     } else {
       adminCache.profile = null;
     }
@@ -254,8 +298,8 @@ export const uploadAdminProfileAvatar = async ({ avatarBase64, fileName }) => {
   }
 };
 
-export const getAdminAppointments = async () => {
-  if (adminCache.appointments) {
+export const getAdminAppointments = async (options = {}) => {
+  if (adminCache.appointments && !options.forceRefresh && isFresh("appointments")) {
     return { success: true, data: adminCache.appointments };
   }
 
@@ -263,6 +307,7 @@ export const getAdminAppointments = async () => {
     const data = await fetchJson("/admin/appointments", { method: "GET" });
     if (data?.success) {
       adminCache.appointments = data.data;
+      markFetched("appointments");
     }
     return data;
   } catch (error) {
@@ -310,8 +355,8 @@ export const createWalkInAppointment = async (payload) => {
   }
 };
 
-export const getAdminDentists = async () => {
-  if (adminCache.dentists) {
+export const getAdminDentists = async (options = {}) => {
+  if (adminCache.dentists && !options.forceRefresh && isFresh("dentists")) {
     return { success: true, data: adminCache.dentists };
   }
 
@@ -319,6 +364,7 @@ export const getAdminDentists = async () => {
     const data = await fetchJson("/admin/dentists", { method: "GET" });
     if (data?.success) {
       adminCache.dentists = data.data;
+      markFetched("dentists");
     }
     return data;
   } catch (error) {
@@ -326,8 +372,8 @@ export const getAdminDentists = async () => {
   }
 };
 
-export const getAdminPatients = async () => {
-  if (adminCache.patients) {
+export const getAdminPatients = async (options = {}) => {
+  if (adminCache.patients && !options.forceRefresh && isFresh("patients")) {
     return { success: true, data: adminCache.patients };
   }
 
@@ -335,6 +381,7 @@ export const getAdminPatients = async () => {
     const data = await fetchJson("/admin/patients", { method: "GET" });
     if (data?.success) {
       adminCache.patients = data.data;
+      markFetched("patients");
     }
     return data;
   } catch (error) {

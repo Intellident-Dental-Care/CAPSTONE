@@ -467,7 +467,6 @@ export default function AdminDashboard() {
 
     const loadSnapshot = async () => {
       const response = await getDashboardSnapshot({
-        forceRefresh: true,
         branch: selectedBranch,
       });
 
@@ -475,7 +474,6 @@ export default function AdminDashboard() {
         let dashboardData = { ...response.data };
 
         const queueRes = await getTodayQueue({
-          forceRefresh: true,
           branch: selectedBranch,
         });
 

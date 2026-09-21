@@ -160,7 +160,7 @@ export default function AdminAppointments() {
 
     const loadData = async () => {
       const [appointmentsResult, patientsResult, dentistsResult] = await Promise.all([
-        getAdminAppointments({ branch: selectedBranch, forceRefresh: true }),
+        getAdminAppointments({ branch: selectedBranch }),
         getAdminPatients(),
         getAdminDentists(),
       ]);

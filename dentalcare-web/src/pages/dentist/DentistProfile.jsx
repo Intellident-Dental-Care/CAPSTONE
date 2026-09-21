@@ -274,9 +274,7 @@ export default function DentistProfile() {
         applyProfileData(cached.data || {});
       }
 
-      const fresh = await getDentistProfile({
-        forceRefresh: true,
-      });
+      const fresh = await getDentistProfile();
 
       if (!mounted || !fresh?.success) return;
 
@@ -294,7 +292,7 @@ export default function DentistProfile() {
     let mounted = true;
 
     const loadRequests = async () => {
-      const result = await getDentistRequests({ forceRefresh: true });
+      const result = await getDentistRequests();
 
       if (mounted && result?.success && Array.isArray(result.data)) {
         setRequestHistory(result.data.map(mapRequestRowToHistoryItem));

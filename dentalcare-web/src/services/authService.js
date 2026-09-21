@@ -170,6 +170,8 @@ class AuthService {
     localStorage.removeItem('verification_token');
     localStorage.removeItem('pending_role');
     localStorage.removeItem('pending_profile');
+    // Lets the per-role data caches drop the previous user's data.
+    window.dispatchEvent(new Event('auth:cleared'));
   }
 
   static clearPendingVerification() {
