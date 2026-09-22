@@ -3,7 +3,12 @@ import html2canvas from "html2canvas";
 import logo from "../../assets/logo.png";
 import SuperAdminSidebar from "../../components/superadmin/layout/SuperAdminSidebar";
 import SuperAdminTopbar from "../../components/superadmin/layout/SuperAdminTopbar";
-import { getSuperAdminDashboard } from "../../services/superAdminService";
+import {
+  getSuperAdminDashboard,
+  getSuperAdminDentists,
+  getScheduleRequests,
+  reviewScheduleRequest,
+} from "../../services/superAdminService";
 
 import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
@@ -66,245 +71,84 @@ const months = [
 ];
 
 /* =========================================================
-   FRONTEND-ONLY MOCK SCHEDULE REQUESTS
-========================================================= */
-
-const INITIAL_SCHEDULE_REQUESTS = [
-  {
-    id: "SR-001",
-    dentistName: "Dr. Shin Tamura",
-    submittedAt: "September 16, 2026",
-    effectiveDate: "2026-09-28",
-    status: "Pending",
-
-    currentSchedules: [
-      {
-        days: ["Monday", "Wednesday", "Friday"],
-        branch: "General Trias",
-        startTime: "08:00",
-        endTime: "17:00",
-      },
-      {
-        days: ["Tuesday", "Thursday"],
-        branch: "Dasmarinas",
-        startTime: "09:00",
-        endTime: "17:00",
-      },
-    ],
-
-    requestedSchedules: [
-      {
-        days: ["Monday", "Wednesday", "Friday"],
-        branch: "General Trias",
-        startTime: "08:00",
-        endTime: "10:00",
-      },
-      {
-        days: ["Monday"],
-        branch: "General Trias",
-        startTime: "13:00",
-        endTime: "17:00",
-      },
-      {
-        days: ["Tuesday", "Thursday"],
-        branch: "Dasmarinas",
-        startTime: "09:00",
-        endTime: "16:00",
-      },
-    ],
-
-    reason:
-      "I need to adjust my working hours because of changes in my weekly availability.",
-
-    notes:
-      "The requested schedule will allow me to continue handling my existing patients.",
-  },
-
-  {
-    id: "SR-002",
-    dentistName: "Dr. Angela Reyes",
-    submittedAt: "September 17, 2026",
-    effectiveDate: "2026-10-01",
-    status: "Pending",
-
-    currentSchedules: [
-      {
-        days: ["Monday", "Tuesday", "Thursday"],
-        branch: "Bacoor",
-        startTime: "08:00",
-        endTime: "17:00",
-      },
-    ],
-
-    requestedSchedules: [
-      {
-        days: ["Monday", "Tuesday"],
-        branch: "Bacoor",
-        startTime: "09:00",
-        endTime: "17:00",
-      },
-      {
-        days: ["Thursday", "Saturday"],
-        branch: "Bacoor",
-        startTime: "08:00",
-        endTime: "14:00",
-      },
-    ],
-
-    reason:
-      "I would like to move some of my weekly clinic hours to Saturday.",
-
-    notes: "",
-  },
-
-  {
-    id: "SR-003",
-    dentistName: "Dr. Marco Santos",
-    submittedAt: "September 17, 2026",
-    effectiveDate: "2026-10-05",
-    status: "Pending",
-
-    currentSchedules: [
-      {
-        days: ["Monday", "Wednesday", "Saturday"],
-        branch: "Dasmarinas",
-        startTime: "10:00",
-        endTime: "18:00",
-      },
-    ],
-
-    requestedSchedules: [
-      {
-        days: ["Monday", "Wednesday"],
-        branch: "Dasmarinas",
-        startTime: "08:00",
-        endTime: "12:00",
-      },
-      {
-        days: ["Monday", "Wednesday"],
-        branch: "Dasmarinas",
-        startTime: "13:00",
-        endTime: "17:00",
-      },
-      {
-        days: ["Saturday"],
-        branch: "General Trias",
-        startTime: "09:00",
-        endTime: "15:00",
-      },
-    ],
-
-    reason:
-      "I need to divide my weekday clinic hours and transfer my Saturday schedule.",
-
-    notes:
-      "The Monday and Wednesday schedules intentionally contain two separate timeframes.",
-  },
-
-  {
-    id: "SR-004",
-    dentistName: "Dr. Shin Tamura",
-    submittedAt: "September 16, 2026",
-    effectiveDate: "2026-09-28",
-    status: "Pending",
-
-    currentSchedules: [
-      {
-        days: ["Monday", "Wednesday", "Friday"],
-        branch: "General Trias",
-        startTime: "08:00",
-        endTime: "17:00",
-      },
-      {
-        days: ["Tuesday", "Thursday"],
-        branch: "Dasmarinas",
-        startTime: "09:00",
-        endTime: "17:00",
-      },
-    ],
-
-    requestedSchedules: [
-      {
-        days: ["Monday", "Wednesday", "Friday"],
-        branch: "General Trias",
-        startTime: "08:00",
-        endTime: "10:00",
-      },
-      {
-        days: ["Monday"],
-        branch: "General Trias",
-        startTime: "13:00",
-        endTime: "17:00",
-      },
-      {
-        days: ["Tuesday", "Thursday"],
-        branch: "Dasmarinas",
-        startTime: "09:00",
-        endTime: "16:00",
-      },
-    ],
-
-    reason:
-      "I need to adjust my working hours because of changes in my weekly availability.",
-
-    notes:
-      "The requested schedule will allow me to continue handling my existing patients.",
-  },
-
-  {
-    id: "SR-005",
-    dentistName: "Dr. Shin Tamura",
-    submittedAt: "September 16, 2026",
-    effectiveDate: "2026-09-28",
-    status: "Pending",
-
-    currentSchedules: [
-      {
-        days: ["Monday", "Wednesday", "Friday"],
-        branch: "General Trias",
-        startTime: "08:00",
-        endTime: "17:00",
-      },
-      {
-        days: ["Tuesday", "Thursday"],
-        branch: "Dasmarinas",
-        startTime: "09:00",
-        endTime: "17:00",
-      },
-    ],
-
-    requestedSchedules: [
-      {
-        days: ["Monday", "Wednesday", "Friday"],
-        branch: "General Trias",
-        startTime: "08:00",
-        endTime: "10:00",
-      },
-      {
-        days: ["Monday"],
-        branch: "General Trias",
-        startTime: "13:00",
-        endTime: "17:00",
-      },
-      {
-        days: ["Tuesday", "Thursday"],
-        branch: "Dasmarinas",
-        startTime: "09:00",
-        endTime: "16:00",
-      },
-    ],
-
-    reason:
-      "I need to adjust my working hours because of changes in my weekly availability.",
-
-    notes:
-      "The requested schedule will allow me to continue handling my existing patients.",
-  },
-];
-
-/* =========================================================
    HELPERS
 ========================================================= */
+
+const DAY_NUMBER_LABELS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+const to24HourTimeString = (rawValue) => {
+  const match = String(rawValue || "")
+    .trim()
+    .toUpperCase()
+    .match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+
+  if (!match) return "00:00";
+
+  let hour = Number(match[1]);
+  const minute = match[2];
+  const period = match[3];
+
+  if (period === "AM") {
+    if (hour === 12) hour = 0;
+  } else if (hour !== 12) {
+    hour += 12;
+  }
+
+  return `${String(hour).padStart(2, "0")}:${minute}`;
+};
+
+const buildCurrentSchedulesForDentist = (dentist) => {
+  return (dentist?.schedules || []).map((schedule) => {
+    const [startRaw, endRaw] = String(schedule.time || "")
+      .split("-")
+      .map((part) => part.trim());
+
+    return {
+      days: [schedule.day],
+      branch: schedule.branch,
+      startTime: to24HourTimeString(startRaw),
+      endTime: to24HourTimeString(endRaw),
+    };
+  });
+};
+
+const mapScheduleRequestRow = (row, dentistScheduleMap) => ({
+  id: row.id,
+  dentistId: row.dentist_id,
+  dentistName: row.dentist_list?.name || "Unknown Dentist",
+  submittedAt: row.created_at
+    ? new Date(row.created_at).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "-",
+  effectiveDate: row.effective_date,
+  status: row.status,
+  currentSchedules: dentistScheduleMap.get(String(row.dentist_id)) || [],
+  requestedSchedules: (Array.isArray(row.requested_schedules)
+    ? row.requested_schedules
+    : []
+  ).map((schedule) => ({
+    days: (Array.isArray(schedule.days) ? schedule.days : []).map(
+      (day) => DAY_NUMBER_LABELS[Number(day)] || String(day)
+    ),
+    branch: schedule.branch,
+    startTime: schedule.startTime,
+    endTime: schedule.endTime,
+  })),
+  reason: row.reason,
+  notes: row.notes || "",
+  rejectionReason: row.rejection_reason || "",
+});
 
 function buildPolylinePoints(values, maxValue) {
   if (!values || values.length === 0 || maxValue === 0) {
@@ -789,9 +633,7 @@ export default function SuperAdminDashboard() {
      SCHEDULE REQUEST STATES
   ======================================================= */
 
-  const [scheduleRequests, setScheduleRequests] = useState(
-    INITIAL_SCHEDULE_REQUESTS
-  );
+  const [scheduleRequests, setScheduleRequests] = useState([]);
 
   const [selectedScheduleRequest, setSelectedScheduleRequest] =
     useState(null);
@@ -833,6 +675,44 @@ export default function SuperAdminDashboard() {
 
     fetchDashboard();
   }, [fromDate, toDate]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadScheduleRequests = async () => {
+      const [requestsRes, dentistsRes] = await Promise.all([
+        getScheduleRequests(),
+        getSuperAdminDentists(),
+      ]);
+
+      if (!mounted) return;
+
+      const dentistScheduleMap = new Map();
+
+      if (dentistsRes?.success && Array.isArray(dentistsRes.data)) {
+        dentistsRes.data.forEach((dentist) => {
+          dentistScheduleMap.set(
+            String(dentist.id),
+            buildCurrentSchedulesForDentist(dentist)
+          );
+        });
+      }
+
+      if (requestsRes?.success && Array.isArray(requestsRes.data)) {
+        setScheduleRequests(
+          requestsRes.data.map((row) =>
+            mapScheduleRequestRow(row, dentistScheduleMap)
+          )
+        );
+      }
+    };
+
+    loadScheduleRequests();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   /* =======================================================
      SIDEBAR RESPONSIVE
@@ -974,7 +854,7 @@ export default function SuperAdminDashboard() {
     });
   };
 
-  const handleConfirmScheduleRequest = () => {
+  const handleConfirmScheduleRequest = async () => {
     const request = confirmationModal.request;
 
     if (!request) return;
@@ -982,6 +862,17 @@ export default function SuperAdminDashboard() {
     const isApprove = confirmationModal.action === "approve";
 
     const newStatus = isApprove ? "Approved" : "Rejected";
+
+    const result = await reviewScheduleRequest(
+      request.id,
+      newStatus,
+      isApprove ? "" : rejectionReason.trim()
+    );
+
+    if (!result?.success) {
+      alert(result?.message || "Failed to update the schedule request.");
+      return;
+    }
 
     setScheduleRequests((currentRequests) =>
       currentRequests.map((item) =>

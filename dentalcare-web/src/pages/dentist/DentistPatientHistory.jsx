@@ -122,7 +122,7 @@ export default function DentistPatientHistory() {
       if (!mounted) return;
       if (cached?.success) applyHistoryPayload(cached.data || {});
 
-      const fresh = await getDentistPatientHistory({ forceRefresh: true });
+      const fresh = await getDentistPatientHistory();
       if (!mounted || !fresh?.success) return;
       applyHistoryPayload(fresh.data || {});
     };

@@ -314,6 +314,18 @@
   word-break: break-word;
 }
 
+/* DURATION */
+.superadmin-services-duration-cell {
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.superadmin-services-field-hint {
+  font-size: 0.75rem;
+  color: #8a90a2;
+}
+
 /* DESCRIPTION */
 .superadmin-services-description-cell {
   line-height: 1.6;
@@ -346,6 +358,9 @@
 /* ACTION */
 .superadmin-services-action-cell {
   text-align: center;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
 }
 
 /* BUTTON */
@@ -366,6 +381,10 @@
 
 .superadmin-services-action-btn.enable-btn {
   background: linear-gradient(90deg, #1ab65c, #0b7d3a);
+}
+
+.superadmin-services-action-btn.edit-btn {
+  background: linear-gradient(90deg, #f37aa8, #ec4f8f);
 }
 
 /* EMPTY */

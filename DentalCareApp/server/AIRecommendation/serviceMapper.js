@@ -56,7 +56,7 @@ export const getRecommendedServiceCriteria = (aiProblem, confidence = 1.0, qaLis
       }
     });
   });
-
+    
   let displayProblem = sanitizedProblem;
   if (aiThinksItsHealthy) displayProblem = "None Detected";
 

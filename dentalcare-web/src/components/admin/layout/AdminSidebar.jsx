@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import logo from "../../../assets/logo.png";
 import adminProfile from "../../../assets/profile_sample.jpg";
 import AuthService from "../../../services/authService";
-import { loadAdminAvatarObjectUrl } from "../../../services/adminService";
+import { getAdminProfile, loadAdminAvatarObjectUrl } from "../../../services/adminService";
 
 // Persistent cache across component remounts
 const sidebarAvatarCache = {
@@ -20,6 +20,23 @@ export default function AdminSidebar() {
 
 
   useEffect(() => {
+    let active = true;
+
+    const loadProfile = async () => {
+      const result = await getAdminProfile();
+      if (!active || !result?.success || !result?.data) return;
+
+      setCurrentUser((prev) => ({ ...(prev || {}), ...result.data }));
+      localStorage.setItem(
+        "user_data",
+        JSON.stringify({
+          ...(AuthService.getCurrentUser() || {}),
+          ...result.data,
+        })
+      );
+      window.dispatchEvent(new CustomEvent("auth:user-updated", { detail: result.data }));
+    };
+
     const syncFromStorage = () => {
       setCurrentUser(AuthService.getCurrentUser() || {});
     };
@@ -33,10 +50,12 @@ export default function AdminSidebar() {
       syncFromStorage();
     };
 
+    loadProfile();
     window.addEventListener("storage", syncFromStorage);
     window.addEventListener("auth:user-updated", handleUserUpdated);
 
     return () => {
+      active = false;
       window.removeEventListener("storage", syncFromStorage);
       window.removeEventListener("auth:user-updated", handleUserUpdated);
     };

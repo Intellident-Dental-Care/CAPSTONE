@@ -86,32 +86,38 @@ function intervalsOverlap(startA, endA, startB, endB) {
   return startA < endB && startB < endA;
 }
 
-function buildBlockedSlotsByDelay({
+// Blocks any candidate slot whose [start, start+duration) window overlaps an
+// existing booking's own occupied window (using that booking's own service
+// duration, not the candidate's), plus an extra pad once the queue delay
+// crosses the 30-minute noise threshold.
+function buildBlockedSlots({
   candidateSlots,
-  bookedTimes12h,
-  slotDurationMinutes,
+  bookedAppointments,
+  candidateDurationMinutes,
   queueDelayMinutes,
 }) {
   if (!Array.isArray(candidateSlots) || !candidateSlots.length) return new Set();
-  if (!Array.isArray(bookedTimes12h) || !bookedTimes12h.length) return new Set();
-  if ((queueDelayMinutes || 0) <= 30) return new Set();
+  if (!Array.isArray(bookedAppointments) || !bookedAppointments.length) return new Set();
 
-  const blocked = new Set();
+  const delayPad = (queueDelayMinutes || 0) > 30 ? queueDelayMinutes : 0;
+  const candidateDuration = Number(candidateDurationMinutes) > 0 ? Number(candidateDurationMinutes) : 30;
 
-  const bookedIntervals = bookedTimes12h
-    .map((label) => {
-      const bookedStart = parseTimeToMinutes(convertTo24Hour(label));
+  const bookedIntervals = bookedAppointments
+    .map(({ time12h, durationMinutes }) => {
+      const bookedStart = parseTimeToMinutes(convertTo24Hour(time12h));
       if (bookedStart === null) return null;
-      const bookedEnd = bookedStart + slotDurationMinutes + queueDelayMinutes;
-      return { start: bookedStart, end: bookedEnd };
+      const duration = Number(durationMinutes) > 0 ? Number(durationMinutes) : 30;
+      return { start: bookedStart, end: bookedStart + duration + delayPad };
     })
     .filter(Boolean);
+
+  const blocked = new Set();
 
   candidateSlots.forEach((candidateLabel) => {
     const candidateStart = parseTimeToMinutes(convertTo24Hour(candidateLabel));
     if (candidateStart === null) return;
 
-    const candidateEnd = candidateStart + slotDurationMinutes;
+    const candidateEnd = candidateStart + candidateDuration;
     const hasOverlap = bookedIntervals.some((interval) =>
       intervalsOverlap(candidateStart, candidateEnd, interval.start, interval.end)
     );
@@ -122,14 +128,14 @@ function buildBlockedSlotsByDelay({
   return blocked;
 }
 
-function buildSlotsForDate(scheduleRows, isoDate, leaves = []) {
+function buildSlotsForDate(scheduleRows, isoDate, leaves = [], serviceDurationMinutes = null) {
   const isLeave = (leaves || []).some(l => {
     const start = String(l.start_date).split('T')[0];
     const end = String(l.end_date).split('T')[0];
     return isoDate >= start && isoDate <= end;
   });
 
-  if (isLeave) return []; 
+  if (isLeave) return [];
 
   const weekday = getWeekdayFromISO(isoDate);
   if (weekday === null) return [];
@@ -147,10 +153,12 @@ function buildSlotsForDate(scheduleRows, isoDate, leaves = []) {
     const start = parseTimeToMinutes(row.start_time);
     const end = parseTimeToMinutes(row.end_time);
     const step = Number(row.slot_minutes) || 30;
+    const duration = Number(serviceDurationMinutes) > 0 ? Number(serviceDurationMinutes) : step;
 
     if (start === null || end === null || end <= start || step <= 0) return;
 
     for (let minutes = start; minutes + step <= end; minutes += step) {
+      if (minutes + duration > end) continue; // service wouldn't finish before closing
       if (isToday && minutes <= currentMinutes) continue;
       slotSet.add(minutesTo12Hour(minutes));
     }
@@ -163,7 +171,7 @@ function buildSlotsForDate(scheduleRows, isoDate, leaves = []) {
   });
 }
 
-function buildAvailableDates(scheduleRows, leaves, horizonDays = 45, maxDates = 10) {
+function buildAvailableDates(scheduleRows, leaves, horizonDays = 45, maxDates = 10, serviceDurationMinutes = null) {
   const allowedDays = new Set(
     (scheduleRows || []).map((row) => Number(row.day_of_week))
   );
@@ -181,13 +189,17 @@ function buildAvailableDates(scheduleRows, leaves, horizonDays = 45, maxDates = 
     if (!allowedDays.has(d.getDay())) continue;
 
     const iso = toISODate(d);
-    const hasBookableSlots = buildSlotsForDate(scheduleRows, iso, leaves).length > 0;
+    const hasBookableSlots = buildSlotsForDate(scheduleRows, iso, leaves, serviceDurationMinutes).length > 0;
     if (!hasBookableSlots) continue;
 
     out.push({ iso, label: formatMonthDay(d) });
   }
 
   return out;
+}
+
+function normalizeServiceKey(value) {
+  return String(value || "").trim().toLowerCase();
 }
 
 function isUuid(value) {
@@ -283,6 +295,8 @@ export default function BookingAppointment() {
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
   const [bookedTimeSlots, setBookedTimeSlots] = useState([]);
+  const [bookedAppointments, setBookedAppointments] = useState([]);
+  const [serviceDurationMap, setServiceDurationMap] = useState({});
   const [showPreview, setShowPreview] = useState(false);
   const [queueDelayMinutes, setQueueDelayMinutes] = useState(0);
 
@@ -307,35 +321,42 @@ export default function BookingAppointment() {
   const [patientCount, setPatientCount] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
 
-  const availableSlots = useMemo(
-    () => buildSlotsForDate(dentistSchedules, selectedISO, dentistLeaves),
-    [dentistSchedules, selectedISO, dentistLeaves]
-  );
-
-  const slotDurationMinutes = useMemo(() => {
+  // Fallback duration (minutes) used when a service has no service_duration set,
+  // derived from the dentist's own configured schedule granularity.
+  const defaultDurationMinutes = useMemo(() => {
     const values = (dentistSchedules || [])
       .map((row) => Number(row.slot_minutes) || 0)
       .filter((v) => v > 0);
-    if (!values.length) return 60;
+    if (!values.length) return 30;
     return Math.min(...values);
   }, [dentistSchedules]);
 
-  const delayBlockedSlots = useMemo(
+  const selectedServiceDurationMinutes = useMemo(() => {
+    const duration = serviceDurationMap[normalizeServiceKey(service)];
+    return duration && duration > 0 ? duration : defaultDurationMinutes;
+  }, [service, serviceDurationMap, defaultDurationMinutes]);
+
+  const availableSlots = useMemo(
+    () => buildSlotsForDate(dentistSchedules, selectedISO, dentistLeaves, selectedServiceDurationMinutes),
+    [dentistSchedules, selectedISO, dentistLeaves, selectedServiceDurationMinutes]
+  );
+
+  const durationBlockedSlots = useMemo(
     () =>
-      buildBlockedSlotsByDelay({
+      buildBlockedSlots({
         candidateSlots: availableSlots,
-        bookedTimes12h: bookedTimeSlots,
-        slotDurationMinutes,
+        bookedAppointments,
+        candidateDurationMinutes: selectedServiceDurationMinutes,
         queueDelayMinutes,
       }),
-    [availableSlots, bookedTimeSlots, slotDurationMinutes, queueDelayMinutes]
+    [availableSlots, bookedAppointments, selectedServiceDurationMinutes, queueDelayMinutes]
   );
 
   const unbookableSlots = useMemo(() => {
     const combined = new Set(bookedTimeSlots);
-    delayBlockedSlots.forEach((slot) => combined.add(slot));
+    durationBlockedSlots.forEach((slot) => combined.add(slot));
     return combined;
-  }, [bookedTimeSlots, delayBlockedSlots]);
+  }, [bookedTimeSlots, durationBlockedSlots]);
 
   const timesMorning = useMemo(
     () =>
@@ -362,13 +383,18 @@ export default function BookingAppointment() {
   }, [doctor, selectedDoctorId, branch]);
 
   useEffect(() => {
+    fetchServiceDurations();
+  }, []);
+
+  useEffect(() => {
     if (dentistData && selectedISO && branch) {
       fetchBookedTimeSlots();
       return;
     }
 
     setBookedTimeSlots([]);
-  }, [dentistData, selectedISO, branch]);
+    setBookedAppointments([]);
+  }, [dentistData, selectedISO, branch, serviceDurationMap, defaultDurationMinutes]);
 
   useEffect(() => {
     if (!selectedISO || !branch) {
@@ -380,7 +406,7 @@ export default function BookingAppointment() {
   }, [selectedISO, branch]);
 
   useEffect(() => {
-    const nextDates = buildAvailableDates(dentistSchedules, dentistLeaves, 45, 10);
+    const nextDates = buildAvailableDates(dentistSchedules, dentistLeaves, 45, 10, selectedServiceDurationMinutes);
     setDatePills(nextDates);
 
     if (!nextDates.length) {
@@ -396,7 +422,7 @@ export default function BookingAppointment() {
     setSelectedISO(nextDates[0].iso);
     setSelectedLabel(nextDates[0].label);
     setPickedDate(new Date(`${nextDates[0].iso}T00:00:00`));
-  }, [dentistSchedules, dentistLeaves, selectedISO]);
+  }, [dentistSchedules, dentistLeaves, selectedISO, selectedServiceDurationMinutes]);
 
   useEffect(() => {
     const allTimes = [...timesMorning, ...timesAfternoon];
@@ -487,13 +513,35 @@ export default function BookingAppointment() {
     }
   };
 
+  const fetchServiceDurations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('dental_services')
+        .select('name, service_duration');
+
+      if (error) throw error;
+
+      const map = {};
+      (data || []).forEach((row) => {
+        const key = normalizeServiceKey(row.name);
+        const duration = Number(row.service_duration);
+        if (key && duration > 0) map[key] = duration;
+      });
+
+      setServiceDurationMap(map);
+    } catch (err) {
+      console.error(err);
+      setServiceDurationMap({});
+    }
+  };
+
   const fetchBookedTimeSlots = async () => {
     if (!dentistData || !selectedISO || !branch) return;
 
     try {
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, appointment_time, branch, dentist_id, appointment_date, status')
+        .select('id, appointment_time, branch, dentist_id, appointment_date, status, service')
         .eq('dentist_id', dentistData.id)
         .eq('appointment_date', selectedISO)
         .eq('branch', branch);
@@ -502,7 +550,7 @@ export default function BookingAppointment() {
 
       const activeBookings = (data || []).filter(booking => {
         if (isEditMode && booking.id === existingBookingId) return false;
-        
+
         const status = (booking.status || '').toLowerCase();
         return ['pending', 'confirmed', 'in_treatment', 'in treatment', 'in-treatment'].includes(status);
       });
@@ -512,9 +560,24 @@ export default function BookingAppointment() {
       }).filter(Boolean);
 
       setBookedTimeSlots(bookedTimes);
+
+      const appointments = activeBookings
+        .map((booking) => {
+          const time12h = convertTo12Hour(booking.appointment_time);
+          if (!time12h) return null;
+          const duration = serviceDurationMap[normalizeServiceKey(booking.service)];
+          return {
+            time12h,
+            durationMinutes: duration && duration > 0 ? duration : defaultDurationMinutes,
+          };
+        })
+        .filter(Boolean);
+
+      setBookedAppointments(appointments);
     } catch (err) {
       console.error(err);
       setBookedTimeSlots([]);
+      setBookedAppointments([]);
     }
   };
 
@@ -549,7 +612,7 @@ export default function BookingAppointment() {
     );
 
     const iso = toISODate(date);
-    const hasBookableSlots = buildSlotsForDate(dentistSchedules, iso, dentistLeaves).length > 0;
+    const hasBookableSlots = buildSlotsForDate(dentistSchedules, iso, dentistLeaves, selectedServiceDurationMinutes).length > 0;
 
     if (!branchHasSchedule || !hasBookableSlots) {
       const docName = dentistData?.name || doctor || "This doctor";
@@ -645,20 +708,28 @@ export default function BookingAppointment() {
 
       const { data: existingBookings } = await supabase
         .from('bookings')
-        .select('id, appointment_time, status')
+        .select('id, appointment_time, status, service')
         .eq('dentist_id', dentistData.id)
         .eq('appointment_date', selectedISO)
         .eq('branch', branch);
 
+      const candidateStart = parseTimeToMinutes(time24h);
+      const candidateEnd = candidateStart + selectedServiceDurationMinutes;
+
       const isSlotTaken = (existingBookings || []).some(b => {
         if (isEditMode && b.id === existingBookingId) return false;
-        
+
         const st = (b.status || '').toLowerCase();
         const isActiveStatus = ['pending', 'confirmed', 'in_treatment', 'in treatment', 'in-treatment'].includes(st);
-        
-        const dbTime12h = convertTo12Hour(b.appointment_time);
-        
-        return isActiveStatus && dbTime12h === selectedTime;
+        if (!isActiveStatus) return false;
+
+        const bookedStart = parseTimeToMinutes(b.appointment_time);
+        if (bookedStart === null || candidateStart === null) return false;
+
+        const bookedDuration = serviceDurationMap[normalizeServiceKey(b.service)];
+        const bookedEnd = bookedStart + (bookedDuration && bookedDuration > 0 ? bookedDuration : defaultDurationMinutes);
+
+        return intervalsOverlap(candidateStart, candidateEnd, bookedStart, bookedEnd);
       });
 
       if (isSlotTaken) {

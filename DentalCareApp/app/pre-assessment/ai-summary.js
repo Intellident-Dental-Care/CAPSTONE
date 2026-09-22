@@ -14,6 +14,11 @@ import { colors } from "../theme/colors";
 import { usePreAssessment } from "./_layout";
 import { supabase } from "../../server/supabaseService";
 import { getRecommendedServiceCriteria } from "../../server/AIRecommendation/serviceMapper";
+import {
+  getAnalysisPromise,
+  getAnalysisImageUri,
+  startAnalysis,
+} from "../../server/AIRecommendation/analysisManager";
 
 export default function AISummary() {
   const router = useRouter();
@@ -21,7 +26,7 @@ export default function AISummary() {
 
   const [analyzing, setAnalyzing] = useState(true);
   const [detectedProblem, setDetectedProblem] = useState("Unknown");
-  const [problemDescription, setProblemDescription] = useState(""); 
+  const [problemDescription, setProblemDescription] = useState("");
   const [suggestedService, setSuggestedService] = useState("Analyzing...");
   const [suggestedPrice, setSuggestedPrice] = useState("...");
   const [showAnswerSummary, setShowAnswerSummary] = useState(false);
@@ -33,68 +38,43 @@ export default function AISummary() {
 
   const runAnalysis = async () => {
     try {
-      // 1. Fetch dynamic questions from the database first
       const { data: qData } = await supabase
         .from("questionnaire")
         .select("*")
         .eq("is_active", true)
         .order("question_order");
 
-      const fetchedQuestions = qData ? qData.map(q => q.question_text) : [];
+      const fetchedQuestions = qData ? qData.map((q) => q.question_text) : [];
       setDynamicQuestions(fetchedQuestions);
 
-      // 2. Prepare the photo for AI Analysis
-      const imageToAnalyze = Array.isArray(state.photoUri)
-        ? state.photoUri[0]
-        : state.photoUri;
-
+      const imageToAnalyze = Array.isArray(state.photoUri) ? state.photoUri[0] : state.photoUri;
       if (!imageToAnalyze) throw new Error("No photo provided");
 
-      // ENVIRONMENT VARIABLES (Sourced safely from .env)
-      const AI_API_URL = process.env.EXPO_PUBLIC_HF_API_URL || "https://intellident-intellidentai.hf.space/analyze";
-      const HF_TOKEN = process.env.EXPO_PUBLIC_HF_TOKEN;
+      // Await the analysis already started back on the photo screen
+      let analysisPromise = getAnalysisPromise();
 
-      const formData = new FormData();
-      formData.append("file", {
-        uri: imageToAnalyze,
-        name: "tooth.jpg",
-        type: "image/jpeg",
-      });
-
-      // 3. Send photo to Python AI
-      const aiResponse = await fetch(AI_API_URL, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${HF_TOKEN}`
-        },
-        body: formData,
-      });
-
-      if (!aiResponse.ok) {
-        throw new Error(`Server returned HTTP ${aiResponse.status}`);
+      // Fallback: start one now if nothing is in flight for this photo
+      if (!analysisPromise || getAnalysisImageUri() !== imageToAnalyze) {
+        analysisPromise = startAnalysis(imageToAnalyze);
       }
 
-      const aiData = await aiResponse.json();
-      
-      const problem = aiData.detected_problem || "None";
-      const rawDescription = aiData.description || ""; 
+      const aiData = await analysisPromise;
+      if (!aiData.success) throw new Error(aiData.error || "AI analysis failed");
+
+      const problem = aiData.problem;
+      const rawDescription = aiData.description;
       const confidence = aiData.confidence ?? 1.0;
 
-      // 4. Map the AI result, Dynamic QA list, and patient description into the scoring engine
       const localQaList = fetchedQuestions.map((qText, i) => ({
         question: qText,
         answer: state.answers?.[i] || "-",
       }));
 
-      // Get the smart recommendation AND the smart text output
       const result = getRecommendedServiceCriteria(problem, confidence, localQaList, state.description, rawDescription);
 
-      // 5. Update the UI with the smart text
       setDetectedProblem(result.displayProblem);
       setProblemDescription(result.displayDescription);
 
-      // 6. Query the service based on the scoring engine criteria
       const { data } = await supabase
         .from("dental_services")
         .select("*")
@@ -116,18 +96,16 @@ export default function AISummary() {
       setSuggestedService(finalServiceName);
       setSuggestedPrice(finalPriceDisplay);
 
-      // 7. Save the AI recommendation to the database
       if (state.preassessmentId) {
         await supabase
           .from("patient_preassessment")
           .update({ ai_service: finalServiceName })
           .eq("id", state.preassessmentId);
       }
-
     } catch (error) {
       console.error("AI Analysis Error: ", error);
       setDetectedProblem("Analysis Error");
-      setProblemDescription(""); 
+      setProblemDescription("");
       setSuggestedService("Unable to determine service");
       setSuggestedPrice("-");
     } finally {
@@ -196,7 +174,7 @@ export default function AISummary() {
           <Text style={styles.diagnosisText}>
             Condition Found: {detectedProblem}
           </Text>
-          
+
           {problemDescription ? (
             <Text style={[styles.diagnosisText, { marginTop: 4, fontWeight: "600", color: "#666", lineHeight: 18 }]}>
               Description: {problemDescription}

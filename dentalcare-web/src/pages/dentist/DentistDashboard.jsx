@@ -111,7 +111,7 @@ export default function DentistDashboard() {
     const withPatientFallback = async (payload = {}) => {
       if ((payload.patients || []).length > 0) return payload;
 
-      const historyResult = await getDentistPatientHistory({ forceRefresh: true });
+      const historyResult = await getDentistPatientHistory();
       if (!historyResult?.success) return payload;
 
       const historyData = historyResult.data || {};
@@ -147,7 +147,7 @@ export default function DentistDashboard() {
         setIsLoading(false);
       }
 
-      const fresh = await getDentistDashboardSnapshot({ forceRefresh: true });
+      const fresh = await getDentistDashboardSnapshot();
       if (!mounted) return;
 
       if (fresh?.success) {
@@ -165,7 +165,7 @@ export default function DentistDashboard() {
     loadSnapshot();
 
     refreshTimer = setInterval(async () => {
-      const fresh = await getDentistDashboardSnapshot({ forceRefresh: true });
+      const fresh = await getDentistDashboardSnapshot();
       if (!mounted || !fresh?.success) return;
       const payload = await withPatientFallback(fresh.data || {});
       if (!mounted) return;

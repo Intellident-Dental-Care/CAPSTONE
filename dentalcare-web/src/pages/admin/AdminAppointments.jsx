@@ -160,7 +160,7 @@ export default function AdminAppointments() {
 
     const loadData = async () => {
       const [appointmentsResult, patientsResult, dentistsResult] = await Promise.all([
-        getAdminAppointments({ branch: selectedBranch, forceRefresh: true }),
+        getAdminAppointments({ branch: selectedBranch }),
         getAdminPatients(),
         getAdminDentists(),
       ]);
@@ -267,7 +267,7 @@ export default function AdminAppointments() {
         if (slotMins <= currentMins) continue;
 
         const overlaps = bookedRanges.some((b) => slotMins < b.end && slotMins + 60 > b.start);
-        
+
         if (!overlaps) {
           let hr12 = h % 12 || 12;
           let ampmStr = h >= 12 ? "PM" : "AM";

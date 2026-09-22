@@ -5,6 +5,8 @@ import profileImage from "../../assets/profile_sample.jpg";
 import {
   getDentistProfile,
   updateDentistProfile,
+  getDentistRequests,
+  submitDentistRequest,
 } from "../../services/dentistService";
 
 import "../../styles/dentist/layout/sidebar.css";
@@ -143,6 +145,55 @@ const createEmptyLeaveRequest = () => ({
   notes: "",
 });
 
+const mapRequestRowToHistoryItem = (row) => {
+  const submittedAt = row.created_at
+    ? formatRequestDate(new Date(row.created_at))
+    : "";
+
+  if (row.request_type === "leave") {
+    return {
+      id: row.id,
+      type: "Set Leave",
+      destination: "Admin",
+      status: row.status,
+      submittedAt,
+      leaveType: row.leave_type,
+      dates: Array.isArray(row.leave_dates) ? row.leave_dates : [],
+      reason: row.reason,
+      notes: row.notes || "",
+      rejectionReason: row.rejection_reason || "",
+    };
+  }
+
+  return {
+    id: row.id,
+    type: "Change Schedule",
+    destination: "Super Admin",
+    status: row.status,
+    submittedAt,
+    effectiveDate: row.effective_date,
+    schedules: (Array.isArray(row.requested_schedules)
+      ? row.requested_schedules
+      : []
+    ).map((schedule, index) => ({
+      id: `${row.id}-${index}`,
+      branch: schedule.branch,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+      days: getScheduleDayLabelsFromValues(schedule.days),
+    })),
+    reason: row.reason,
+    notes: row.notes || "",
+    rejectionReason: row.rejection_reason || "",
+  };
+};
+
+const getScheduleDayLabelsFromValues = (selectedDays = []) => {
+  return SCHEDULE_DAYS.filter((day) =>
+    selectedDays.includes(day.dayOfWeek)
+  ).map((day) => day.label);
+};
+
 export default function DentistProfile() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -223,9 +274,7 @@ export default function DentistProfile() {
         applyProfileData(cached.data || {});
       }
 
-      const fresh = await getDentistProfile({
-        forceRefresh: true,
-      });
+      const fresh = await getDentistProfile();
 
       if (!mounted || !fresh?.success) return;
 
@@ -233,6 +282,24 @@ export default function DentistProfile() {
     };
 
     loadProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadRequests = async () => {
+      const result = await getDentistRequests();
+
+      if (mounted && result?.success && Array.isArray(result.data)) {
+        setRequestHistory(result.data.map(mapRequestRowToHistoryItem));
+      }
+    };
+
+    loadRequests();
 
     return () => {
       mounted = false;
@@ -600,7 +667,7 @@ export default function DentistProfile() {
     );
   };
 
-  const handleSubmitRequest = () => {
+  const handleSubmitRequest = async () => {
     setRequestMessage("");
 
     if (!requestType) {
@@ -636,32 +703,25 @@ export default function DentistProfile() {
         return;
       }
 
-      const newRequest = {
-        id: Date.now(),
-        type: "Set Leave",
-        destination: "Admin",
-        status: "Pending",
-        submittedAt:
-          formatRequestDate(
-            new Date()
-          ),
-        leaveType:
-          leaveRequest.leaveType,
-        dates: [
-          ...leaveRequest.dates,
-        ],
-        reason:
-          leaveRequest.reason,
-        notes:
-          leaveRequest.notes,
-      };
+      const result = await submitDentistRequest({
+        requestType: "leave",
+        leaveType: leaveRequest.leaveType,
+        leaveDates: [...leaveRequest.dates],
+        reason: leaveRequest.reason,
+        notes: leaveRequest.notes,
+      });
 
-      setRequestHistory(
-        (prev) => [
-          newRequest,
-          ...prev,
-        ]
-      );
+      if (!result?.success) {
+        setRequestMessage(
+          result?.message || "Failed to submit leave request."
+        );
+        return;
+      }
+
+      setRequestHistory((prev) => [
+        mapRequestRowToHistoryItem(result.data),
+        ...prev,
+      ]);
 
       setIsRequestModalOpen(false);
       resetRequestForm();
@@ -699,41 +759,32 @@ export default function DentistProfile() {
         return;
       }
 
-      const newRequest = {
-        id: Date.now(),
-        type:
-          "Change Schedule",
-        destination:
-          "Super Admin",
-        status: "Pending",
-        submittedAt:
-          formatRequestDate(
-            new Date()
-          ),
-        effectiveDate:
-          scheduleRequest.effectiveDate,
-        schedules:
-          scheduleRequest.schedules.map(
-            (schedule) => ({
-              ...schedule,
-              days:
-                getScheduleDayLabels(
-                  schedule.selectedDays
-                ),
-            })
-          ),
-        reason:
-          scheduleRequest.reason,
-        notes:
-          scheduleRequest.notes,
-      };
+      const result = await submitDentistRequest({
+        requestType: "schedule_change",
+        effectiveDate: scheduleRequest.effectiveDate,
+        requestedSchedules: scheduleRequest.schedules.map(
+          (schedule) => ({
+            days: schedule.selectedDays,
+            branch: schedule.branch,
+            startTime: schedule.startTime,
+            endTime: schedule.endTime,
+          })
+        ),
+        reason: scheduleRequest.reason,
+        notes: scheduleRequest.notes,
+      });
 
-      setRequestHistory(
-        (prev) => [
-          newRequest,
-          ...prev,
-        ]
-      );
+      if (!result?.success) {
+        setRequestMessage(
+          result?.message || "Failed to submit schedule change request."
+        );
+        return;
+      }
+
+      setRequestHistory((prev) => [
+        mapRequestRowToHistoryItem(result.data),
+        ...prev,
+      ]);
 
       setIsRequestModalOpen(false);
       resetRequestForm();

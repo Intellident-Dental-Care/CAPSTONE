@@ -54,28 +54,50 @@ export default function Notification() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("queue_delay_notifications")
-        .select("id, message, delay_minutes, branch, created_at")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(50);
+      const [delayResult, cancellationResult] = await Promise.all([
+        supabase
+          .from("queue_delay_notifications")
+          .select("id, message, delay_minutes, branch, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("booking_cancellation_notifications")
+          .select("id, message, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(50),
+      ]);
 
-      if (error) {
-        if (!isMissingTableError(error)) {
-          console.log("loadNotifications error:", error);
-        }
-        setNotificationData([]);
-        return;
+      if (delayResult.error && !isMissingTableError(delayResult.error)) {
+        console.log("loadNotifications error:", delayResult.error);
       }
 
-      const mapped = (data || []).map((row) => ({
-        id: row.id,
+      if (cancellationResult.error && !isMissingTableError(cancellationResult.error)) {
+        console.log("loadNotifications error:", cancellationResult.error);
+      }
+
+      const delayNotifications = (delayResult.data || []).map((row) => ({
+        id: `delay-${row.id}`,
         title: "Queue Delay Update",
         message: row.message || `Queue delayed by ${row.delay_minutes || 0} minutes at ${row.branch || "your branch"}.`,
         time: toRelativeTime(row.created_at),
+        createdAt: row.created_at,
         type: "reminder",
       }));
+
+      const cancellationNotifications = (cancellationResult.data || []).map((row) => ({
+        id: `cancel-${row.id}`,
+        title: "Appointment Cancelled",
+        message: row.message || "One of your appointments has been cancelled.",
+        time: toRelativeTime(row.created_at),
+        createdAt: row.created_at,
+        type: "info",
+      }));
+
+      const mapped = [...delayNotifications, ...cancellationNotifications].sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
 
       setNotificationData(mapped);
     } catch (error) {

@@ -5,29 +5,32 @@ import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { colors } from "../theme/colors";
 import { usePreAssessment } from "./_layout";
-import { supabase } from "../../server/supabaseService"; 
+import { supabase } from "../../server/supabaseService";
+import {
+  validateToothImage,
+  startAnalysis,
+  resetAnalysis,
+} from "../../server/AIRecommendation/analysisManager";
 
 export default function Photo() {
   const router = useRouter();
   const { state, dispatch } = usePreAssessment();
   const [isUploading, setIsUploading] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const busy = isUploading || isValidating;
 
-  // Generates a random folder ID once per assessment session
   const folderId = useMemo(() => Math.random().toString(36).substring(2, 10), []);
 
-  // Safely converts the photo state into an array to support multiple images
   const currentUris = Array.isArray(state.photoUri) ? state.photoUri : (state.photoUri ? [state.photoUri] : []);
   const currentRemoteUrls = state.remotePhotoUris || [];
 
-  // Handle camera and gallery image selection
   const pickImage = async (useCamera = false) => {
     let result;
-    
-    // Fixed deprecation warning by using ImagePicker.MediaType
+
     const pickerOptions = {
-      mediaTypes: ["images"], 
-      quality: 0.7, // Slightly compressed for faster, stable uploads
-      allowsMultipleSelection: !useCamera, 
+      mediaTypes: ["images"],
+      quality: 0.7,
+      allowsMultipleSelection: !useCamera,
     };
 
     if (useCamera) {
@@ -38,65 +41,83 @@ export default function Photo() {
       result = await ImagePicker.launchImageLibraryAsync(pickerOptions);
     }
 
-    if (!result.canceled) {
-      setIsUploading(true);
-      
-      // 1. Immediately display locally for a fast UX
-      const newLocalUris = result.assets.map(a => a.uri);
-      dispatch({ type: "SET_PHOTO", payload: [...currentUris, ...newLocalUris] });
+    if (result.canceled) return;
 
-      // 2. Upload to Supabase Bucket using FormData (The most stable method for React Native)
-      const newRemoteUrls = [];
-      
-      for (const asset of result.assets) {
-        try {
-          const ext = asset.uri.split('.').pop() || 'jpg';
-          const mimeType = ext.toLowerCase() === 'png' ? 'image/png' : 'image/jpeg';
-          const fileName = `preassessment_${folderId}/img_${Date.now()}.${ext}`;
+    // Validate each picked photo is actually a tooth before uploading it
+    setIsValidating(true);
+    const acceptedAssets = [];
+    let rejectedCount = 0;
 
-          // Create FormData payload
-          const formData = new FormData();
-          formData.append('file', {
-            uri: asset.uri,
-            name: fileName,
-            type: mimeType,
-          });
+    for (const asset of result.assets) {
+      const validation = await validateToothImage(asset.uri);
 
-          // Upload using FormData
-          const { error } = await supabase.storage
-            .from('patient-images')
-            .upload(fileName, formData);
-
-          if (error) {
-            console.error("Supabase storage error:", error);
-            throw error;
-          }
-
-          // Fetch the public URL of the uploaded image
-          const { data: publicUrlData } = supabase.storage
-            .from('patient-images')
-            .getPublicUrl(fileName);
-
-          newRemoteUrls.push(publicUrlData.publicUrl);
-        } catch (err) {
-          console.error("Failed to upload image to Supabase:", err);
-          Alert.alert("Upload Failed", "One of your images failed to upload. Please check your connection and try again.");
-        }
+      if (!validation.success) {
+        Alert.alert("Couldn't verify photo", validation.error || "We couldn't check this photo right now. Please try again.");
+        continue;
       }
-
-      // 3. Save remote URLs to context state
-      dispatch({ type: "ADD_REMOTE_PHOTOS", payload: newRemoteUrls });
-      setIsUploading(false);
+      if (!validation.isTooth) {
+        rejectedCount += 1;
+        continue;
+      }
+      acceptedAssets.push(asset);
     }
+    setIsValidating(false);
+
+    if (rejectedCount > 0) {
+      Alert.alert("That doesn't look like a tooth photo", "Please upload a clear photo of the affected tooth so we can proceed.");
+    }
+    if (acceptedAssets.length === 0) return; // nothing valid — user can't proceed
+
+    setIsUploading(true);
+
+    // Show accepted images immediately for fast UX
+    const newLocalUris = acceptedAssets.map((a) => a.uri);
+    const updatedUris = [...currentUris, ...newLocalUris];
+    dispatch({ type: "SET_PHOTO", payload: updatedUris });
+
+    // Upload accepted images to Supabase
+    const newRemoteUrls = [];
+
+    for (const asset of acceptedAssets) {
+      try {
+        const ext = asset.uri.split('.').pop() || 'jpg';
+        const mimeType = ext.toLowerCase() === 'png' ? 'image/png' : 'image/jpeg';
+        const fileName = `preassessment_${folderId}/img_${Date.now()}.${ext}`;
+
+        const formData = new FormData();
+        formData.append('file', { uri: asset.uri, name: fileName, type: mimeType });
+
+        const { error } = await supabase.storage.from('patient-images').upload(fileName, formData);
+        if (error) throw error;
+
+        const { data: publicUrlData } = supabase.storage.from('patient-images').getPublicUrl(fileName);
+        newRemoteUrls.push(publicUrlData.publicUrl);
+      } catch (err) {
+        console.error("Failed to upload image to Supabase:", err);
+        Alert.alert("Upload Failed", "One of your images failed to upload. Please check your connection and try again.");
+      }
+    }
+
+    dispatch({ type: "ADD_REMOTE_PHOTOS", payload: newRemoteUrls });
+    setIsUploading(false);
+
+    // Kick off AI analysis now, in the background, instead of waiting until ai-summary.js
+    startAnalysis(updatedUris[0]);
   };
 
-  // Functionality to remove an image
   const removeImage = (indexToRemove) => {
     const updatedUris = currentUris.filter((_, idx) => idx !== indexToRemove);
     const updatedRemotes = currentRemoteUrls.filter((_, idx) => idx !== indexToRemove);
-    
+
     dispatch({ type: "SET_PHOTO", payload: updatedUris.length > 0 ? updatedUris : "" });
     dispatch({ type: "SET_REMOTE_PHOTOS", payload: updatedRemotes });
+
+    // Keep background analysis in sync with the current primary photo
+    if (updatedUris.length > 0) {
+      startAnalysis(updatedUris[0]);
+    } else {
+      resetAnalysis();
+    }
   };
 
   return (
@@ -118,41 +139,39 @@ export default function Photo() {
         This image will be used solely for your pre-assessment and will remain confidential.
       </Text>
 
-      {/* Conditionally render multiple images INSIDE your exact uploadBox style */}
       {currentUris.length > 0 ? (
         <View style={[styles.uploadBox, { padding: 10, flexDirection: 'row', alignItems: 'center' }]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, alignItems: 'center' }}>
             {currentUris.map((uri, idx) => (
               <View key={idx} style={{ width: 100, height: 130, borderRadius: 12 }}>
                 <Image source={{ uri }} style={{ width: "100%", height: "100%", borderRadius: 12 }} />
-                
-                <Pressable 
+
+                <Pressable
                   onPress={() => removeImage(idx)}
                   style={{ position: "absolute", top: -6, right: -6, backgroundColor: "#fff", borderRadius: 12 }}
-                  disabled={isUploading}
+                  disabled={busy}
                 >
                   <Ionicons name="close-circle" size={24} color="#FF3B30" />
                 </Pressable>
               </View>
             ))}
-            
-            <Pressable 
-              onPress={() => pickImage(false)} 
-              disabled={isUploading}
+
+            <Pressable
+              onPress={() => pickImage(false)}
+              disabled={busy}
               style={{ width: 100, height: 130, borderRadius: 12, borderWidth: 1, borderColor: colors.primary, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}
             >
-              {isUploading ? (
-                <ActivityIndicator color={colors.primary} />
-              ) : (
-                <Ionicons name="add" size={28} color={colors.primary} />
-              )}
+              {busy ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="add" size={28} color={colors.primary} />}
             </Pressable>
           </ScrollView>
         </View>
       ) : (
-        <Pressable style={styles.uploadBox} onPress={() => pickImage(false)} disabled={isUploading}>
-          {isUploading ? (
-            <ActivityIndicator color={colors.primary} />
+        <Pressable style={styles.uploadBox} onPress={() => pickImage(false)} disabled={busy}>
+          {busy ? (
+            <>
+              <ActivityIndicator color={colors.primary} />
+              {isValidating && <Text style={{ marginTop: 8, fontSize: 10, color: colors.textGray }}>Checking photo...</Text>}
+            </>
           ) : (
             <>
               <Ionicons name="image-outline" size={22} color={colors.textGray} />
@@ -168,7 +187,7 @@ export default function Photo() {
         <View style={styles.line} />
       </View>
 
-      <Pressable style={styles.cameraBtn} onPress={() => pickImage(true)} disabled={isUploading}>
+      <Pressable style={styles.cameraBtn} onPress={() => pickImage(true)} disabled={busy}>
         <Ionicons name="camera-outline" size={14} color="#fff" />
         <Text style={styles.cameraText}>Open Camera and Take a photo</Text>
       </Pressable>
@@ -178,12 +197,14 @@ export default function Photo() {
           <Text style={styles.btnOutlineText}>Back</Text>
         </Pressable>
 
-        <Pressable 
-          style={[styles.btnFilled, (currentUris.length === 0 || isUploading) && { opacity: 0.5 }]} 
-          onPress={() => currentUris.length > 0 && !isUploading && router.push("/pre-assessment/questions")}
-          disabled={currentUris.length === 0 || isUploading}
+        <Pressable
+          style={[styles.btnFilled, (currentUris.length === 0 || busy) && { opacity: 0.5 }]}
+          onPress={() => currentUris.length > 0 && !busy && router.push("/pre-assessment/questions")}
+          disabled={currentUris.length === 0 || busy}
         >
-          <Text style={styles.btnFilledText}>{isUploading ? "Uploading..." : "Next"}</Text>
+          <Text style={styles.btnFilledText}>
+            {isValidating ? "Checking..." : isUploading ? "Uploading..." : "Next"}
+          </Text>
         </Pressable>
       </View>
 
@@ -200,7 +221,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   backIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  
+
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -209,7 +230,7 @@ const styles = StyleSheet.create({
   },
 
   headerSpacer: {
-    width: 36, 
+    width: 36,
   },
 
   topTitle: {

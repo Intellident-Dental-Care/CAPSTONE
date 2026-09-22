@@ -1,8 +1,9 @@
 import express from "express";
 import { requireAuth } from "../../shared/authMiddleware.js";
-import { 
-  getServicesList, 
+import {
+  getServicesList,
   createService,
+  updateService,
   getServiceCategories,
   createServiceCategory,
   updateServiceCategory,
@@ -23,6 +24,11 @@ router.get("/", requireAuth, requireSuperAdmin, async (req, res) => {
 
 router.post("/", requireAuth, requireSuperAdmin, async (req, res) => {
   const result = await createService(req.body);
+  return res.status(result.statusCode || 500).json(result);
+});
+
+router.put("/:id", requireAuth, requireSuperAdmin, async (req, res) => {
+  const result = await updateService(req.params.id, req.body);
   return res.status(result.statusCode || 500).json(result);
 });
 

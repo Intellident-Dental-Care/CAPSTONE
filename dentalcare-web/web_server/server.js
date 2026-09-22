@@ -12,12 +12,14 @@ import appointmentsRoutes from "./admin/appointments/appointmentsRoutes.js";
 import dentistsRoutes from "./admin/dentists/dentistsRoutes.js";
 import patientsRoutes from "./admin/patients/patientsRoutes.js";
 import notificationRoutes from "./admin/notifications/notificationRoutes.js";
+import adminRequestsRoutes from "./admin/requests/requestsRoutes.js";
 
 import dentistDashboardRoutes from "./dentist/dashboard/dashboardRoutes.js";
 import dentistScheduleRoutes from "./dentist/schedule/scheduleRoutes.js";
 import dentistProfileRoutes from "./dentist/profile/profileRoutes.js";
 import dentistPatientsRoutes from "./dentist/patients/patientsRoutes.js";
 import dentistNotificationRoutes from "./dentist/notification/notificationRoutes.js";
+import dentistRequestsRoutes from "./dentist/requests/requestsRoutes.js";
 
 import superAdminDashboardRoutes from "./super_admin/dashboard/dashboardRoutes.js";
 import superAdminAdminsRoutes from "./super_admin/admins/adminsRoutes.js";
@@ -29,6 +31,7 @@ import superAdminTermsRoutes from "./super_admin/terms/termsRoutes.js";
 import questionnaireRoutes from "./super_admin/questionnaire/questionnaireRoutes.js";
 import superAdminProfileRoutes from "./super_admin/profile/profileRoutes.js";
 import superAdminNotificationRoutes from "./super_admin/notifications/notificationRoutes.js";
+import superAdminRequestsRoutes from "./super_admin/requests/requestsRoutes.js";
 
 import {
   getLocalIpAddress,
@@ -106,6 +109,7 @@ app.use("/api/admin/appointments", appointmentsRoutes);
 app.use("/api/admin/dentists", dentistsRoutes);
 app.use("/api/admin/patients", patientsRoutes);
 app.use("/api/admin/notifications", notificationRoutes);
+app.use("/api/admin/requests", adminRequestsRoutes);
 
 app.use("/admin/dashboard", dashboardRoutes);
 app.use("/admin/queuecontrol", queueRoutes);
@@ -114,18 +118,21 @@ app.use("/admin/appointments", appointmentsRoutes);
 app.use("/admin/dentists", dentistsRoutes);
 app.use("/admin/patients", patientsRoutes);
 app.use("/admin/notifications", notificationRoutes);
+app.use("/admin/requests", adminRequestsRoutes);
 
 app.use("/api/dentist/dashboard", dentistDashboardRoutes);
 app.use("/api/dentist/schedule", dentistScheduleRoutes);
 app.use("/api/dentist/profile", dentistProfileRoutes);
 app.use("/api/dentist/patients", dentistPatientsRoutes);
 app.use("/api/dentist/notifications", dentistNotificationRoutes);
+app.use("/api/dentist/requests", dentistRequestsRoutes);
 
 app.use("/dentist/dashboard", dentistDashboardRoutes);
 app.use("/dentist/schedule", dentistScheduleRoutes);
 app.use("/dentist/profile", dentistProfileRoutes);
 app.use("/dentist/patients", dentistPatientsRoutes);
 app.use("/dentist/notifications", dentistNotificationRoutes);
+app.use("/dentist/requests", dentistRequestsRoutes);
 
 app.use(
   "/api/super_admin/dashboard",
@@ -178,6 +185,11 @@ app.use(
 );
 
 app.use(
+  "/api/super_admin/requests",
+  superAdminRequestsRoutes
+);
+
+app.use(
   "/super_admin/dashboard",
   superAdminDashboardRoutes
 );
@@ -225,6 +237,11 @@ app.use(
 app.use(
   "/super_admin/notifications",
   superAdminNotificationRoutes
+);
+
+app.use(
+  "/super_admin/requests",
+  superAdminRequestsRoutes
 );
 
 app.use((req, res) => {

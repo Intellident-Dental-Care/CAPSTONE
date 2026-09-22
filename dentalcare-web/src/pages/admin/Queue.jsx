@@ -58,7 +58,6 @@ export default function Queue() {
 
   const loadQueue = async () => {
     const response = await getTodayQueue({
-      forceRefresh: true,
       branch: selectedBranch,
     });
 

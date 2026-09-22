@@ -4,6 +4,8 @@ import AdminTopbar from "../../components/admin/layout/AdminTopbar";
 import {
   getAdminDentists,
   getAdminProfile,
+  getLeaveRequests,
+  reviewLeaveRequest,
 } from "../../services/adminService";
 
 import "../../styles/admin/dentist/admin-dentist.css";
@@ -94,6 +96,20 @@ function getDentistOnLeaveInfo(dentist) {
     leaveData: null,
   };
 }
+
+const mapLeaveRequestRow = (row) => ({
+  id: row.id,
+  dentistId: row.dentist_id,
+  dentistName: row.dentist_list?.name || "Unknown Dentist",
+  specialty: row.dentist_list?.specialization || "",
+  leaveType: row.leave_type,
+  dates: Array.isArray(row.leave_dates) ? row.leave_dates : [],
+  reason: row.reason,
+  notes: row.notes || "",
+  submittedAt: row.created_at ? String(row.created_at).slice(0, 10) : "",
+  status: row.status,
+  rejectionReason: row.rejection_reason || "",
+});
 
 /* =========================================================
    LEAVE REQUEST DETAILS MODAL
@@ -697,12 +713,7 @@ export default function AdminDentist() {
   const [adminAssignedBranch, setAdminAssignedBranch] =
     useState(defaultAssignedBranch);
 
-  const [leaveRequests, setLeaveRequests] = useState([]);
-
-  const [
-    mockRequestsInitialized,
-    setMockRequestsInitialized,
-  ] = useState(false);
+  const [rawLeaveRequests, setRawLeaveRequests] = useState([]);
 
   useEffect(() => {
     let active = true;
@@ -766,144 +777,38 @@ export default function AdminDentist() {
   }, [adminAssignedBranch, dentists]);
 
   useEffect(() => {
-    if (
-      mockRequestsInitialized ||
-      branchDentists.length === 0
-    ) {
-      return;
-    }
+    let active = true;
 
-    const firstDentist = branchDentists[0];
+    const loadLeaveRequests = async () => {
+      const response = await getLeaveRequests();
 
-    const secondDentist =
-      branchDentists[1] || branchDentists[0];
+      if (active && response?.success && Array.isArray(response.data)) {
+        setRawLeaveRequests(response.data.map(mapLeaveRequestRow));
+      }
+    };
 
-    const thirdDentist =
-      branchDentists[2] || branchDentists[0];
+    loadLeaveRequests();
 
-    const firstBranch =
-      firstDentist.currentBranchToday ||
-      firstDentist.schedules?.[0]?.branch ||
-      adminAssignedBranch;
+    return () => {
+      active = false;
+    };
+  }, []);
 
-    const secondBranch =
-      secondDentist.currentBranchToday ||
-      secondDentist.schedules?.[0]?.branch ||
-      adminAssignedBranch;
+  const leaveRequests = useMemo(() => {
+    return rawLeaveRequests.map((request) => {
+      const dentist = branchDentists.find(
+        (item) => String(item.id) === String(request.dentistId)
+      );
 
-    const thirdBranch =
-      thirdDentist.currentBranchToday ||
-      thirdDentist.schedules?.[0]?.branch ||
-      adminAssignedBranch;
-
-    setLeaveRequests([
-      {
-        id: "leave-request-001",
-        dentistId: firstDentist.id,
-        dentistName: firstDentist.name,
-        specialty: firstDentist.specialty,
-        branch: firstBranch,
-        leaveType: "Vacation",
-        dates: [
-          "2026-09-22",
-          "2026-09-24",
-          "2026-09-28",
-        ],
-        reason:
-          "Family vacation and personal matters that require me to be unavailable on the selected dates.",
-        notes:
-          "I will return to my regular schedule after the selected leave dates.",
-        submittedAt: "2026-09-17",
-        status: "Pending",
-        rejectionReason: "",
-      },
-      {
-        id: "leave-request-002",
-        dentistId: secondDentist.id,
-        dentistName: secondDentist.name,
-        specialty: secondDentist.specialty,
-        branch: secondBranch,
-        leaveType: "Personal",
-        dates: ["2026-09-30"],
-        reason:
-          "I need to attend to an important personal matter.",
-        notes: "",
-        submittedAt: "2026-09-16",
-        status: "Pending",
-        rejectionReason: "",
-      },
-      {
-        id: "leave-request-003",
-        dentistId: thirdDentist.id,
-        dentistName: thirdDentist.name,
-        specialty: thirdDentist.specialty,
-        branch: thirdBranch,
-        leaveType: "Emergency",
-        dates: ["2026-10-02"],
-        reason:
-          "I need to attend to an urgent family matter.",
-        notes:
-          "I will immediately inform the clinic if there are any changes.",
-        submittedAt: "2026-09-17",
-        status: "Pending",
-        rejectionReason: "",
-      },
-      {
-        id: "leave-request-004",
-        dentistId: firstDentist.id,
-        dentistName: firstDentist.name,
-        specialty: firstDentist.specialty,
-        branch: firstBranch,
-        leaveType: "Personal",
-        dates: ["2026-10-05"],
-        reason:
-          "I need to attend an important personal appointment.",
-        notes: "",
-        submittedAt: "2026-09-17",
-        status: "Pending",
-        rejectionReason: "",
-      },
-      {
-        id: "leave-request-005",
-        dentistId: secondDentist.id,
-        dentistName: secondDentist.name,
-        specialty: secondDentist.specialty,
-        branch: secondBranch,
-        leaveType: "Vacation",
-        dates: [
-          "2026-10-07",
-          "2026-10-08",
-        ],
-        reason:
-          "I am requesting two days of planned vacation leave.",
-        notes: "",
-        submittedAt: "2026-09-17",
-        status: "Pending",
-        rejectionReason: "",
-      },
-      {
-        id: "leave-request-006",
-        dentistId: thirdDentist.id,
-        dentistName: thirdDentist.name,
-        specialty: thirdDentist.specialty,
-        branch: thirdBranch,
-        leaveType: "Sick Leave",
-        dates: ["2026-10-10"],
-        reason:
-          "Requesting sick leave for the selected date.",
-        notes: "",
-        submittedAt: "2026-09-17",
-        status: "Pending",
-        rejectionReason: "",
-      },
-    ]);
-
-    setMockRequestsInitialized(true);
-  }, [
-    adminAssignedBranch,
-    branchDentists,
-    mockRequestsInitialized,
-  ]);
+      return {
+        ...request,
+        branch:
+          dentist?.currentBranchToday ||
+          dentist?.schedules?.[0]?.branch ||
+          adminAssignedBranch,
+      };
+    });
+  }, [rawLeaveRequests, branchDentists, adminAssignedBranch]);
 
   const filteredDentists = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
@@ -1018,89 +923,62 @@ export default function AdminDentist() {
     });
   };
 
-  const handleConfirmRequestAction = () => {
+  const handleConfirmRequestAction = async () => {
     const request = confirmationModal.request;
 
     if (!request) return;
 
     const requestId = request.id;
+    const isApprove = confirmationModal.action === "approve";
+    const newStatus = isApprove ? "Approved" : "Rejected";
+    const finalReason = isApprove ? "" : rejectionReason.trim();
 
-    if (confirmationModal.action === "approve") {
-      const reviewedAt = new Date().toISOString();
+    const result = await reviewLeaveRequest(
+      requestId,
+      newStatus,
+      finalReason
+    );
 
-      setLeaveRequests((prev) =>
-        prev.map((item) =>
-          item.id === requestId
-            ? {
-                ...item,
-                status: "Approved",
-                reviewedAt,
-                rejectionReason: "",
-              }
-            : item
-        )
-      );
-
-      setSelectedRequest((prev) =>
-        prev?.id === requestId
-          ? {
-              ...prev,
-              status: "Approved",
-              reviewedAt,
-              rejectionReason: "",
-            }
-          : prev
-      );
-
-      setNotifications((prev) => [
-        {
-          id: Date.now(),
-          title: "Leave Request Approved",
-          message: `${request.dentistName}'s leave request was approved successfully.`,
-          time: "Just now",
-        },
-        ...prev,
-      ]);
+    if (!result?.success) {
+      alert(result?.message || "Failed to update the leave request.");
+      return;
     }
 
-    if (confirmationModal.action === "reject") {
-      const reviewedAt = new Date().toISOString();
-      const finalReason = rejectionReason.trim();
-
-      setLeaveRequests((prev) =>
-        prev.map((item) =>
-          item.id === requestId
-            ? {
-                ...item,
-                status: "Rejected",
-                rejectionReason: finalReason,
-                reviewedAt,
-              }
-            : item
-        )
-      );
-
-      setSelectedRequest((prev) =>
-        prev?.id === requestId
+    setRawLeaveRequests((prev) =>
+      prev.map((item) =>
+        item.id === requestId
           ? {
-              ...prev,
-              status: "Rejected",
+              ...item,
+              status: newStatus,
               rejectionReason: finalReason,
-              reviewedAt,
             }
-          : prev
-      );
+          : item
+      )
+    );
 
-      setNotifications((prev) => [
-        {
-          id: Date.now(),
-          title: "Leave Request Rejected",
-          message: `${request.dentistName}'s leave request was rejected.`,
-          time: "Just now",
-        },
-        ...prev,
-      ]);
-    }
+    setSelectedRequest((prev) =>
+      prev?.id === requestId
+        ? {
+            ...prev,
+            status: newStatus,
+            rejectionReason: finalReason,
+          }
+        : prev
+    );
+
+    setNotifications((prev) => [
+      {
+        id: Date.now(),
+        title: isApprove
+          ? "Leave Request Approved"
+          : "Leave Request Rejected",
+        message: isApprove
+          ? `${request.dentistName}'s leave request was approved successfully.`
+          : `${request.dentistName}'s leave request was rejected.`,
+        time: "Just now",
+      },
+      ...prev,
+    ]);
 
     setConfirmationModal({
       isOpen: false,

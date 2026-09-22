@@ -109,6 +109,8 @@ export default function AdminProfileModal({ open, onClose, profile, onProfileUpd
       userData.avatarPath = newAvatarPath;
       userData.avatarUrl = newAvatarPath;
       localStorage.setItem("user_data", JSON.stringify(userData));
+
+      window.dispatchEvent(new CustomEvent("auth:user-updated", { detail: userData }));
     } finally {
       setUploadingAvatar(false);
     }

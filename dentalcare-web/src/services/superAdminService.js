@@ -7,7 +7,22 @@ const baseHeaders = () => ({
   ...AuthService.getAuthHeader(),
 });
 
-const fetchJson = async (path, options = {}) => {
+// GET responses are reused across page/tab switches and only refetched once they are
+// older than CACHE_TTL_MS. Any successful write (POST/PATCH/PUT/DELETE) clears the
+// whole cache so lists never show stale data after an edit. Notifications are
+// polled by the topbar, so they always go to the network.
+const CACHE_TTL_MS = 60 * 1000;
+const responseCache = new Map();
+const inFlight = new Map();
+
+export const clearSuperAdminResponseCache = () => {
+  responseCache.clear();
+  inFlight.clear();
+};
+
+window.addEventListener("auth:cleared", clearSuperAdminResponseCache);
+
+const requestJson = async (path, options) => {
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       headers: baseHeaders(),
@@ -23,6 +38,37 @@ const fetchJson = async (path, options = {}) => {
     console.error(`Error fetching ${path}:`, error);
     return { success: false, message: "Network connection failed." };
   }
+};
+
+const fetchJson = async (path, options = {}) => {
+  const method = String(options.method || "GET").toUpperCase();
+
+  if (method !== "GET") {
+    const data = await requestJson(path, options);
+    if (data?.success) clearSuperAdminResponseCache();
+    return data;
+  }
+
+  if (path.includes("/notifications") || path.includes("/profile/image")) {
+    return requestJson(path, options);
+  }
+
+  const cached = responseCache.get(path);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  if (inFlight.has(path)) return inFlight.get(path);
+
+  const request = requestJson(path, options)
+    .then((data) => {
+      if (data?.success) responseCache.set(path, { data, at: Date.now() });
+      return data;
+    })
+    .finally(() => inFlight.delete(path));
+
+  inFlight.set(path, request);
+  return request;
 };
 
 export const getSuperAdminDashboard = async (startDate = "", endDate = "") => {
@@ -90,6 +136,17 @@ export const updateSuperAdminDentistSchedules = async (id, schedules) => {
   });
 };
 
+export const getScheduleRequests = async () => {
+  return await fetchJson("/super_admin/requests/schedule", { method: "GET" });
+};
+
+export const reviewScheduleRequest = async (id, status, rejectionReason = "") => {
+  return await fetchJson(`/super_admin/requests/schedule/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status, rejectionReason }),
+  });
+};
+
 export const getSuperAdminPatients = async () => {
   return await fetchJson("/super_admin/patients", { method: "GET" });
 };
@@ -98,6 +155,13 @@ export const createSuperAdminService = async (payload) => {
   return await fetchJson("/super_admin/services", { 
     method: "POST", 
     body: JSON.stringify(payload) 
+  });
+};
+
+export const updateSuperAdminService = async (id, payload) => {
+  return await fetchJson(`/super_admin/services/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
   });
 };
 
@@ -175,6 +239,11 @@ const superAdminCache = {
   profile: null,
   avatarBlobCache: {},
 };
+
+window.addEventListener("auth:cleared", () => {
+  superAdminCache.profile = null;
+  superAdminCache.avatarBlobCache = {};
+});
 
 export const buildSuperAdminAvatarImageUrl = (avatarPath) => {
   const cleanPath = String(avatarPath || "").trim();
