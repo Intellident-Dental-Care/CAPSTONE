@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
@@ -9,6 +9,7 @@ import { usePreAssessment } from "./_layout";
 export default function Model() {
   const router = useRouter();
   const { state, dispatch } = usePreAssessment();
+  const isToothSelected = state.tooth && state.tooth !== "Not specified";
 
   const handleWebViewMessage = (event) => {
     try {
@@ -54,7 +55,16 @@ export default function Model() {
 
       <Text style={styles.toothText}>Tooth: {state.tooth}</Text>
 
-      <Pressable style={styles.nextBtn} onPress={() => router.push("/pre-assessment/photo")}>
+      <Pressable
+        style={[styles.nextBtn, !isToothSelected && styles.nextBtnDisabled]}
+        onPress={() => {
+          if (!isToothSelected) {
+            Alert.alert("Select a tooth", "Please select a tooth from the 3D model before continuing.");
+            return;
+          }
+          router.push("/pre-assessment/photo");
+        }}
+      >
         <Text style={styles.nextText}>Next</Text>
       </Pressable>
     </View>
@@ -119,5 +129,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  nextBtnDisabled: { backgroundColor: colors.textGray, opacity: 0.5 },
   nextText: { color: "#fff", fontWeight: "800", fontSize: 12 },
 });
