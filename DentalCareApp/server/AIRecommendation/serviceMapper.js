@@ -18,9 +18,9 @@ export const getRecommendedServiceCriteria = (aiProblem, confidence = 1.0, qaLis
   const problemStr = sanitizedProblem.toLowerCase();
   let aiThinksItsHealthy = false;
 
-  if (["cavity", "chipped", "caries"].includes(problemStr)) categories["Tooth Restoration"].score += 50;
-  if (["crowding", "misaligned teeth", "misaligned"].includes(problemStr)) categories["Orthodontics"].score += 50;
-  if (["plaque"].includes(problemStr)) categories["Oral Prophylaxis"].score += 50;
+  if (["chipped", "dental caries"].includes(problemStr)) categories["Tooth Restoration"].score += 50;
+  if (["crowding", "malaligned tooth"].includes(problemStr)) categories["Orthodontics"].score += 50;
+  if (["plaque", "calculus"].includes(problemStr)) categories["Oral Prophylaxis"].score += 50;
   
   if (["healthy", "normal", "none", "tooth"].includes(problemStr)) {
     categories["Oral Prophylaxis"].score += 50;
@@ -62,31 +62,37 @@ export const getRecommendedServiceCriteria = (aiProblem, confidence = 1.0, qaLis
 
   let displayDescription = aiBackendDescription;
   let finalCategory = "Consultation";
+  let highestScore = -1;
+  Object.keys(categories).forEach(cat => {
+    if (categories[cat].score > highestScore) {
+      highestScore = categories[cat].score;
+      finalCategory = cat;
+    }
+  });
 
-  if (confidence < 0.50 && symptomPointsAccumulated > 0) {
-    finalCategory = "Consultation";
-    displayDescription = `The AI detected potential signs of ${sanitizedProblem}, but with low certainty. Given the symptoms you reported, a professional dental consultation is highly recommended to accurately diagnose the issue.`;
-  } 
-  else if (aiThinksItsHealthy && symptomPointsAccumulated >= 40) {
+  const lowConfidence = confidence < 0.50;
+
+  if (aiThinksItsHealthy && symptomPointsAccumulated >= 40) {
     finalCategory = "Consultation";
     displayDescription = "While the AI detected no visible structural damage on the surface, your reported symptoms strongly indicate an underlying issue. A comprehensive dental consultation and X-Ray evaluation are highly recommended.";
-  } 
+  }
   else if (aiThinksItsHealthy && symptomPointsAccumulated > 0) {
-    finalCategory = "Consultation"; 
+    finalCategory = "Consultation";
     displayDescription = "The AI found no visible external damage. However, because you are experiencing symptoms, a professional dental consultation is needed to rule out hidden problems.";
-  } 
+  }
   else if (aiThinksItsHealthy && symptomPointsAccumulated === 0) {
     finalCategory = "Oral Prophylaxis";
     displayDescription = "The AI detected no visible issues, and no symptoms were reported. Routine oral prophylaxis (cleaning) is recommended to maintain optimal dental health.";
-  } 
-  else {
-    let highestScore = -1;
-    Object.keys(categories).forEach(cat => {
-      if (categories[cat].score > highestScore) {
-        highestScore = categories[cat].score;
-        finalCategory = cat;
-      }
-    });
+  }
+  else if (highestScore <= 0) {
+    // No clear signal from the photo, symptoms, or description — nothing to route on.
+    finalCategory = "Consultation";
+    displayDescription = "The AI could not confidently identify a specific issue. A professional dental consultation is recommended to properly assess your condition.";
+  }
+  else if (lowConfidence) {
+    // We do have a signal (photo and/or reported symptoms) pointing to a category,
+    // just with lower photo-confidence — keep routing to that service, but flag the uncertainty.
+    displayDescription = `The AI detected potential signs of ${sanitizedProblem}, but with lower certainty. Based on this and your reported symptoms, we recommend a ${finalCategory} evaluation to confirm and address the issue.`;
   }
 
   const resultMap = {

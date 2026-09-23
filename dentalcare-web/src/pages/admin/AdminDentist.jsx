@@ -3,10 +3,10 @@ import AdminSidebar from "../../components/admin/layout/AdminSidebar";
 import AdminTopbar from "../../components/admin/layout/AdminTopbar";
 import {
   getAdminDentists,
-  getAdminProfile,
   getLeaveRequests,
   reviewLeaveRequest,
 } from "../../services/adminService";
+import { useBranch } from "../../context/BranchContext";
 
 import "../../styles/admin/dentist/admin-dentist.css";
 import "../../styles/admin/dashboard/admin-layout.css";
@@ -14,29 +14,6 @@ import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
 import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
-
-const defaultAssignedBranch = "General Trias";
-
-const initialNotifications = [
-  {
-    id: 1,
-    title: "New Appointment Booked",
-    message: "A patient booked an appointment in your branch.",
-    time: "5 mins ago",
-  },
-  {
-    id: 2,
-    title: "Walk-in Patient Added",
-    message: "A new walk-in patient was added today.",
-    time: "22 mins ago",
-  },
-  {
-    id: 3,
-    title: "Dentist Leave Request",
-    message: "A dentist submitted a new leave request.",
-    time: "1 hour ago",
-  },
-];
 
 function formatDate(dateString) {
   if (!dateString) return "N/A";
@@ -458,7 +435,7 @@ function RequestConfirmationModal({
 function DentistDetailsModal({
   dentist,
   onClose,
-  adminAssignedBranch,
+  selectedBranch,
   leaveRequests,
   onViewRequest,
 }) {
@@ -553,7 +530,7 @@ function DentistDetailsModal({
               <span>Assigned Branch View</span>
               <strong>
                 {dentist.currentBranchToday ||
-                  adminAssignedBranch}
+                  selectedBranch}
               </strong>
             </div>
 
@@ -702,16 +679,9 @@ export default function AdminDentist() {
       request: null,
     });
 
-  const [isNotificationOpen, setIsNotificationOpen] =
-    useState(false);
-
-  const [notifications, setNotifications] =
-    useState(initialNotifications);
-
   const [dentists, setDentists] = useState([]);
 
-  const [adminAssignedBranch, setAdminAssignedBranch] =
-    useState(defaultAssignedBranch);
+  const { selectedBranch } = useBranch();
 
   const [rawLeaveRequests, setRawLeaveRequests] = useState([]);
 
@@ -719,11 +689,7 @@ export default function AdminDentist() {
     let active = true;
 
     const load = async () => {
-      const [dentistsResult, profileResult] =
-        await Promise.all([
-          getAdminDentists(),
-          getAdminProfile(),
-        ]);
+      const dentistsResult = await getAdminDentists();
 
       if (
         active &&
@@ -731,16 +697,6 @@ export default function AdminDentist() {
         Array.isArray(dentistsResult.data)
       ) {
         setDentists(dentistsResult.data);
-      }
-
-      if (
-        active &&
-        profileResult?.success &&
-        profileResult?.data?.branch
-      ) {
-        setAdminAssignedBranch(
-          profileResult.data.branch
-        );
       }
     };
 
@@ -752,29 +708,20 @@ export default function AdminDentist() {
   }, []);
 
   const branchDentists = useMemo(() => {
-    const adminBranches = adminAssignedBranch
-      ? adminAssignedBranch
-          .split("|")
-          .map((branch) =>
-            branch.trim().toLowerCase()
-          )
-      : [];
-
     return dentists.filter((dentist) =>
       Array.isArray(dentist.schedules)
         ? dentist.schedules.some(
             (schedule) =>
-              !adminAssignedBranch ||
-              adminAssignedBranch === "All" ||
-              adminBranches.includes(
-                String(schedule.branch || "")
-                  .trim()
-                  .toLowerCase()
-              )
+              !selectedBranch ||
+              selectedBranch === "All" ||
+              String(schedule.branch || "")
+                .trim()
+                .toLowerCase() ===
+                selectedBranch.trim().toLowerCase()
           )
         : false
     );
-  }, [adminAssignedBranch, dentists]);
+  }, [selectedBranch, dentists]);
 
   useEffect(() => {
     let active = true;
@@ -805,10 +752,10 @@ export default function AdminDentist() {
         branch:
           dentist?.currentBranchToday ||
           dentist?.schedules?.[0]?.branch ||
-          adminAssignedBranch,
+          selectedBranch,
       };
     });
-  }, [rawLeaveRequests, branchDentists, adminAssignedBranch]);
+  }, [rawLeaveRequests, branchDentists, selectedBranch]);
 
   const filteredDentists = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
@@ -846,18 +793,6 @@ export default function AdminDentist() {
   const pendingLeaveRequests = leaveRequests.filter(
     (request) => request.status === "Pending"
   );
-
-  const handleToggleNotifications = () => {
-    setIsNotificationOpen((prev) => !prev);
-  };
-
-  const handleCloseNotifications = () => {
-    setIsNotificationOpen(false);
-  };
-
-  const handleMarkAllRead = () => {
-    setNotifications([]);
-  };
 
   const handleViewRequest = (request) => {
     setSelectedRequest(request);
@@ -966,20 +901,6 @@ export default function AdminDentist() {
         : prev
     );
 
-    setNotifications((prev) => [
-      {
-        id: Date.now(),
-        title: isApprove
-          ? "Leave Request Approved"
-          : "Leave Request Rejected",
-        message: isApprove
-          ? `${request.dentistName}'s leave request was approved successfully.`
-          : `${request.dentistName}'s leave request was rejected.`,
-        time: "Just now",
-      },
-      ...prev,
-    ]);
-
     setConfirmationModal({
       isOpen: false,
       action: "",
@@ -996,18 +917,7 @@ export default function AdminDentist() {
       <AdminSidebar />
 
       <div className="admin-dentist-main">
-        <AdminTopbar
-          title="Dentist"
-          notifications={notifications}
-          isNotificationOpen={isNotificationOpen}
-          onToggleNotifications={
-            handleToggleNotifications
-          }
-          onCloseNotifications={
-            handleCloseNotifications
-          }
-          onMarkAllRead={handleMarkAllRead}
-        />
+        <AdminTopbar title="Dentist" />
 
         <div className="admin-dentist-content">
           <div className="admin-dentist-heading">
@@ -1016,7 +926,7 @@ export default function AdminDentist() {
 
               <p>
                 Manage and view dentist records assigned to{" "}
-                {adminAssignedBranch}.
+                {selectedBranch}.
               </p>
             </div>
           </div>
@@ -1163,7 +1073,7 @@ export default function AdminDentist() {
 
                       const visibleBranch =
                         dentist.currentBranchToday ||
-                        adminAssignedBranch;
+                        selectedBranch;
 
                       const dentistPendingRequests =
                         leaveRequests.filter(
@@ -1249,8 +1159,8 @@ export default function AdminDentist() {
         onClose={() =>
           setSelectedDentist(null)
         }
-        adminAssignedBranch={
-          adminAssignedBranch
+        selectedBranch={
+          selectedBranch
         }
         leaveRequests={leaveRequests}
         onViewRequest={handleViewRequest}
