@@ -28,12 +28,12 @@ import {
 import {
   profileIndexCache,
   appointmentCache,
-  APPOINTMENT_CACHE_TTL_MS,
   clearAllProfileCaches,
 } from "./_storage/profileCache";
 import {
   fetchUpcomingAppointment,
   fetchCurrentQueueForAppointment,
+  hasAnyBooking,
   formatAppointmentDate,
   formatAppointmentTime,
 } from "./services/upcomingAppointment";
@@ -95,6 +95,9 @@ export default function Home() {
   const [recentVisits, setRecentVisits] = useState([]);
   const [treatmentPlans, setTreatmentPlans] = useState([]);
   const [privacyChecked, setPrivacyChecked] = useState(!!global.hasShownPrivacyThisSession);
+  // Hidden until the account has at least one booking; new accounts must go
+  // through pre-assessment first before "Book Now" entry points appear.
+  const [hasBookingHistory, setHasBookingHistory] = useState(false);
 
   const loadQueueForAppointment = useCallback(async (appointment, { showLoader = true } = {}) => {
     if (!appointment) {
@@ -164,31 +167,41 @@ export default function Home() {
     }
   }, []);
 
-  const loadUpcomingForProfile = useCallback(async (activeProfile, options = {}) => {
-    const { forceRefresh = false } = options;
+  const fetchBookingHistory = useCallback(async (activeProfile) => {
+    try {
+      const safeProfileId = isUuid(activeProfile?.id) ? activeProfile.id : null;
+      const { data } = await hasAnyBooking(safeProfileId, {
+        profileName: activeProfile?.name || "",
+      });
+      setHasBookingHistory(!!data);
+    } catch (error) {
+      console.log("fetchBookingHistory error:", error);
+      setHasBookingHistory(false);
+    }
+  }, []);
+
+  const loadUpcomingForProfile = useCallback(async (activeProfile) => {
     const safeProfileId = isUuid(activeProfile?.id) ? activeProfile.id : null;
     const cacheKey = safeProfileId || "__no_profile__";
     const cached = appointmentCache[cacheKey];
-    const now = Date.now();
-    const isStale = forceRefresh || !cached || (now - cached.fetchedAt) > APPOINTMENT_CACHE_TTL_MS;
-    let appointmentData = cached?.data || null;
 
+    // Paint instantly from cache (if any) for a snappy UI, but always
+    // re-fetch from the server below so cancelled/deleted bookings never
+    // linger on screen past their TTL.
     if (cached) {
       setUpcomingAppointment(cached.data);
+    } else {
+      setLoadingAppointment(true);
     }
 
-    if (isStale) {
-      if (!cached || forceRefresh) setLoadingAppointment(true);
-      const { data } = await fetchUpcomingAppointment(safeProfileId, {
-        profileName: activeProfile?.name || "",
-      });
-      appointmentCache[cacheKey] = { data, fetchedAt: Date.now() };
-      setUpcomingAppointment(data);
-      appointmentData = data;
-      setLoadingAppointment(false);
-    }
+    const { data } = await fetchUpcomingAppointment(safeProfileId, {
+      profileName: activeProfile?.name || "",
+    });
+    appointmentCache[cacheKey] = { data, fetchedAt: Date.now() };
+    setUpcomingAppointment(data);
+    setLoadingAppointment(false);
 
-    await loadQueueForAppointment(appointmentData, { showLoader: forceRefresh || !cached });
+    await loadQueueForAppointment(data, { showLoader: !cached });
   }, [loadQueueForAppointment]);
 
   const loadProfiles = useCallback(async () => {
@@ -238,10 +251,11 @@ export default function Home() {
       await loadUpcomingForProfile(activeProfile);
       await fetchRecentVisits(session, activeProfile);
       await fetchTreatmentPlan(session, activeProfile);
+      await fetchBookingHistory(activeProfile);
     } catch (error) {
       console.log("loadProfiles error:", error);
     }
-  }, [loadUpcomingForProfile, fetchRecentVisits, fetchTreatmentPlan]);
+  }, [loadUpcomingForProfile, fetchRecentVisits, fetchTreatmentPlan, fetchBookingHistory]);
 
   useFocusEffect(
     useCallback(() => {
@@ -416,7 +430,10 @@ export default function Home() {
     await loadUpcomingForProfile(activeProfile, { forceRefresh: true });
   };
 
-  const isQueueDay = !!upcomingAppointment?.date && upcomingAppointment.date === getLocalISODate();
+  const isQueueDay =
+    !!upcomingAppointment?.date &&
+    upcomingAppointment.date === getLocalISODate() &&
+    upcomingAppointment.status === "confirmed";
 
   const queueProgress = isQueueDay && queueData?.totalInQueue
     ? Math.max(8, Math.round((queueData.queueNumber / queueData.totalInQueue) * 100))
@@ -694,6 +711,7 @@ export default function Home() {
                 subtitle="Your completed appointments will appear here after your visit."
                 buttonText="Book Now"
                 onPress={openFlowModal}
+                showButton={hasBookingHistory}
               />
             </View>
           )}
@@ -756,6 +774,7 @@ export default function Home() {
                 subtitle="Your suggested or scheduled treatments will appear here."
                 buttonText="Start Booking"
                 onPress={openFlowModal}
+                showButton={hasBookingHistory}
               />
           )}
         </ScrollView>
@@ -791,9 +810,11 @@ export default function Home() {
           </View>
         </View>
 
-        <Pressable style={styles.fab} onPress={openFlowModal}>
-          <Ionicons name="add" size={24} color="#FFFFFF" />
-        </Pressable>
+        {hasBookingHistory ? (
+          <Pressable style={styles.fab} onPress={openFlowModal}>
+            <Ionicons name="add" size={24} color="#FFFFFF" />
+          </Pressable>
+        ) : null}
 
         <Modal
           visible={flowModalVisible}
@@ -1005,7 +1026,7 @@ export default function Home() {
   );
 }
 
-function EmptyStateCard({ icon, title, subtitle, buttonText, onPress }) {
+function EmptyStateCard({ icon, title, subtitle, buttonText, onPress, showButton = true }) {
   return (
     <View style={styles.emptyStateCard}>
       <View style={styles.emptyStateTop}>
@@ -1024,11 +1045,13 @@ function EmptyStateCard({ icon, title, subtitle, buttonText, onPress }) {
         </View>
       </View>
 
-      <Pressable style={styles.emptyStateButton} onPress={onPress}>
-        <Text style={styles.emptyStateButtonText}>
-          {String(buttonText || "")}
-        </Text>
-      </Pressable>
+      {showButton ? (
+        <Pressable style={styles.emptyStateButton} onPress={onPress}>
+          <Text style={styles.emptyStateButtonText}>
+            {String(buttonText || "")}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

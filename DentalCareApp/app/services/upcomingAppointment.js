@@ -174,6 +174,42 @@ export const fetchUpcomingAppointment = async (profileId, options = {}) => {
   }
 };
 
+// Whether this profile/account has ever had a booking (any status).
+// Used to gate the "Book Now" entry points until a first booking exists.
+export const hasAnyBooking = async (profileId, options = {}) => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { data: false, error: null };
+
+    let query = supabase
+      .from('bookings')
+      .select('id', { count: 'exact', head: true });
+
+    const fallbackProfileName =
+      typeof options?.profileName === 'string' ? options.profileName.trim() : '';
+
+    if (isUuid(profileId)) {
+      query = query.eq('profile_id', profileId);
+    } else if (fallbackProfileName) {
+      query = query.eq('patient_name', fallbackProfileName).eq('user_id', user.id);
+    } else {
+      query = query.eq('user_id', user.id);
+    }
+
+    const { count, error } = await query;
+
+    if (error) {
+      console.error('Error checking booking history:', error);
+      return { data: false, error: error.message };
+    }
+
+    return { data: (count || 0) > 0, error: null };
+  } catch (err) {
+    console.error('Error checking booking history:', err);
+    return { data: false, error: err.message };
+  }
+};
+
 // Fetch queue details for a specific upcoming appointment.
 export const fetchCurrentQueueForAppointment = async (appointment) => {
   try {
@@ -192,7 +228,7 @@ export const fetchCurrentQueueForAppointment = async (appointment) => {
       .select('id, appointment_time, created_at')
       .eq('branch', appointment.branch)
       .eq('appointment_date', appointment.date)
-      .in('status', ['pending', 'confirmed'])
+      .eq('status', 'confirmed')
       .order('appointment_time', { ascending: true })
       .order('created_at', { ascending: true });
 
