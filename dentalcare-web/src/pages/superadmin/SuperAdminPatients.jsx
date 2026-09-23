@@ -179,6 +179,7 @@ function PatientDetailsModal({ patient, onClose }) {
 
 export default function SuperAdminPatients() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -469,8 +470,11 @@ export default function SuperAdminPatients() {
   };
 
   return (
-    <div className="admin-dashboard-page">
-      <SuperAdminSidebar />
+    <div className="admin-dashboard-page superadmin-mobile-layout">
+      <SuperAdminSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       <main className="admin-main-content">
         <SuperAdminTopbar
@@ -480,6 +484,7 @@ export default function SuperAdminPatients() {
           onToggleNotifications={() => setIsNotificationOpen((prev) => !prev)}
           onCloseNotifications={() => setIsNotificationOpen(false)}
           onMarkAllRead={handleMarkAllRead}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         />
 
         <div className="superadmin-patients-fixed-page">

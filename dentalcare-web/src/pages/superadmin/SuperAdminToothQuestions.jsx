@@ -20,6 +20,7 @@ export default function SuperAdminToothQuestions() {
   const [questions, setQuestions] = useState([]);
   const [draftQuestions, setDraftQuestions] = useState([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [isAddQuestionModalOpen, setIsAddQuestionModalOpen] = useState(false);
   const [newQuestion, setNewQuestion] = useState("");
@@ -218,11 +219,17 @@ export default function SuperAdminToothQuestions() {
   };
 
   return (
-    <div className="admin-dashboard-page">
-      <SuperAdminSidebar />
+    <div className="admin-dashboard-page superadmin-mobile-layout">
+      <SuperAdminSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       <main className="admin-main-content">
-        <SuperAdminTopbar title="Tooth Questions" />
+        <SuperAdminTopbar
+          title="Tooth Questions"
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+        />
 
         <div className="superadmin-tooth-page-scrollfix">
           <div className="superadmin-tooth-page">

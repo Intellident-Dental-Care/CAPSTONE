@@ -1989,19 +1989,117 @@
 ========================================================= */
 
 @media (max-width: 900px) {
+
+  /* =========================================================
+     BURGER BUTTON
+  ========================================================= */
+
   .superadmin-menu-btn {
     display: inline-flex;
   }
 
+  /* =========================================================
+     MOBILE SIDEBAR
+  ========================================================= */
+
+  .superadmin-mobile-sidebar {
+    position: fixed !important;
+
+    top: 0;
+    left: 0;
+
+    width: min(82vw, 320px);
+
+    height: 100vh;
+    height: 100dvh;
+
+    z-index: 999 !important;
+
+    transform: translateX(-110%);
+
+    transition:
+      transform 0.28s ease;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    visibility: visible !important;
+    opacity: 1 !important;
+
+    border-radius:
+      0 24px 24px 0;
+
+    box-shadow:
+      18px 0 45px
+      rgba(28, 32, 45, 0.18);
+  }
+
+  /* =========================================================
+     OPEN MOBILE SIDEBAR
+  ========================================================= */
+
+  .superadmin-mobile-sidebar.open {
+    transform: translateX(0) !important;
+  }
+
+  /* =========================================================
+     SIDEBAR OVERLAY
+  ========================================================= */
+
+  .superadmin-sidebar-overlay {
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 998;
+
+    background:
+      rgba(24, 28, 38, 0.45);
+
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+
+    opacity: 0;
+
+    visibility: hidden;
+
+    pointer-events: none;
+
+    transition:
+      opacity 0.25s ease,
+      visibility 0.25s ease;
+  }
+
+  .superadmin-sidebar-overlay.show {
+    opacity: 1;
+
+    visibility: visible;
+
+    pointer-events: auto;
+  }
+
+  /* =========================================================
+     DASHBOARD SCROLL
+  ========================================================= */
+
   .superadmin-dashboard-scroll {
     height: auto;
 
-    min-height: calc(100vh - 78px);
+    min-height:
+      calc(100vh - 78px);
   }
+
+  /* =========================================================
+     DASHBOARD CONTENT
+  ========================================================= */
 
   .superadmin-dashboard-content {
     padding: 18px;
   }
+
+  /* =========================================================
+     FILTERS
+  ========================================================= */
 
   .superadmin-filter-grid {
     grid-template-columns: 1fr;
@@ -2009,15 +2107,31 @@
     gap: 14px;
   }
 
+  /* =========================================================
+     STAT CARDS
+  ========================================================= */
+
   .superadmin-stats-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
 
     gap: 14px;
   }
 
+  /* =========================================================
+     PAGE TITLE
+  ========================================================= */
+
   .superadmin-page-title {
     font-size: 1.8rem;
   }
+
+  /* =========================================================
+     PANEL HEADER
+  ========================================================= */
 
   .superadmin-panel-head {
     flex-direction: column;
@@ -2029,15 +2143,27 @@
     font-size: 1.2rem;
   }
 
+  /* =========================================================
+     BAR CHART
+  ========================================================= */
+
   .superadmin-bar-chart-area {
     gap: 8px;
   }
+
+  /* =========================================================
+     LINE CHART
+  ========================================================= */
 
   .superadmin-line-chart-months {
     gap: 4px;
 
     font-size: 0.75rem;
   }
+
+  /* =========================================================
+     SCHEDULE COMPARISON
+  ========================================================= */
 
   .superadmin-schedule-comparison {
     grid-template-columns: 1fr;
@@ -2046,6 +2172,10 @@
   .superadmin-schedule-arrow {
     transform: rotate(90deg);
   }
+
+  /* =========================================================
+     REQUEST META
+  ========================================================= */
 
   .superadmin-request-meta-grid {
     grid-template-columns: 1fr;

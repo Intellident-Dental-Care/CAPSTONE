@@ -6,12 +6,18 @@
   display: flex;
 
   width: 100%;
+
   height: 100vh;
+  height: 100dvh;
+
+  min-width: 0;
+  min-height: 0;
 
   background: #f6f7fb;
 
   overflow: hidden;
 }
+
 
 /* =========================================================
    MAIN CONTENT
@@ -23,13 +29,17 @@
   display: flex;
   flex-direction: column;
 
-  min-width: 0;
-
   width: 100%;
+
+  min-width: 0;
+  min-height: 0;
+
   height: 100vh;
+  height: 100dvh;
 
   overflow: hidden;
 }
+
 
 /* =========================================================
    TOPBAR
@@ -37,21 +47,24 @@
 
 .topbar {
   width: 100%;
+
   height: 72px;
 
-  flex-shrink: 0;
+  flex: 0 0 72px;
 
   background: #ffffff;
 
   border-bottom: 1px solid #ececec;
 
   display: flex;
+
   align-items: center;
   justify-content: space-between;
 
   padding: 0 24px;
 
   position: relative;
+
   z-index: 100;
 }
 
@@ -59,6 +72,7 @@
   margin: 0;
 
   font-size: 19px;
+
   font-weight: 700;
 }
 
@@ -85,8 +99,11 @@
   font-size: 15px;
 
   display: flex;
+
   align-items: center;
   justify-content: center;
+
+  flex-shrink: 0;
 }
 
 .top-avatar {
@@ -98,7 +115,10 @@
   object-fit: cover;
 
   display: block;
+
+  flex-shrink: 0;
 }
+
 
 /* =========================================================
    PATIENT LIST
@@ -117,6 +137,7 @@
   min-height: 360px;
 
   display: flex;
+
   align-items: center;
   justify-content: center;
 
@@ -125,8 +146,10 @@
   color: #8a8f9d;
 
   font-size: 13px;
+
   font-weight: 600;
 }
+
 
 /* =========================================================
    SAVE TOAST
@@ -149,31 +172,108 @@
   border-radius: 12px;
 
   font-size: 14px;
+
   font-weight: 700;
 
-  box-shadow: 0 10px 24px rgba(47, 180, 110, 0.28);
+  box-shadow:
+    0 10px 24px rgba(47, 180, 110, 0.28);
 
   animation: toastInOut 1.8s ease forwards;
 }
 
+
+/* =========================================================
+   SAVE TOAST ANIMATION
+========================================================= */
+
 @keyframes toastInOut {
   0% {
     opacity: 0;
+
     transform: translateY(12px);
   }
 
   12% {
     opacity: 1;
+
     transform: translateY(0);
   }
 
   82% {
     opacity: 1;
+
     transform: translateY(0);
   }
 
   100% {
     opacity: 0;
+
     transform: translateY(8px);
+  }
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 900px) {
+  .dentist-dashboard {
+    width: 100%;
+
+    height: 100vh;
+    height: 100dvh;
+
+    min-height: 0;
+
+    overflow: hidden;
+  }
+
+  .main-content {
+    width: 100%;
+
+    height: 100vh;
+    height: 100dvh;
+
+    min-width: 0;
+    min-height: 0;
+
+    overflow: hidden;
+  }
+
+  /*
+   * The topbar remains outside the scrolling dashboard.
+   * Therefore it stays visible while dashboard-grid scrolls.
+   */
+  .topbar {
+    flex: 0 0 auto;
+
+    width: 100%;
+
+    position: relative;
+
+    top: 0;
+
+    z-index: 500;
+  }
+}
+
+
+/* =========================================================
+   SMALL PHONE
+========================================================= */
+
+@media (max-width: 520px) {
+  .save-toast {
+    left: 12px;
+    right: 12px;
+
+    bottom: 12px;
+
+    text-align: center;
+
+    padding: 11px 14px;
+
+    font-size: 12px;
   }
 }

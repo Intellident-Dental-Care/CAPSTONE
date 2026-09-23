@@ -19,11 +19,16 @@
   overflow: visible;
 }
 
+
 /* =========================================================
    RIGHT INFO CARD
 ========================================================= */
 
 .right-info-card {
+  width: 100%;
+
+  min-width: 0;
+
   background: #ffffff;
 
   border: 1px solid #ececf2;
@@ -32,8 +37,12 @@
 
   padding: 14px;
 
-  box-shadow: 0 6px 16px rgba(16, 24, 40, 0.03);
+  box-shadow:
+    0 6px 16px rgba(16, 24, 40, 0.03);
+
+  overflow: hidden;
 }
+
 
 /* =========================================================
    CARD HEADER
@@ -43,7 +52,6 @@
   display: flex;
 
   align-items: center;
-
   justify-content: space-between;
 
   gap: 10px;
@@ -54,6 +62,8 @@
 .right-info-label {
   margin: 0;
 
+  min-width: 0;
+
   font-size: 12px;
 
   color: #8a8f9d;
@@ -62,6 +72,8 @@
 }
 
 .card-head-badge {
+  flex-shrink: 0;
+
   font-size: 10px;
 
   font-weight: 700;
@@ -73,7 +85,10 @@
   padding: 5px 8px;
 
   border-radius: 999px;
+
+  white-space: nowrap;
 }
+
 
 /* =========================================================
    DONUT
@@ -85,6 +100,8 @@
   align-items: center;
 
   gap: 16px;
+
+  min-width: 0;
 }
 
 .donut-chart {
@@ -93,16 +110,16 @@
 
   border-radius: 50%;
 
-  background: conic-gradient(
-    #e34d86 0% 78%,
-    #f1c84d 78% 92%,
-    #c96cff 92% 100%
-  );
+  background:
+    conic-gradient(
+      #e34d86 0% 78%,
+      #f1c84d 78% 92%,
+      #c96cff 92% 100%
+    );
 
   display: flex;
 
   align-items: center;
-
   justify-content: center;
 
   flex-shrink: 0;
@@ -117,11 +134,9 @@
   border-radius: 50%;
 
   display: flex;
-
   flex-direction: column;
 
   align-items: center;
-
   justify-content: center;
 
   text-align: center;
@@ -145,6 +160,7 @@
   font-weight: 600;
 }
 
+
 /* =========================================================
    DONUT LEGEND
 ========================================================= */
@@ -152,8 +168,9 @@
 .donut-legend {
   flex: 1;
 
-  display: flex;
+  min-width: 0;
 
+  display: flex;
   flex-direction: column;
 
   gap: 10px;
@@ -163,10 +180,11 @@
   display: flex;
 
   align-items: center;
-
   justify-content: space-between;
 
   gap: 12px;
+
+  min-width: 0;
 }
 
 .legend-left {
@@ -175,6 +193,8 @@
   align-items: center;
 
   gap: 8px;
+
+  min-width: 0;
 }
 
 .legend-dot {
@@ -184,6 +204,8 @@
   border-radius: 50%;
 
   display: inline-block;
+
+  flex-shrink: 0;
 }
 
 .legend-dot.completed {
@@ -199,6 +221,8 @@
 }
 
 .legend-text {
+  min-width: 0;
+
   font-size: 11px;
 
   color: #5f6673;
@@ -206,33 +230,39 @@
   font-weight: 600;
 }
 
+
 /* =========================================================
    BAR CHART
 ========================================================= */
 
 .bar-chart {
+  width: 100%;
+
+  min-width: 0;
+
   height: 112px;
 
   display: flex;
 
   align-items: flex-end;
-
   justify-content: space-between;
 
   gap: 10px;
 
   padding: 4px 6px 0;
+
+  overflow: hidden;
 }
 
 .bar-item {
-  flex: 1;
+  flex: 1 1 0;
+
+  min-width: 0;
 
   display: flex;
-
   flex-direction: column;
 
   align-items: center;
-
   justify-content: flex-end;
 
   gap: 6px;
@@ -287,7 +317,10 @@
   color: #8a8f9d;
 
   font-weight: 600;
+
+  white-space: nowrap;
 }
+
 
 /* =========================================================
    SUMMARY LIST
@@ -299,9 +332,13 @@
   flex-direction: column;
 
   gap: 8px;
+
+  min-width: 0;
 }
 
 .summary-item {
+  min-width: 0;
+
   padding: 10px 12px;
 
   border-radius: 14px;
@@ -321,40 +358,89 @@
   font-weight: 600;
 }
 
+
 /* =========================================================
-   RESPONSIVE
+   TABLET
 ========================================================= */
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
+  .right-extra-grid {
+    width: 100%;
+
+    grid-template-columns: 1fr;
+  }
+
+  .right-info-card {
+    width: 100%;
+  }
+
   .donut-layout {
     flex-wrap: wrap;
   }
 
   .donut-legend {
+    flex: 1;
+
     min-width: 180px;
   }
 }
 
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
 @media (max-width: 520px) {
   .right-info-card {
     padding: 12px;
+
+    border-radius: 14px;
+  }
+
+  .card-head {
+    align-items: flex-start;
   }
 
   .donut-layout {
     flex-direction: column;
 
     align-items: stretch;
+
+    gap: 14px;
   }
 
   .donut-chart {
     align-self: center;
   }
 
+  .donut-legend {
+    width: 100%;
+
+    min-width: 0;
+  }
+
   .bar-chart {
     gap: 5px;
+
+    padding-left: 2px;
+    padding-right: 2px;
+
+    overflow: hidden;
+  }
+
+  .bar-item {
+    min-width: 0;
+  }
+
+  .bar-track {
+    max-width: 24px;
   }
 
   .bar-label {
     font-size: 9px;
+  }
+
+  .bar-value {
+    font-size: 10px;
   }
 }

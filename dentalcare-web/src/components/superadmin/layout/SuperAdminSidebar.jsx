@@ -3,28 +3,51 @@ import { useEffect, useState, useRef } from "react";
 import logo from "../../../assets/logo.png";
 import adminProfile from "../../../assets/profile_sample.jpg";
 import AuthService from "../../../services/authService";
-import { getSuperAdminProfile, loadSuperAdminAvatarObjectUrl } from "../../../services/superAdminService";
+import {
+  getSuperAdminProfile,
+  loadSuperAdminAvatarObjectUrl,
+} from "../../../services/superAdminService";
 
 const sidebarAvatarCache = {
   path: "",
   src: "",
 };
 
-export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }) {
+export default function SuperAdminSidebar({
+  isOpen = false,
+  onClose = () => {},
+}) {
   const navigate = useNavigate();
+
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [currentUser, setCurrentUser] = useState(() => AuthService.getCurrentUser() || {});
+
+  const [currentUser, setCurrentUser] = useState(
+    () => AuthService.getCurrentUser() || {}
+  );
+
   const [avatarSrc, setAvatarSrc] = useState(sidebarAvatarCache.src);
+
   const loadingRef = useRef(false);
+
+  /* =========================================================
+     LOAD SUPER ADMIN PROFILE
+  ========================================================= */
 
   useEffect(() => {
     let active = true;
 
     const loadProfile = async () => {
       const result = await getSuperAdminProfile();
-      if (!active || !result?.success || !result?.data) return;
 
-      setCurrentUser((prev) => ({ ...(prev || {}), ...result.data }));
+      if (!active || !result?.success || !result?.data) {
+        return;
+      }
+
+      setCurrentUser((prev) => ({
+        ...(prev || {}),
+        ...result.data,
+      }));
+
       localStorage.setItem(
         "user_data",
         JSON.stringify({
@@ -32,7 +55,12 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
           ...result.data,
         })
       );
-      window.dispatchEvent(new CustomEvent("auth:user-updated", { detail: result.data }));
+
+      window.dispatchEvent(
+        new CustomEvent("auth:user-updated", {
+          detail: result.data,
+        })
+      );
     };
 
     const syncFromStorage = () => {
@@ -41,29 +69,59 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
 
     const handleUserUpdated = (event) => {
       if (event?.detail && typeof event.detail === "object") {
-        setCurrentUser((prev) => ({ ...(prev || {}), ...event.detail }));
+        setCurrentUser((prev) => ({
+          ...(prev || {}),
+          ...event.detail,
+        }));
+
         return;
       }
+
       syncFromStorage();
     };
 
     loadProfile();
+
     window.addEventListener("storage", syncFromStorage);
-    window.addEventListener("auth:user-updated", handleUserUpdated);
+    window.addEventListener(
+      "auth:user-updated",
+      handleUserUpdated
+    );
 
     return () => {
       active = false;
-      window.removeEventListener("storage", syncFromStorage);
-      window.removeEventListener("auth:user-updated", handleUserUpdated);
+
+      window.removeEventListener(
+        "storage",
+        syncFromStorage
+      );
+
+      window.removeEventListener(
+        "auth:user-updated",
+        handleUserUpdated
+      );
     };
   }, []);
 
+  /* =========================================================
+     LOAD SUPER ADMIN AVATAR
+  ========================================================= */
+
   useEffect(() => {
     const reloadAvatar = async () => {
-      const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
-      const avatarPath = userData?.avatarPath || userData?.avatarUrl || "";
+      const userData = JSON.parse(
+        localStorage.getItem("user_data") || "{}"
+      );
 
-      if (avatarPath === sidebarAvatarCache.path && sidebarAvatarCache.src) {
+      const avatarPath =
+        userData?.avatarPath ||
+        userData?.avatarUrl ||
+        "";
+
+      if (
+        avatarPath === sidebarAvatarCache.path &&
+        sidebarAvatarCache.src
+      ) {
         setAvatarSrc(sidebarAvatarCache.src);
         return;
       }
@@ -71,17 +129,27 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
       if (!avatarPath) {
         sidebarAvatarCache.path = "";
         sidebarAvatarCache.src = "";
+
         setAvatarSrc("");
+
         return;
       }
 
-      if (loadingRef.current) return;
+      if (loadingRef.current) {
+        return;
+      }
+
       loadingRef.current = true;
 
       try {
-        const resolved = await loadSuperAdminAvatarObjectUrl(avatarPath);
+        const resolved =
+          await loadSuperAdminAvatarObjectUrl(
+            avatarPath
+          );
+
         sidebarAvatarCache.path = avatarPath;
         sidebarAvatarCache.src = resolved || "";
+
         setAvatarSrc(resolved || "");
       } catch {
         setAvatarSrc("");
@@ -93,36 +161,77 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
     reloadAvatar();
 
     const handleAvatarUpdated = () => {
-      const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
-      const newAvatarPath = userData?.avatarPath || userData?.avatarUrl || "";
-      
-      if (newAvatarPath && sidebarAvatarCache.path !== newAvatarPath) {
+      const userData = JSON.parse(
+        localStorage.getItem("user_data") || "{}"
+      );
+
+      const newAvatarPath =
+        userData?.avatarPath ||
+        userData?.avatarUrl ||
+        "";
+
+      if (
+        newAvatarPath &&
+        sidebarAvatarCache.path !== newAvatarPath
+      ) {
         reloadAvatar();
       }
     };
 
-    window.addEventListener("auth:user-updated", handleAvatarUpdated);
-    window.addEventListener("storage", handleAvatarUpdated);
+    window.addEventListener(
+      "auth:user-updated",
+      handleAvatarUpdated
+    );
+
+    window.addEventListener(
+      "storage",
+      handleAvatarUpdated
+    );
 
     return () => {
-      window.removeEventListener("auth:user-updated", handleAvatarUpdated);
-      window.removeEventListener("storage", handleAvatarUpdated);
+      window.removeEventListener(
+        "auth:user-updated",
+        handleAvatarUpdated
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleAvatarUpdated
+      );
     };
   }, []);
 
+  /* =========================================================
+     DISPLAY INFORMATION
+  ========================================================= */
+
   const displayName =
-    currentUser?.fullName || currentUser?.full_name || currentUser?.name || "Super Admin";
+    currentUser?.fullName ||
+    currentUser?.full_name ||
+    currentUser?.name ||
+    "Super Admin";
 
   const displayRole =
-    currentUser?.admin_type === "super_admin" || currentUser?.adminType === "super_admin"
+    currentUser?.admin_type === "super_admin" ||
+    currentUser?.adminType === "super_admin"
       ? "System Super Administrator"
       : "Administrator";
 
+  /* =========================================================
+     LOGOUT
+  ========================================================= */
+
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);
+
     AuthService.clearAuth();
+
     navigate("/login");
   };
+
+  /* =========================================================
+     MOBILE NAVIGATION
+  ========================================================= */
 
   const handleNavClick = () => {
     if (window.innerWidth <= 900) {
@@ -130,40 +239,121 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
     }
   };
 
+  /* =========================================================
+     PREVENT BODY SCROLL WHEN MOBILE SIDEBAR IS OPEN
+  ========================================================= */
+
+  useEffect(() => {
+    if (window.innerWidth <= 900 && isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+
+  /* =========================================================
+     CLOSE SIDEBAR WHEN ESCAPE IS PRESSED
+  ========================================================= */
+
+  useEffect(() => {
+    const handleEscape = (event) => {
+      if (event.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+
+    document.addEventListener(
+      "keydown",
+      handleEscape
+    );
+
+    return () => {
+      document.removeEventListener(
+        "keydown",
+        handleEscape
+      );
+    };
+  }, [isOpen, onClose]);
+
   return (
     <>
-      <div
-        className={`superadmin-sidebar-overlay ${isOpen ? "show" : ""}`}
-        onClick={onClose}
-      ></div>
+      {/* =====================================================
+          MOBILE OVERLAY
+      ===================================================== */}
 
-      <aside className={`admin-sidebar superadmin-mobile-sidebar ${isOpen ? "open" : ""}`}>
+      <div
+        className={`superadmin-sidebar-overlay ${
+          isOpen ? "show" : ""
+        }`}
+        onClick={onClose}
+        aria-hidden={!isOpen}
+      />
+
+      {/* =====================================================
+          SIDEBAR
+      ===================================================== */}
+
+      <aside
+        className={`admin-sidebar superadmin-mobile-sidebar ${
+          isOpen ? "open" : ""
+        }`}
+      >
         <div className="superadmin-sidebar-inner">
+
           <div>
+            {/* =================================================
+                BRAND
+            ================================================= */}
+
             <div className="admin-brand">
               <img
                 src={logo}
                 alt="GC Dental Care"
                 className="admin-brand-logo-img"
               />
+
               <div>
                 <h2>GC Dental Care</h2>
                 <p>Powered by Intellident</p>
               </div>
             </div>
 
+            {/* =================================================
+                PROFILE
+            ================================================= */}
+
             <div className="admin-profile-card">
-              <img src={avatarSrc || adminProfile} alt="Super Admin" />
-              <h3>Hello, {displayName}</h3>
+              <img
+                src={avatarSrc || adminProfile}
+                alt="Super Admin"
+              />
+
+              <h3>
+                Hello, {displayName}
+              </h3>
+
               <p>{displayRole}</p>
             </div>
 
+            {/* =================================================
+                NAVIGATION
+            ================================================= */}
+
             <nav className="admin-sidebar-menu">
+
               <NavLink
                 to="/superadmin/dashboard"
                 end
                 onClick={handleNavClick}
-                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+                className={({ isActive }) =>
+                  `admin-menu-item ${
+                    isActive ? "active" : ""
+                  }`
+                }
               >
                 Dashboard
               </NavLink>
@@ -171,7 +361,11 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
               <NavLink
                 to="/superadmin/admins"
                 onClick={handleNavClick}
-                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+                className={({ isActive }) =>
+                  `admin-menu-item ${
+                    isActive ? "active" : ""
+                  }`
+                }
               >
                 Admin Management
               </NavLink>
@@ -179,7 +373,11 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
               <NavLink
                 to="/superadmin/dentists"
                 onClick={handleNavClick}
-                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+                className={({ isActive }) =>
+                  `admin-menu-item ${
+                    isActive ? "active" : ""
+                  }`
+                }
               >
                 Dentist Management
               </NavLink>
@@ -187,7 +385,11 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
               <NavLink
                 to="/superadmin/patients"
                 onClick={handleNavClick}
-                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+                className={({ isActive }) =>
+                  `admin-menu-item ${
+                    isActive ? "active" : ""
+                  }`
+                }
               >
                 Patient Management
               </NavLink>
@@ -195,7 +397,11 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
               <NavLink
                 to="/superadmin/services"
                 onClick={handleNavClick}
-                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+                className={({ isActive }) =>
+                  `admin-menu-item ${
+                    isActive ? "active" : ""
+                  }`
+                }
               >
                 Services
               </NavLink>
@@ -203,7 +409,11 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
               <NavLink
                 to="/superadmin/tooth-questions"
                 onClick={handleNavClick}
-                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+                className={({ isActive }) =>
+                  `admin-menu-item ${
+                    isActive ? "active" : ""
+                  }`
+                }
               >
                 Tooth Questions
               </NavLink>
@@ -211,7 +421,11 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
               <NavLink
                 to="/superadmin/faqs"
                 onClick={handleNavClick}
-                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+                className={({ isActive }) =>
+                  `admin-menu-item ${
+                    isActive ? "active" : ""
+                  }`
+                }
               >
                 FAQs
               </NavLink>
@@ -219,7 +433,11 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
               <NavLink
                 to="/superadmin/terms-and-conditions"
                 onClick={handleNavClick}
-                className={({ isActive }) => `admin-menu-item ${isActive ? "active" : ""}`}
+                className={({ isActive }) =>
+                  `admin-menu-item ${
+                    isActive ? "active" : ""
+                  }`
+                }
               >
                 Terms & Conditions
               </NavLink>
@@ -227,33 +445,54 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
             </nav>
           </div>
 
+          {/* =================================================
+              SIGN OUT
+          ================================================= */}
+
           <button
             type="button"
             className="admin-logout-btn"
-            onClick={() => setShowLogoutModal(true)}
+            onClick={() =>
+              setShowLogoutModal(true)
+            }
           >
             Sign Out
           </button>
+
         </div>
       </aside>
+
+      {/* =====================================================
+          LOGOUT MODAL
+      ===================================================== */}
 
       {showLogoutModal && (
         <div
           className="admin-logout-modal-overlay"
-          onClick={() => setShowLogoutModal(false)}
+          onClick={() =>
+            setShowLogoutModal(false)
+          }
         >
           <div
             className="admin-logout-modal"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) =>
+              e.stopPropagation()
+            }
           >
             <h3>Sign Out</h3>
-            <p>Are you sure you want to sign out?</p>
+
+            <p>
+              Are you sure you want to sign out?
+            </p>
 
             <div className="admin-logout-modal-actions">
+
               <button
                 type="button"
                 className="admin-logout-cancel-btn"
-                onClick={() => setShowLogoutModal(false)}
+                onClick={() =>
+                  setShowLogoutModal(false)
+                }
               >
                 Cancel
               </button>
@@ -265,6 +504,7 @@ export default function SuperAdminSidebar({ isOpen = false, onClose = () => {} }
               >
                 Sign Out
               </button>
+
             </div>
           </div>
         </div>

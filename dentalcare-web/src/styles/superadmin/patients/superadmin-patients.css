@@ -603,40 +603,25 @@
 }
 
 @media (max-width: 1024px) {
-  .superadmin-patients-fixed-page {
-    height: auto;
-    overflow: visible;
-  }
-
-  .superadmin-patients-content {
-    height: auto;
-  }
-
-  .superadmin-patients-page-head {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .superadmin-patients-page-head-right {
-    justify-content: flex-start;
-  }
-
+  /* Keep summary cards compact instead of stacking them vertically. */
   .superadmin-patients-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
   }
 
-  .superadmin-patients-list-head {
-    flex-direction: column;
-    align-items: stretch;
+  .superadmin-patient-stat-card {
+    min-height: 82px;
+    padding: 14px 16px;
+    border-radius: 18px;
   }
 
-  .superadmin-patients-top-actions {
-    width: 100%;
-    justify-content: flex-start;
+  .superadmin-patient-stat-card span {
+    margin-bottom: 5px;
+    font-size: 12px;
   }
 
-  .superadmin-patients-search {
-    width: 100%;
+  .superadmin-patient-stat-card h3 {
+    font-size: 24px;
   }
 
   .superadmin-patient-details-grid {
@@ -648,25 +633,196 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
+  /* The page itself becomes the vertical scrolling area. */
+  .superadmin-patients-fixed-page {
+    height: calc(100vh - 78px);
+    height: calc(100dvh - 78px);
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
   .superadmin-patients-content {
+    height: auto;
+    min-height: 100%;
     padding: 18px;
+    gap: 14px;
   }
 
   .superadmin-patients-title {
-    font-size: 1.8rem;
+    font-size: 1.9rem;
+  }
+
+  .superadmin-patients-page-head {
+    gap: 14px;
   }
 
   .superadmin-patients-page-head-right {
+    gap: 10px;
+  }
+
+  .superadmin-patients-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .superadmin-patient-stat-card {
+    min-width: 0;
+    min-height: 76px;
+    padding: 12px 14px;
+    border-radius: 16px;
+  }
+
+  .superadmin-patient-stat-card span {
+    margin-bottom: 4px;
+    font-size: 11px;
+  }
+
+  .superadmin-patient-stat-card h3 {
+    font-size: 22px;
+  }
+
+  /* Do not squeeze the list into the remaining viewport height. */
+  .superadmin-patients-list-card {
+    flex: none;
+    min-height: 0;
+    padding: 16px;
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .superadmin-patients-card-head {
+    margin-bottom: 14px;
+  }
+
+  .superadmin-patients-list-head {
+    gap: 12px;
+  }
+
+  .superadmin-patients-top-actions {
+    flex: 1 1 300px;
+  }
+
+  .superadmin-patients-search {
+    min-width: 240px;
+  }
+
+  /* Table keeps independent horizontal scrolling. */
+  .superadmin-patients-table-scroll {
+    flex: none;
+    min-height: 230px;
+    max-height: 430px;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 768px) {
+  .superadmin-patients-fixed-page {
+    height: calc(100vh - 64px);
+    height: calc(100dvh - 64px);
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .superadmin-patients-content {
+    height: auto;
+    min-height: 100%;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .superadmin-patients-title {
+    font-size: 1.7rem;
+  }
+
+  .superadmin-patients-subtitle {
+    margin-top: 7px;
+  }
+
+  .superadmin-patients-page-head {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .superadmin-patients-page-head-right {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     width: 100%;
+    gap: 10px;
   }
 
   .superadmin-patients-filter,
   .superadmin-patients-page-filter,
   .superadmin-patients-export-btn {
     width: 100%;
+    min-width: 0;
+  }
+
+  .superadmin-patients-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .superadmin-patient-stat-card {
+    min-width: 0;
+    min-height: 70px;
+    padding: 10px 12px;
+    border-radius: 15px;
+  }
+
+  .superadmin-patient-stat-card span {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .superadmin-patient-stat-card h3 {
+    font-size: 20px;
+  }
+
+  .superadmin-patients-list-card {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .superadmin-patients-list-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .superadmin-patients-top-actions,
+  .superadmin-patients-search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .superadmin-patients-search {
+    height: 46px;
+    border-radius: 14px;
+  }
+
+  .superadmin-patients-table-scroll {
+    min-height: 250px;
+    max-height: 420px;
+  }
+
+  .superadmin-patients-table {
+    min-width: 1120px;
+  }
+
+  .superadmin-patient-details-overlay {
+    padding: 12px;
+  }
+
+  .superadmin-patient-details-modal {
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+    padding: 20px;
+    border-radius: 20px;
   }
 
   .superadmin-patient-details-header {
@@ -686,5 +842,202 @@
   .superadmin-patient-procedure-top {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .superadmin-patients-content {
+    padding: 12px;
+    gap: 11px;
+  }
+
+  .superadmin-patients-title {
+    font-size: 1.5rem;
+  }
+
+  .superadmin-patients-subtitle {
+    font-size: 0.86rem;
+    line-height: 1.4;
+  }
+
+  .superadmin-patients-page-head-right {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .superadmin-patients-filter,
+  .superadmin-patients-page-filter,
+  .superadmin-patients-export-btn {
+    height: 42px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+
+  .superadmin-patients-export-btn {
+    padding: 0 10px;
+  }
+
+  .superadmin-patients-stats {
+    gap: 6px;
+  }
+
+  .superadmin-patient-stat-card {
+    min-height: 66px;
+    padding: 9px 8px;
+    border-radius: 14px;
+  }
+
+  .superadmin-patient-stat-card span {
+    min-height: 25px;
+    margin-bottom: 2px;
+    font-size: 9px;
+  }
+
+  .superadmin-patient-stat-card h3 {
+    font-size: 19px;
+  }
+
+  .superadmin-patients-list-card {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .superadmin-patients-list-head-text h3 {
+    font-size: 1.15rem;
+  }
+
+  .superadmin-patients-list-head-text p {
+    margin-top: 4px;
+    font-size: 0.76rem;
+  }
+
+  .superadmin-patients-search {
+    height: 44px;
+    font-size: 0.85rem;
+  }
+
+  .superadmin-patients-table-scroll {
+    min-height: 270px;
+    max-height: 400px;
+  }
+
+  .superadmin-patients-table {
+    min-width: 1050px;
+  }
+
+  .superadmin-patients-table tbody td {
+    padding: 13px 11px;
+    font-size: 0.86rem;
+  }
+
+  .superadmin-patient-details-overlay {
+    padding: 8px;
+  }
+
+  .superadmin-patient-details-modal {
+    max-height: calc(100dvh - 16px);
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .superadmin-patient-details-avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 23px;
+  }
+
+  .superadmin-patient-details-header-text h2 {
+    font-size: 21px;
+  }
+
+  .superadmin-patient-info-card {
+    padding: 15px;
+    border-radius: 16px;
+  }
+}
+
+/* =========================================================
+   PATIENT LIST - MOBILE HEIGHT / EMPTY SPACE FIX
+========================================================= */
+
+@media (max-width: 900px) {
+  .superadmin-patients-list-card {
+    flex: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: hidden;
+  }
+
+  .superadmin-patients-card-head {
+    flex: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin-bottom: 14px;
+  }
+
+  .superadmin-patients-list-head {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .superadmin-patients-top-actions {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .superadmin-patients-table-scroll {
+    flex: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 430px;
+    overflow-x: auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .superadmin-patients-table-wrap {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .superadmin-patients-table {
+    margin-top: 0 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .superadmin-patients-list-card {
+    padding: 14px;
+  }
+
+  .superadmin-patients-card-head {
+    margin-bottom: 12px;
+  }
+
+  .superadmin-patients-list-head {
+    gap: 12px;
+  }
+
+  .superadmin-patients-search {
+    margin: 0 !important;
+  }
+
+  .superadmin-patients-table-scroll {
+    max-height: 420px;
+  }
+}
+
+@media (max-width: 480px) {
+  .superadmin-patients-list-card {
+    padding: 12px;
+  }
+
+  .superadmin-patients-card-head {
+    margin-bottom: 10px;
+  }
+
+  .superadmin-patients-table-scroll {
+    max-height: 390px;
   }
 }

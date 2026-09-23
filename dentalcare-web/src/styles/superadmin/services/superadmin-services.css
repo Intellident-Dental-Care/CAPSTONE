@@ -549,3 +549,338 @@
     width: 100%;
   }
 }
+
+/* =========================================================
+   SERVICES MANAGEMENT - RESPONSIVE PAGE FIX
+   Keeps desktop unchanged and fixes tablet/mobile behavior.
+========================================================= */
+
+@media (max-width: 900px) {
+  .superadmin-services-fixed-page {
+    height: calc(100vh - 78px);
+    height: calc(100dvh - 78px);
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .superadmin-services-content {
+    height: auto;
+    min-height: 100%;
+    padding: 18px;
+    gap: 14px;
+  }
+
+  .superadmin-services-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .superadmin-services-title {
+    font-size: 1.9rem;
+  }
+
+  .superadmin-services-header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .superadmin-services-header-actions button,
+  .superadmin-services-add-open-btn,
+  .superadmin-services-secondary-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Let the card use natural page height on small screens. */
+  .superadmin-services-list-card {
+    flex: none;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    padding: 16px;
+    overflow: hidden;
+  }
+
+  .superadmin-services-card-head,
+  .superadmin-services-card-head-wrap {
+    height: auto;
+    min-height: 0;
+  }
+
+  .superadmin-services-card-head-wrap {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .superadmin-services-top-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .superadmin-services-search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .superadmin-services-bulk-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .superadmin-services-bulk-actions button {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Only the service list scrolls sideways for its 8 columns. */
+  .superadmin-services-table-scroll {
+    flex: none;
+    width: 100%;
+    min-height: 260px;
+    max-height: 470px;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .superadmin-services-table-wrap {
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .superadmin-services-table {
+    min-width: 1250px;
+  }
+
+  /* More balanced service columns at tablet/mobile sizes. */
+  .superadmin-services-table th:nth-child(1),
+  .superadmin-services-table td:nth-child(1) {
+    width: 48px;
+  }
+
+  .superadmin-services-table th:nth-child(2),
+  .superadmin-services-table td:nth-child(2) {
+    width: 190px;
+  }
+
+  .superadmin-services-table th:nth-child(3),
+  .superadmin-services-table td:nth-child(3) {
+    width: 150px;
+  }
+
+  .superadmin-services-table th:nth-child(4),
+  .superadmin-services-table td:nth-child(4) {
+    width: 190px;
+  }
+
+  .superadmin-services-table th:nth-child(5),
+  .superadmin-services-table td:nth-child(5) {
+    width: 150px;
+  }
+
+  .superadmin-services-table th:nth-child(6),
+  .superadmin-services-table td:nth-child(6) {
+    width: 300px;
+    text-align: left;
+  }
+
+  .superadmin-services-table th:nth-child(7),
+  .superadmin-services-table td:nth-child(7) {
+    width: 110px;
+    text-align: center;
+  }
+
+  .superadmin-services-table th:nth-child(8),
+  .superadmin-services-table td:nth-child(8) {
+    width: 190px;
+    text-align: center;
+  }
+
+  .superadmin-services-description-cell {
+    word-break: normal;
+    overflow-wrap: break-word;
+  }
+
+  /* Modals remain usable on smaller screens. */
+  .superadmin-services-modal-overlay {
+    padding: 14px;
+    overflow-y: auto;
+  }
+
+  .superadmin-services-modal,
+  .superadmin-services-add-modal {
+    max-width: min(760px, 100%);
+    max-height: calc(100dvh - 28px);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .superadmin-services-fixed-page {
+    height: calc(100vh - 64px);
+    height: calc(100dvh - 64px);
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .superadmin-services-content {
+    height: auto;
+    min-height: 100%;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .superadmin-services-title {
+    font-size: 1.7rem;
+  }
+
+  .superadmin-services-subtitle {
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+
+  .superadmin-services-header-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .superadmin-services-header-actions button {
+    height: 44px;
+    padding: 0 12px;
+    font-size: 0.82rem;
+  }
+
+  .superadmin-services-list-card {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .superadmin-services-card-head {
+    margin-bottom: 12px;
+  }
+
+  .superadmin-services-search {
+    height: 46px;
+  }
+
+  .superadmin-services-table-scroll {
+    min-height: 280px;
+    max-height: 440px;
+  }
+
+  .superadmin-services-table {
+    min-width: 1180px;
+  }
+
+  .superadmin-services-modal {
+    width: 100%;
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .superadmin-services-modal-form-grid,
+  .superadmin-services-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .superadmin-services-field-full,
+  .superadmin-services-modal-actions {
+    grid-column: auto;
+  }
+
+  .superadmin-services-modal-actions {
+    width: 100%;
+  }
+
+  .superadmin-services-modal-actions button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .superadmin-services-content {
+    padding: 12px;
+    gap: 11px;
+  }
+
+  .superadmin-services-title {
+    font-size: 1.5rem;
+  }
+
+  .superadmin-services-subtitle {
+    font-size: 0.86rem;
+  }
+
+  .superadmin-services-header-actions {
+    gap: 8px;
+  }
+
+  .superadmin-services-header-actions button {
+    height: 42px;
+    padding: 0 8px;
+    font-size: 0.74rem;
+  }
+
+  .superadmin-services-list-card {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .superadmin-services-card-head h3 {
+    font-size: 1.15rem;
+  }
+
+  .superadmin-services-card-head p {
+    font-size: 0.76rem;
+  }
+
+  .superadmin-services-search {
+    height: 44px;
+    font-size: 0.85rem;
+  }
+
+  .superadmin-services-bulk-actions {
+    flex-direction: column;
+  }
+
+  .superadmin-services-table-scroll {
+    min-height: 300px;
+    max-height: 410px;
+  }
+
+  .superadmin-services-table {
+    min-width: 1120px;
+  }
+
+  .superadmin-services-modal-overlay {
+    padding: 8px;
+  }
+
+  .superadmin-services-modal,
+  .superadmin-services-add-modal {
+    max-height: calc(100dvh - 16px);
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .superadmin-services-modal-top h3 {
+    font-size: 1.2rem;
+  }
+
+  .superadmin-services-modal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .superadmin-services-modal-actions button {
+    width: 100%;
+  }
+}
+

@@ -626,3 +626,234 @@
     padding: 12px 14px !important;
   }
 }
+
+/* =========================================================
+   ADMIN TOPBAR LEFT
+========================================================= */
+
+.admin-topbar-left {
+  min-width: 0;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+}
+
+
+/* =========================================================
+   ADMIN MOBILE MENU BUTTON
+========================================================= */
+
+.admin-mobile-menu-btn {
+  width: 40px;
+  height: 40px;
+
+  flex-shrink: 0;
+
+  display: none;
+
+  align-items: center;
+  justify-content: center;
+
+  flex-direction: column;
+
+  gap: 4px;
+
+  padding: 0;
+
+  border: none;
+
+  border-radius: 12px;
+
+  background: #ffffff;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 8px 20px
+    rgba(239, 75, 132, 0.08);
+
+  transition: 0.2s ease;
+}
+
+.admin-mobile-menu-btn:hover {
+  background: #fff5f8;
+}
+
+.admin-mobile-menu-btn span {
+  display: block;
+
+  width: 18px;
+  height: 2px;
+
+  border-radius: 999px;
+
+  background: #e34d86;
+}
+
+
+/* =========================================================
+   TABLET / MOBILE TOPBAR
+========================================================= */
+
+@media (max-width: 900px) {
+
+  .admin-mobile-menu-btn {
+    display: flex;
+  }
+
+  .admin-topbar {
+    width: 100%;
+
+    min-width: 0;
+
+    padding: 0 16px;
+  }
+
+  .admin-topbar-left {
+    flex: 1;
+
+    min-width: 0;
+  }
+
+  .admin-topbar h1 {
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+  }
+
+  .admin-topbar-actions {
+    flex-shrink: 0;
+  }
+}
+
+
+/* =========================================================
+   PHONE
+========================================================= */
+
+@media (max-width: 600px) {
+
+  .admin-topbar {
+    min-height: 64px;
+
+    padding: 8px 10px;
+
+    gap: 8px;
+  }
+
+  .admin-topbar-left {
+    flex: 0 1 auto;
+
+    gap: 8px;
+  }
+
+  .admin-mobile-menu-btn,
+  .admin-icon-btn,
+  .admin-profile-trigger {
+    width: 38px;
+    height: 38px;
+
+    min-width: 38px;
+
+    padding: 0;
+
+    border-radius: 11px;
+  }
+
+  .admin-topbar h1 {
+    font-size: 15px;
+  }
+
+  .admin-profile-label {
+    display: none;
+  }
+
+  .admin-profile-arrow {
+    font-size: 12px;
+  }
+
+  .admin-topbar-actions {
+    gap: 5px;
+  }
+
+  .admin-topbar-branch-wrapper {
+    padding: 3px;
+  }
+
+  .admin-topbar-branch-select {
+    width: 120px;
+
+    min-width: 120px;
+
+    max-width: 120px;
+
+    height: 34px;
+
+    padding-left: 8px;
+
+    padding-right: 22px;
+
+    font-size: 10px;
+  }
+}
+
+
+/* =========================================================
+   VERY SMALL PHONE
+========================================================= */
+
+@media (max-width: 430px) {
+
+  /*
+   * Hide page title because menu + branch +
+   * notification + profile need the available width.
+   */
+
+  .admin-topbar h1 {
+    display: none;
+  }
+
+  .admin-topbar-left {
+    flex: 0 0 auto;
+  }
+
+  .admin-topbar {
+    justify-content: space-between;
+  }
+
+  .admin-topbar-branch-select {
+    width: 112px;
+
+    min-width: 112px;
+
+    max-width: 112px;
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-topbar {
+    position: relative;
+    z-index: 100;
+  }
+
+  .admin-topbar-left {
+    position: relative;
+    z-index: 101;
+  }
+
+  .admin-mobile-menu-btn {
+    position: relative;
+    z-index: 102;
+
+    display: flex;
+
+    pointer-events: auto;
+
+    cursor: pointer;
+  }
+}

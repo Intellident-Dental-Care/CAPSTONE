@@ -113,6 +113,7 @@
 
 .superadmin-terms-input {
   flex: 1;
+  min-width: 0;
   min-height: 50px;
   border: 1px solid #f2c9d8;
   border-radius: 16px;
@@ -131,6 +132,7 @@
 
 .superadmin-terms-textarea {
   width: 100%;
+  box-sizing: border-box;
   border: 1px solid #f2c9d8;
   border-radius: 18px;
   padding: 14px;
@@ -216,6 +218,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
 .superadmin-shared-field {
@@ -233,6 +237,7 @@
 .superadmin-shared-field input,
 .superadmin-shared-field textarea {
   width: 100%;
+  box-sizing: border-box;
   border: 1px solid #f2c9d8;
   border-radius: 16px;
   padding: 12px 14px;
@@ -284,54 +289,10 @@
   color: #5e6679;
 }
 
-@media (max-width: 768px) {
-  .superadmin-terms-page-scrollfix {
-    height: auto;
-    overflow: visible;
-  }
-
-  .superadmin-terms-page {
-    height: auto;
-    padding: 18px;
-  }
-
-  .superadmin-terms-card {
-    padding: 20px;
-    border-radius: 22px;
-  }
-
-  .superadmin-terms-head h2 {
-    font-size: 1.7rem;
-  }
-
-  .superadmin-terms-actions {
-    width: 100%;
-  }
-
-  .superadmin-terms-btn {
-    width: 100%;
-  }
-
-  .superadmin-terms-edit-top {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .superadmin-shared-modal {
-    max-width: 100%;
-  }
-
-  .superadmin-shared-modal-actions {
-    flex-direction: column;
-  }
-
-  .superadmin-shared-btn {
-    width: 100%;
-  }
-}
-
 .superadmin-terms-paragraph {
   white-space: pre-line;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
 }
 
 .superadmin-terms-empty-state {
@@ -344,7 +305,163 @@
   font-weight: 700;
 }
 
-.superadmin-terms-paragraph {
-  white-space: pre-line;
-  line-height: 1.9;
+@media (max-width: 900px) {
+  .superadmin-terms-page-scrollfix {
+    height: calc(100vh - 78px);
+    height: calc(100dvh - 78px);
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .superadmin-terms-page {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+    padding: 18px;
+  }
+
+  .superadmin-terms-card {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 22px;
+  }
+
+  .superadmin-shared-modal-overlay {
+    padding: 14px;
+    overflow-y: auto;
+  }
+
+  .superadmin-shared-modal {
+    max-height: calc(100dvh - 28px);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .superadmin-terms-page-scrollfix {
+    height: calc(100vh - 64px);
+    height: calc(100dvh - 64px);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .superadmin-terms-page {
+    height: auto;
+    min-height: 100%;
+    padding: 16px;
+  }
+
+  .superadmin-terms-card {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .superadmin-terms-head-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .superadmin-terms-head h2 {
+    font-size: 1.7rem;
+  }
+
+  .superadmin-terms-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .superadmin-terms-btn {
+    width: 100%;
+  }
+
+  .superadmin-terms-edit-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .superadmin-terms-remove-btn {
+    width: 100%;
+  }
+
+  .superadmin-shared-modal {
+    width: 100%;
+  }
+
+  .superadmin-shared-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .superadmin-shared-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .superadmin-terms-page {
+    padding: 12px;
+  }
+
+  .superadmin-terms-card {
+    padding: 14px;
+    border-radius: 17px;
+  }
+
+  .superadmin-terms-head {
+    margin-bottom: 18px;
+  }
+
+  .superadmin-terms-head h2 {
+    font-size: 1.5rem;
+  }
+
+  .superadmin-terms-head p {
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+
+  .superadmin-terms-section {
+    padding: 15px 0;
+  }
+
+  .superadmin-terms-section h3 {
+    font-size: 1rem;
+  }
+
+  .superadmin-terms-section p {
+    font-size: 0.88rem;
+    line-height: 1.65;
+  }
+
+  .superadmin-terms-input {
+    min-height: 46px;
+  }
+
+  .superadmin-terms-textarea {
+    min-height: 120px;
+  }
+
+  .superadmin-shared-modal-overlay {
+    padding: 8px;
+  }
+
+  .superadmin-shared-modal {
+    max-height: calc(100dvh - 16px);
+    border-radius: 18px;
+  }
+
+  .superadmin-shared-modal-top {
+    padding: 18px 16px 14px;
+  }
+
+  .superadmin-shared-modal-body {
+    padding: 16px;
+    max-height: none;
+  }
+
+  .superadmin-shared-modal-actions {
+    padding: 0 16px 16px;
+  }
 }

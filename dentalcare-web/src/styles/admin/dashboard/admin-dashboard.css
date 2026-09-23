@@ -66,6 +66,7 @@
   box-shadow: 0 0 0 4px rgba(232, 80, 132, 0.1);
 }
 
+
 /* =========================================================
    MAIN DASHBOARD GRID
 ========================================================= */
@@ -74,15 +75,23 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
+
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(360px, 1fr);
+  grid-template-columns:
+    minmax(0, 1.7fr)
+    minmax(360px, 1fr);
+
   gap: 16px;
   padding: 16px;
+
   background: #f8f7f8;
+
   overflow-y: auto;
   overflow-x: hidden;
+
   align-content: start;
 }
+
 
 /* =========================================================
    COMMON CARDS
@@ -99,6 +108,7 @@
   box-shadow: 0 14px 34px rgba(232, 80, 132, 0.06);
 }
 
+
 /* =========================================================
    LEFT SECTION
 ========================================================= */
@@ -106,36 +116,52 @@
 .admin-left-section {
   display: flex;
   flex-direction: column;
+
   gap: 14px;
+
   min-width: 0;
   min-height: 0;
+
   overflow: visible;
 }
+
 
 /* =========================================================
    LIVE QUEUE
 ========================================================= */
 
 .admin-live-queue-card {
+  min-height: 260px;
+
   padding: 18px 22px;
-  background: linear-gradient(180deg, #fff4f8 0%, #ffffff 100%);
+
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  min-height: 260px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #fff4f8 0%,
+      #ffffff 100%
+    );
 }
 
 .admin-card-header-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
+
   gap: 12px;
+
   margin-bottom: 16px;
 }
 
 .admin-live-queue-title {
   margin: 0;
+
   color: #5b5b64;
+
   font-size: 24px;
   font-weight: 800;
 }
@@ -144,10 +170,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+
   padding: 7px 12px;
+
   border-radius: 999px;
+
   background: #fde6ef;
   color: #e85084;
+
   font-size: 12px;
   font-weight: 700;
 }
@@ -158,68 +188,96 @@
 
 .admin-live-queue-number {
   color: #17171c;
+
   font-size: 110px;
   font-weight: 900;
+
   line-height: 1;
 }
 
 .admin-live-queue-status {
   margin: 10px 0 22px;
+
   color: #e85084;
+
   font-size: 30px;
   font-weight: 800;
 }
 
 .admin-live-queue-extra {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
   gap: 12px;
+
   margin-bottom: 18px;
 }
 
 .admin-live-queue-extra-item {
   display: flex;
   flex-direction: column;
+
   gap: 5px;
+
   padding: 15px;
+
   background: #ffffff;
+
   border: 1px solid #f3dbe4;
   border-radius: 16px;
+
   text-align: left;
 }
 
 .admin-live-queue-extra-label {
   color: #a1a1aa;
+
   font-size: 12px;
   font-weight: 700;
 }
 
 .admin-live-queue-extra-value {
   color: #53535b;
+
   font-size: 15px;
   font-weight: 700;
+
   line-height: 1.4;
 }
 
 .admin-live-queue-progress {
   width: 100%;
   height: 10px;
+
   margin: 0 0 14px;
+
   overflow: hidden;
+
   background: #f3dbe4;
+
   border-radius: 999px;
 }
 
 .admin-live-queue-progress-fill {
   width: 50%;
   height: 100%;
-  background: linear-gradient(90deg, #f6a7c1 0%, #e85084 100%);
+
+  background:
+    linear-gradient(
+      90deg,
+      #f6a7c1 0%,
+      #e85084 100%
+    );
+
   border-radius: 999px;
 }
 
 .admin-live-queue-wait {
   margin: 0;
+
   color: #66666f;
+
   font-size: 15px;
   font-weight: 700;
 }
@@ -228,34 +286,45 @@
   color: #e85084;
 }
 
+
 /* =========================================================
    EMPTY QUEUE
 ========================================================= */
 
 .admin-live-queue-empty {
   flex: 1;
+
   padding: 40px 20px;
+
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+
   gap: 12px;
 }
 
 .admin-live-queue-empty-title {
   margin: 0;
+
   color: #53535b;
+
   font-size: 22px;
   font-weight: 800;
 }
 
 .admin-live-queue-empty-description {
   margin: 0;
+
   color: #a1a1aa;
+
   font-size: 14px;
+
   text-align: center;
+
   line-height: 1.4;
 }
+
 
 /* =========================================================
    DENTIST LEAVE REQUESTS
@@ -264,67 +333,94 @@
 .admin-dashboard-leave-card {
   min-height: 230px;
   max-height: 300px;
+
   padding: 18px 20px;
+
   display: flex;
   flex-direction: column;
+
   overflow: hidden;
 }
 
 .admin-dashboard-leave-header {
   flex-shrink: 0;
+
   margin-bottom: 13px;
 }
 
 .admin-dashboard-leave-title-row {
   display: flex;
   align-items: center;
+
   gap: 10px;
+
   flex-wrap: wrap;
 }
 
 .admin-dashboard-leave-title-row h3 {
   margin: 0;
+
   color: #5b5b64;
+
   font-size: 19px;
   font-weight: 800;
 }
 
 .admin-dashboard-leave-header p {
   margin: 5px 0 0;
+
   color: #94949d;
+
   font-size: 13px;
   font-weight: 500;
+
   line-height: 1.4;
 }
 
 .admin-dashboard-leave-count {
   width: auto !important;
   height: auto !important;
+
   min-width: 0 !important;
+
   display: inline-flex !important;
+
   align-items: center !important;
   justify-content: center !important;
+
   flex: 0 0 auto !important;
+
   padding: 6px 10px !important;
+
   background: #fff1d6 !important;
   color: #a56b00 !important;
+
   border: none !important;
   border-radius: 999px !important;
+
   font-size: 11px !important;
   font-weight: 700 !important;
+
   line-height: 1 !important;
+
   white-space: nowrap;
+
   box-shadow: none !important;
 }
 
 .admin-dashboard-leave-list {
   flex: 1;
+
   min-height: 0;
+
   display: flex;
   flex-direction: column;
+
   gap: 9px;
+
   overflow-y: auto;
   overflow-x: hidden;
+
   padding-right: 5px;
 }
 
@@ -334,24 +430,37 @@
 
 .admin-dashboard-leave-list::-webkit-scrollbar-track {
   background: #faf1f5;
+
   border-radius: 999px;
 }
 
 .admin-dashboard-leave-list::-webkit-scrollbar-thumb {
   background: #e4bdcc;
+
   border-radius: 999px;
 }
 
 .admin-dashboard-leave-item {
   flex-shrink: 0;
+
   min-width: 0;
   min-height: 66px;
+
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
+
+  grid-template-columns:
+    42px
+    minmax(0, 1fr)
+    auto;
+
   align-items: center;
+
   gap: 11px;
+
   padding: 10px 12px;
+
   background: #fffafb;
+
   border: 1px solid #f3dbe4;
   border-radius: 14px;
 }
@@ -359,43 +468,64 @@
 .admin-dashboard-leave-avatar {
   width: 42px;
   height: 42px;
+
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #ffd8e6, #ffc5d9);
+
+  background:
+    linear-gradient(
+      135deg,
+      #ffd8e6,
+      #ffc5d9
+    );
+
   border-radius: 12px;
+
   color: #e85084;
+
   font-size: 15px;
   font-weight: 800;
 }
 
 .admin-dashboard-leave-info {
   min-width: 0;
+
   display: flex;
   flex-direction: column;
+
   gap: 3px;
 }
 
 .admin-dashboard-leave-info strong {
   color: #484851;
+
   font-size: 14px;
   font-weight: 800;
+
   white-space: nowrap;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
 }
 
 .admin-dashboard-leave-info span {
   color: #e85084;
+
   font-size: 12px;
   font-weight: 700;
+
   white-space: nowrap;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
 }
 
 .admin-dashboard-leave-info small {
   color: #9b9ba4;
+
   font-size: 11px;
   font-weight: 600;
 }
@@ -403,22 +533,31 @@
 .admin-dashboard-leave-review {
   min-width: 78px;
   height: 35px;
+
   padding: 0 13px;
+
   border: none;
   border-radius: 10px;
+
   background: #ffedf3;
   color: #d94579;
+
   font-family: inherit;
+
   font-size: 12px;
   font-weight: 700;
+
   cursor: pointer;
+
   transition: 0.2s ease;
 }
 
 .admin-dashboard-leave-review:hover {
   background: #ffe0ea;
+
   transform: translateY(-1px);
 }
+
 
 /* =========================================================
    NO LEAVE REQUESTS
@@ -426,13 +565,19 @@
 
 .admin-dashboard-leave-empty {
   flex: 1;
+
   min-height: 100px;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   gap: 13px;
+
   padding: 18px;
+
   background: #fbfffc;
+
   border: 1px dashed #cfe8d8;
   border-radius: 15px;
 }
@@ -440,29 +585,41 @@
 .admin-dashboard-leave-empty-icon {
   width: 42px;
   height: 42px;
+
   flex-shrink: 0;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   background: #e8f8ee;
+
   border-radius: 50%;
+
   color: #259b58;
+
   font-size: 18px;
   font-weight: 800;
 }
 
 .admin-dashboard-leave-empty strong {
   display: block;
+
   margin-bottom: 4px;
+
   color: #4c4d55;
+
   font-size: 14px;
 }
 
 .admin-dashboard-leave-empty p {
   margin: 0;
+
   color: #92939c;
+
   font-size: 12px;
 }
+
 
 /* =========================================================
    LEFT BOTTOM GRID
@@ -470,19 +627,27 @@
 
 .admin-left-bottom-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
   gap: 14px;
+
   min-width: 0;
   min-height: 0;
+
   overflow: visible;
+
   align-items: stretch;
 }
 
 .admin-patient-card,
 .admin-dentists-card {
   min-width: 0;
+
   min-height: 220px;
 }
+
 
 /* =========================================================
    MINI CARDS
@@ -490,17 +655,22 @@
 
 .admin-mini-stat-card {
   padding: 20px;
+
   display: flex;
   flex-direction: column;
+
   min-width: 0;
 }
 
 .admin-mini-stat-title {
   margin: 0;
+
   color: #70707a;
+
   font-size: 17px;
   font-weight: 800;
 }
+
 
 /* =========================================================
    PATIENT CONTENT
@@ -509,68 +679,94 @@
 .admin-patient-content {
   display: flex;
   flex-direction: column;
+
   gap: 12px;
+
   flex: 1;
+
   min-height: 0;
 }
 
 .admin-patient-top {
   display: flex;
   flex-direction: column;
+
   gap: 7px;
 }
 
 .admin-patient-name {
   margin: 0;
+
   color: #e85084;
+
   font-size: 22px;
   font-weight: 800;
+
   line-height: 1.2;
 }
 
 .admin-patient-treatment {
   margin: 0;
+
   color: #66666f;
+
   font-size: 15px;
   font-weight: 700;
+
   line-height: 1.35;
 }
 
 .admin-patient-schedule {
   margin: 0;
+
   color: #8b8b94;
+
   font-size: 13px;
   font-weight: 600;
+
   line-height: 1.35;
 }
 
 .admin-patient-bottom {
   margin-top: auto;
+
   padding: 14px 16px;
+
   display: flex;
   flex-direction: column;
+
   gap: 4px;
+
   background: #fffafb;
+
   border: 1px solid #f4d9e3;
   border-radius: 16px;
 }
 
 .admin-assigned-label {
   color: #9a9aa3;
+
   font-size: 11px;
   font-weight: 700;
+
   text-transform: uppercase;
+
   letter-spacing: 0.2px;
+
   line-height: 1.2;
 }
 
 .admin-assigned-value {
   color: #e85084;
+
   font-size: 15px;
   font-weight: 700;
+
   line-height: 1.3;
+
   word-break: break-word;
 }
+
 
 /* =========================================================
    DENTISTS LIST
@@ -579,14 +775,21 @@
 .admin-dentists-list {
   display: flex;
   flex-direction: column;
+
   gap: 10px;
+
   margin-top: 16px;
+
   min-width: 0;
   min-height: 0;
+
   flex: 1;
+
   max-height: 280px;
+
   overflow-y: auto;
   overflow-x: hidden;
+
   padding-right: 4px;
 }
 
@@ -596,18 +799,25 @@
 
 .admin-dentists-list::-webkit-scrollbar-thumb {
   background: #edc1d1;
+
   border-radius: 999px;
 }
 
 .admin-dentist-item {
   min-width: 0;
+
   flex-shrink: 0;
+
   padding: 12px 13px;
+
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+
   gap: 12px;
+
   background: #fff8fb;
+
   border: 1px solid #f4c8d8;
   border-radius: 14px;
 }
@@ -618,23 +828,30 @@
 
 .admin-dentist-name {
   margin: 0;
+
   color: #e85084;
+
   font-size: 14px;
   font-weight: 700;
 }
 
 .admin-dentist-patients {
   display: inline-block;
+
   margin-top: 5px;
+
   color: #8a8a93;
+
   font-size: 13px;
   font-weight: 600;
 }
 
 .admin-dentist-status {
   color: #555;
+
   font-size: 13px;
   font-weight: 700;
+
   white-space: nowrap;
 }
 
@@ -648,10 +865,13 @@
 
 .admin-empty-text {
   margin: 0;
+
   color: #8a8a93;
+
   font-size: 13px;
   font-weight: 600;
 }
+
 
 /* =========================================================
    RIGHT SECTION
@@ -660,11 +880,15 @@
 .admin-right-section {
   display: flex;
   flex-direction: column;
+
   gap: 16px;
+
   min-width: 0;
   min-height: 0;
+
   overflow: visible;
 }
+
 
 /* =========================================================
    SUMMARY
@@ -672,9 +896,17 @@
 
 .admin-summary-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
   gap: 12px;
 }
+
+.admin-summary-row > * {
+  min-width: 0;
+}
+
 
 /* =========================================================
    KPI
@@ -682,13 +914,20 @@
 
 .admin-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
   gap: 10px;
 }
 
 .admin-kpi-card {
+  min-width: 0;
+
   min-height: 100px;
+
   padding: 16px;
+
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -696,26 +935,35 @@
 
 .admin-kpi-title {
   margin: 0 0 6px;
+
   color: #9a9aa3;
+
   font-size: 12px;
   font-weight: 800;
 }
 
 .admin-kpi-value {
   margin: 0;
+
   color: #e85084;
+
   font-size: 28px;
   font-weight: 900;
+
   line-height: 1.1;
 }
 
 .admin-kpi-subtext {
   margin-top: 6px;
+
   color: #8f8f98;
+
   font-size: 11px;
   font-weight: 700;
+
   line-height: 1.25;
 }
+
 
 /* =========================================================
    RIGHT INFO CARD
@@ -723,30 +971,42 @@
 
 .admin-right-info-card {
   min-height: 250px;
+
   padding: 18px;
+
   display: flex;
   flex-direction: column;
 }
 
 .admin-appointments-card {
-  min-height: 280px;
+  height: 300px;
+  min-height: 300px;
+  max-height: 300px;
+
+  overflow: hidden;
 }
 
 .admin-card-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+
   margin-bottom: 12px;
+
   gap: 10px;
+
   flex-wrap: wrap;
 }
 
 .admin-right-info-label {
   margin: 0;
+
   color: #70707a;
+
   font-size: 16px;
   font-weight: 800;
 }
+
 
 /* =========================================================
    TREATMENTS
@@ -754,51 +1014,75 @@
 
 .admin-treatments-layout {
   display: grid;
-  grid-template-columns: 130px 1fr;
+
+  grid-template-columns:
+    130px minmax(0, 1fr);
+
   align-items: center;
+
   gap: 16px;
+
   flex: 1;
 }
 
 .admin-treatments-chart {
   width: 126px;
   height: 126px;
+
   margin: 0 auto;
+
   border-radius: 50%;
-  background: conic-gradient(
-    #e8427d 0% 45%,
-    #ebb8cb 45% 67%,
-    #f4dbe6 67% 85%,
-    #f0a9c2 85% 100%
-  );
+
+  background:
+    conic-gradient(
+      #e8427d 0% 45%,
+      #ebb8cb 45% 67%,
+      #f4dbe6 67% 85%,
+      #f0a9c2 85% 100%
+    );
 }
 
 .admin-treatments-legend {
+  min-width: 0;
+
   display: flex;
   flex-direction: column;
+
   gap: 10px;
 }
 
 .admin-treatment-item {
+  min-width: 0;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   gap: 10px;
+
   color: #66666f;
+
   font-size: 13px;
   font-weight: 700;
 }
 
 .admin-treatment-left {
+  min-width: 0;
+
   display: flex;
   align-items: center;
+
   gap: 8px;
 }
 
 .admin-treatment-dot {
   width: 8px;
   height: 8px;
+
+  flex-shrink: 0;
+
   display: inline-block;
+
   border-radius: 50%;
 }
 
@@ -818,34 +1102,45 @@
   background: #f0a9c2;
 }
 
+
 /* =========================================================
    APPOINTMENTS CHART
 ========================================================= */
 
 .admin-appointments-head {
   margin-bottom: 8px;
+
   align-items: center;
 }
 
 .admin-chart-legend {
   display: flex;
+
   gap: 14px;
+
   color: #b0b0b8;
+
   font-size: 11px;
   font-weight: 600;
+
   flex-wrap: wrap;
 }
 
 .admin-chart-legend-item {
   display: flex;
   align-items: center;
+
   gap: 6px;
 }
 
 .admin-chart-dot {
   width: 8px;
   height: 8px;
+
+  flex-shrink: 0;
+
   display: inline-block;
+
   border-radius: 50%;
 }
 
@@ -859,16 +1154,29 @@
 
 .admin-line-chart-wrapper {
   width: 100%;
-  flex: 1;
-  min-height: 0;
+
+  height: 230px;
+  min-height: 230px;
+  max-height: 230px;
+
+  flex: none;
+
   display: flex;
   flex-direction: column;
+
+  overflow: hidden;
 }
 
 .admin-line-chart {
+  display: block;
+
   width: 100%;
-  flex: 1;
-  min-height: 170px;
+  height: 195px;
+  min-height: 195px;
+  max-height: 195px;
+
+  flex: none;
+
   overflow: visible;
 }
 
@@ -889,12 +1197,19 @@
 
 .admin-line-chart-months {
   display: grid;
-  grid-template-columns: repeat(12, 1fr);
+
+  grid-template-columns:
+    repeat(12, 1fr);
+
   margin-top: 6px;
+
   color: #6f6f78;
+
   font-size: 11px;
+
   text-align: center;
 }
+
 
 /* =========================================================
    REQUEST OVERLAY
@@ -902,15 +1217,28 @@
 
 .admin-dashboard-request-overlay {
   position: fixed;
+
   inset: 0;
+
   z-index: 10000;
+
   padding: 20px;
+
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(20, 20, 24, 0.35);
+
+  background:
+    rgba(
+      20,
+      20,
+      24,
+      0.35
+    );
+
   backdrop-filter: blur(2px);
 }
+
 
 /* =========================================================
    REQUEST REVIEW MODAL
@@ -918,14 +1246,28 @@
 
 .admin-dashboard-request-modal {
   position: relative;
+
   width: min(700px, 95vw);
+
   max-height: 90vh;
+
   overflow-y: auto;
+
   padding: 28px;
+
   background: #ffffff;
+
   border: 1px solid #f0dce4;
   border-radius: 24px;
-  box-shadow: 0 25px 65px rgba(16, 24, 40, 0.2);
+
+  box-shadow:
+    0 25px 65px
+    rgba(
+      16,
+      24,
+      40,
+      0.2
+    );
 }
 
 .admin-dashboard-request-modal::-webkit-scrollbar {
@@ -934,26 +1276,37 @@
 
 .admin-dashboard-request-modal::-webkit-scrollbar-thumb {
   background: #e1bdcb;
+
   border-radius: 999px;
 }
 
 .admin-dashboard-modal-close {
   position: absolute;
+
   top: 15px;
   right: 16px;
+
   z-index: 4;
+
   width: 37px;
   height: 37px;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   border: none;
   border-radius: 50%;
+
   background: #fff0f5;
   color: #e85084;
+
   font-family: inherit;
+
   font-size: 22px;
+
   line-height: 1;
+
   cursor: pointer;
 }
 
@@ -961,35 +1314,50 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+
   gap: 20px;
+
   padding-right: 42px;
+
   margin-bottom: 20px;
 }
 
 .admin-dashboard-request-eyebrow {
   display: block;
+
   margin-bottom: 5px;
+
   color: #e85084;
+
   font-size: 11px;
   font-weight: 800;
+
   text-transform: uppercase;
+
   letter-spacing: 0.5px;
 }
 
 .admin-dashboard-request-modal-header h2 {
   margin: 0 0 6px;
+
   color: #33343d;
+
   font-size: 23px;
   font-weight: 800;
 }
 
 .admin-dashboard-request-modal-header p {
   max-width: 470px;
+
   margin: 0;
+
   color: #81828c;
+
   font-size: 13px;
+
   line-height: 1.5;
 }
+
 
 /* =========================================================
    REQUEST STATUS
@@ -997,21 +1365,33 @@
 
 .admin-dashboard-request-status {
   min-width: 0 !important;
+
   width: auto !important;
   height: auto !important;
+
   flex: 0 0 auto !important;
+
   display: inline-flex !important;
+
   align-items: center !important;
   justify-content: center !important;
+
   align-self: flex-start !important;
+
   padding: 7px 13px !important;
+
   margin: 0 !important;
+
   border: none !important;
   border-radius: 999px !important;
+
   font-size: 12px !important;
   font-weight: 700 !important;
+
   line-height: 1 !important;
+
   white-space: nowrap;
+
   box-shadow: none !important;
 }
 
@@ -1030,36 +1410,48 @@
   color: #c84459 !important;
 }
 
+
 /* =========================================================
    REQUEST SUMMARY
 ========================================================= */
 
 .admin-dashboard-request-summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
   gap: 10px;
+
   margin-bottom: 20px;
 }
 
 .admin-dashboard-request-summary-item {
   padding: 13px;
+
   display: flex;
   flex-direction: column;
+
   gap: 5px;
+
   background: #fffafb;
+
   border: 1px solid #f0dce4;
   border-radius: 14px;
 }
 
 .admin-dashboard-request-summary-item span {
   color: #92939c;
+
   font-size: 11px;
   font-weight: 700;
+
   text-transform: uppercase;
 }
 
 .admin-dashboard-request-summary-item strong {
   color: #46474f;
+
   font-size: 13px;
   font-weight: 700;
 }
@@ -1070,36 +1462,50 @@
 
 .admin-dashboard-request-section h4 {
   margin: 0 0 9px;
+
   color: #55565f;
+
   font-size: 13px;
   font-weight: 800;
 }
 
 .admin-dashboard-request-date-list {
   display: flex;
+
   flex-wrap: wrap;
+
   gap: 8px;
 }
 
 .admin-dashboard-request-date-chip {
   padding: 8px 11px;
+
   background: #fff2f7;
+
   border: 1px solid #efcbd8;
   border-radius: 999px;
+
   color: #d94679;
+
   font-size: 12px;
   font-weight: 700;
 }
 
 .admin-dashboard-request-text-box {
   padding: 14px;
+
   background: #fffafb;
+
   border: 1px solid #f0dce4;
   border-radius: 14px;
+
   color: #55565f;
+
   font-size: 13px;
+
   line-height: 1.6;
 }
+
 
 /* =========================================================
    REVIEW MODAL ACTIONS
@@ -1107,10 +1513,15 @@
 
 .admin-dashboard-request-modal-actions {
   display: flex;
+
   justify-content: flex-end;
+
   gap: 10px;
+
   margin-top: 24px;
+
   padding-top: 18px;
+
   border-top: 1px solid #f1e3e9;
 }
 
@@ -1118,12 +1529,17 @@
 .admin-dashboard-request-approve-btn,
 .admin-dashboard-request-close-btn {
   min-height: 42px;
+
   padding: 0 18px;
+
   border: none;
   border-radius: 12px;
+
   font-family: inherit;
+
   font-size: 13px;
   font-weight: 700;
+
   cursor: pointer;
 }
 
@@ -1133,7 +1549,13 @@
 }
 
 .admin-dashboard-request-approve-btn {
-  background: linear-gradient(135deg, #ff7eaa, #e85084);
+  background:
+    linear-gradient(
+      135deg,
+      #ff7eaa,
+      #e85084
+    );
+
   color: #ffffff;
 }
 
@@ -1141,6 +1563,7 @@
   background: #f1f2f5;
   color: #60616a;
 }
+
 
 /* =========================================================
    REJECT MODAL
@@ -1152,100 +1575,156 @@
 
 .admin-dashboard-reject-modal {
   position: relative;
+
   width: min(500px, 95vw);
+
   padding: 28px;
+
   background: #ffffff;
+
   border: 1px solid #f0dce4;
   border-radius: 24px;
-  box-shadow: 0 25px 65px rgba(16, 24, 40, 0.22);
+
+  box-shadow:
+    0 25px 65px
+    rgba(
+      16,
+      24,
+      40,
+      0.22
+    );
 }
 
 .admin-dashboard-reject-icon {
   width: 48px;
   height: 48px;
+
   margin-bottom: 15px;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   background: #fff0f2;
+
   border-radius: 14px;
+
   color: #d8495e;
+
   font-size: 20px;
   font-weight: 800;
 }
 
 .admin-dashboard-reject-modal h2 {
   margin: 0 0 8px;
+
   color: #33343d;
+
   font-size: 21px;
   font-weight: 800;
 }
 
 .admin-dashboard-reject-modal > p {
   margin: 0 0 20px;
+
   color: #7c7e88;
+
   font-size: 13px;
+
   line-height: 1.6;
 }
 
 .admin-dashboard-reject-field {
   display: flex;
   flex-direction: column;
+
   gap: 8px;
 }
 
 .admin-dashboard-reject-field label {
   color: #5d5e67;
+
   font-size: 13px;
   font-weight: 700;
 }
 
 .admin-dashboard-reject-field textarea {
   width: 100%;
+
   min-height: 120px;
+
   box-sizing: border-box;
+
   padding: 13px;
+
   resize: vertical;
+
   background: #fffafb;
+
   border: 1px solid #efc9d7;
   border-radius: 14px;
+
   color: #44454e;
+
   font-family: inherit;
+
   font-size: 13px;
+
   outline: none;
 }
 
 .admin-dashboard-reject-field textarea:focus {
   border-color: #e85084;
-  box-shadow: 0 0 0 4px rgba(232, 80, 132, 0.1);
+
+  box-shadow:
+    0 0 0 4px
+    rgba(
+      232,
+      80,
+      132,
+      0.1
+    );
 }
 
 .admin-dashboard-request-error {
   margin-top: 11px;
+
   padding: 10px 12px;
+
   background: #fff0f2;
+
   border-radius: 10px;
+
   color: #ca4056;
+
   font-size: 12px;
   font-weight: 700;
 }
 
 .admin-dashboard-reject-actions {
   display: flex;
+
   justify-content: flex-end;
+
   gap: 10px;
+
   margin-top: 20px;
 }
 
 .admin-dashboard-reject-cancel,
 .admin-dashboard-reject-continue {
   min-height: 42px;
+
   padding: 0 17px;
+
   border: none;
   border-radius: 12px;
+
   font-family: inherit;
+
   font-size: 13px;
   font-weight: 700;
+
   cursor: pointer;
 }
 
@@ -1259,6 +1738,7 @@
   color: #ffffff;
 }
 
+
 /* =========================================================
    FINAL CONFIRMATION
 ========================================================= */
@@ -1269,23 +1749,40 @@
 
 .admin-dashboard-confirm-modal {
   position: relative;
+
   width: min(500px, 94vw);
+
   padding: 30px;
+
   background: #ffffff;
+
   border: 1px solid #f0e3e8;
   border-radius: 24px;
-  box-shadow: 0 25px 65px rgba(16, 24, 40, 0.22);
+
+  box-shadow:
+    0 25px 65px
+    rgba(
+      16,
+      24,
+      40,
+      0.22
+    );
+
   text-align: center;
 }
 
 .admin-dashboard-confirm-icon {
   width: 64px;
   height: 64px;
+
   margin: 0 auto 18px;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   border-radius: 50%;
+
   font-size: 28px;
   font-weight: 800;
 }
@@ -1293,102 +1790,156 @@
 .admin-dashboard-confirm-icon.approve {
   background: #e9f9ef;
   color: #1b9550;
-  box-shadow: 0 0 0 8px rgba(27, 149, 80, 0.07);
+
+  box-shadow:
+    0 0 0 8px
+    rgba(
+      27,
+      149,
+      80,
+      0.07
+    );
 }
 
 .admin-dashboard-confirm-icon.reject {
   background: #fff0f2;
   color: #d8495e;
-  box-shadow: 0 0 0 8px rgba(216, 73, 94, 0.07);
+
+  box-shadow:
+    0 0 0 8px
+    rgba(
+      216,
+      73,
+      94,
+      0.07
+    );
 }
 
 .admin-dashboard-confirm-modal h2 {
   margin: 0 0 9px;
+
   color: #30303a;
+
   font-size: 22px;
   font-weight: 800;
 }
 
 .admin-dashboard-confirm-modal > p {
   max-width: 410px;
+
   margin: 0 auto 20px;
+
   color: #777985;
+
   font-size: 14px;
+
   line-height: 1.6;
 }
 
 .admin-dashboard-confirm-summary {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
   gap: 10px;
+
   margin: 20px 0;
+
   text-align: left;
 }
 
 .admin-dashboard-confirm-summary > div {
   padding: 13px 14px;
+
   display: flex;
   flex-direction: column;
+
   gap: 5px;
+
   background: #fffafb;
+
   border: 1px solid #f1dbe4;
   border-radius: 13px;
 }
 
 .admin-dashboard-confirm-summary span {
   color: #858691;
+
   font-size: 11px;
   font-weight: 700;
+
   text-transform: uppercase;
 }
 
 .admin-dashboard-confirm-summary strong {
   color: #3d3e47;
+
   font-size: 13px;
   font-weight: 700;
 }
 
 .admin-dashboard-confirm-reason {
   margin-bottom: 20px;
+
   padding: 14px;
+
   background: #fff5f6;
+
   border: 1px solid #f2d3d9;
   border-radius: 13px;
+
   text-align: left;
 }
 
 .admin-dashboard-confirm-reason span {
   display: block;
+
   margin-bottom: 6px;
+
   color: #c94559;
+
   font-size: 11px;
   font-weight: 700;
+
   text-transform: uppercase;
 }
 
 .admin-dashboard-confirm-reason p {
   margin: 0;
+
   color: #5d5e67;
+
   font-size: 13px;
+
   line-height: 1.5;
 }
 
 .admin-dashboard-confirm-actions {
   display: flex;
+
   gap: 10px;
+
   margin-top: 22px;
 }
 
 .admin-dashboard-confirm-actions button {
   flex: 1;
+
   min-height: 44px;
+
   padding: 0 15px;
+
   border: none;
   border-radius: 13px;
+
   font-family: inherit;
+
   font-size: 13px;
   font-weight: 700;
+
   cursor: pointer;
+
   transition: 0.2s ease;
 }
 
@@ -1398,46 +1949,157 @@
 }
 
 .admin-dashboard-confirm-approve {
-  background: linear-gradient(135deg, #39b96e, #239a58);
+  background:
+    linear-gradient(
+      135deg,
+      #39b96e,
+      #239a58
+    );
+
   color: #ffffff;
 }
 
 .admin-dashboard-confirm-reject {
-  background: linear-gradient(135deg, #e35b70, #cf4058);
+  background:
+    linear-gradient(
+      135deg,
+      #e35b70,
+      #cf4058
+    );
+
   color: #ffffff;
 }
 
 /* =========================================================
-   RESPONSIVE - SMALLER LAPTOP
+   RESPONSIVE DASHBOARD
+========================================================= */
+
+
+/* =========================================================
+   DESKTOP SAFETY FIX
+   Prevent left-side cards from collapsing/overlapping
+========================================================= */
+
+.admin-left-section,
+.admin-right-section {
+  align-self: start;
+}
+
+.admin-left-bottom-grid {
+  width: 100%;
+  min-width: 0;
+  min-height: 220px;
+  height: auto;
+
+  align-items: stretch;
+}
+
+.admin-patient-card,
+.admin-dentists-card {
+  width: 100%;
+  min-width: 0;
+
+  min-height: 220px;
+  height: 100%;
+
+  position: relative;
+}
+
+.admin-dashboard-leave-card {
+  width: 100%;
+  min-width: 0;
+
+  min-height: 230px;
+
+  position: relative;
+
+  flex-shrink: 0;
+}
+
+
+/* =========================================================
+   SMALLER DESKTOP / LAPTOP
 ========================================================= */
 
 @media (max-width: 1280px) {
+
   .admin-dashboard-grid {
     grid-template-columns:
-      minmax(0, 1.5fr)
-      minmax(330px, 1fr);
+      minmax(0, 1.45fr)
+      minmax(320px, 0.9fr);
+
+    width: 100%;
+    min-width: 0;
 
     gap: 14px;
-    padding: 14px 16px 16px;
+    padding: 14px;
+
+    align-content: start;
+  }
+
+  .admin-left-section,
+  .admin-right-section {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
   }
 
   .admin-left-bottom-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-height: 220px;
+  }
+
+  .admin-patient-card,
+  .admin-dentists-card {
+    min-height: 220px;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .admin-dashboard-leave-card {
+    min-height: 230px;
+    max-height: 300px;
+  }
+
+  .admin-summary-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .admin-kpi-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .admin-right-info-card {
+    min-height: 220px;
+  }
+
+  .admin-treatments-layout {
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .admin-treatments-chart {
+    width: 105px;
+    height: 105px;
+  }
+
+  .admin-appointments-card {
+    height: 300px;
+    min-height: 300px;
+    max-height: 300px;
+  }
 }
 
+
 /* =========================================================
-   RESPONSIVE - SMALL LAPTOP / TABLET
+   SMALL LAPTOP
 ========================================================= */
 
-@media (max-width: 1100px) {
+@media (max-width: 1050px) {
+
   .admin-dashboard-grid {
     grid-template-columns: 1fr;
-    align-content: start;
+    gap: 14px;
   }
 
   .admin-left-section,
@@ -1450,156 +2112,1094 @@
   }
 
   .admin-right-info-card {
-    min-height: 260px;
-  }
-}
-
-/* =========================================================
-   RESPONSIVE - 900PX
-========================================================= */
-
-@media (max-width: 900px) {
-  .admin-live-queue-extra {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-card-header-row {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .admin-left-bottom-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-kpi-grid {
-    grid-template-columns: 1fr;
+    min-height: 220px;
   }
 
   .admin-treatments-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: 110px minmax(0, 1fr);
   }
 
   .admin-treatments-chart {
-    margin-bottom: 8px;
+    width: 105px;
+    height: 105px;
   }
+
+  .admin-appointments-card {
+    height: 300px;
+    min-height: 300px;
+    max-height: 300px;
+  }
+}
+
+
+/* =========================================================
+   TABLET
+   Sidebar becomes off-canvas around this size.
+========================================================= */
+
+@media (max-width: 900px) {
+
+  /* =======================================================
+     MAIN
+  ======================================================= */
+
+  .admin-dashboard-grid {
+    display: flex;
+
+    flex-direction: column;
+
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+
+    gap: 14px;
+
+    padding: 14px;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+
+  /* =======================================================
+     LEFT SECTION
+  ======================================================= */
+
+  .admin-left-section {
+    display: flex;
+
+    flex-direction: column;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 0;
+
+    height: auto;
+
+    flex: none;
+
+    gap: 14px;
+
+    overflow: visible;
+  }
+
+
+  .admin-left-section > * {
+    flex-shrink: 0;
+  }
+
+
+  /* =======================================================
+     LIVE QUEUE
+  ======================================================= */
+
+  .admin-live-queue-card {
+    width: 100%;
+
+    min-width: 0;
+    min-height: 230px;
+
+    height: auto;
+    max-height: none;
+
+    flex: none;
+
+    padding: 18px;
+
+    position: relative;
+
+    overflow: hidden;
+  }
+
+
+  .admin-live-queue-content {
+    width: 100%;
+
+    min-width: 0;
+
+    height: auto;
+  }
+
+
+  .admin-live-queue-extra {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+  }
+
+
+  /* =======================================================
+     NEXT PATIENT + ATTENDING DENTISTS
+
+     IMPORTANT:
+     They become individual full-width cards.
+  ======================================================= */
+
+  .admin-left-bottom-grid {
+    display: flex;
+
+    flex-direction: column;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 0;
+
+    height: auto;
+
+    flex: none;
+
+    gap: 14px;
+
+    position: relative;
+
+    overflow: visible;
+  }
+
+
+  .admin-left-bottom-grid > .admin-mini-stat-card {
+    width: 100%;
+
+    min-width: 0;
+    min-height: 200px;
+
+    height: auto;
+    max-height: none;
+
+    flex: none;
+
+    position: relative;
+
+    overflow: hidden;
+  }
+
+
+  /* =======================================================
+     NEXT PATIENT
+  ======================================================= */
+
+  .admin-patient-card {
+    width: 100%;
+
+    min-width: 0;
+    min-height: 200px;
+
+    height: auto;
+
+    flex: none;
+
+    position: relative;
+
+    overflow: hidden;
+  }
+
+
+  .admin-patient-content {
+    display: flex;
+
+    flex-direction: column;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 140px;
+
+    height: auto;
+
+    flex: none;
+
+    gap: 12px;
+  }
+
+
+  .admin-patient-top {
+    flex: none;
+  }
+
+
+  .admin-patient-bottom {
+    margin-top: auto;
+  }
+
+
+  /* =======================================================
+     ATTENDING DENTISTS
+  ======================================================= */
+
+  .admin-dentists-card {
+    width: 100%;
+
+    min-width: 0;
+    min-height: 200px;
+
+    height: auto;
+    max-height: none;
+
+    flex: none;
+
+    position: relative;
+
+    overflow: hidden;
+  }
+
+
+  .admin-dentists-list {
+    display: flex;
+
+    flex-direction: column;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 100px;
+
+    height: auto;
+    max-height: 260px;
+
+    flex: none;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+
+  .admin-dentist-item {
+    flex: 0 0 auto;
+
+    width: 100%;
+
+    min-width: 0;
+  }
+
+
+  /* =======================================================
+     LEAVE REQUESTS
+  ======================================================= */
+
+  .admin-dashboard-leave-card {
+    display: flex;
+
+    flex-direction: column;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 210px;
+
+    height: auto;
+    max-height: none;
+
+    flex: none;
+
+    padding: 18px;
+
+    position: relative;
+
+    overflow: hidden;
+  }
+
+
+  .admin-dashboard-leave-header {
+    width: 100%;
+
+    flex: none;
+  }
+
+
+  .admin-dashboard-leave-list {
+    display: flex;
+
+    flex-direction: column;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 100px;
+
+    height: auto;
+    max-height: 260px;
+
+    flex: none;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+
+  .admin-dashboard-leave-empty {
+    width: 100%;
+
+    min-height: 120px;
+
+    height: auto;
+
+    flex: none;
+  }
+
+
+  /* =======================================================
+     RIGHT SECTION
+  ======================================================= */
+
+  .admin-right-section {
+    display: flex;
+
+    flex-direction: column;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 0;
+
+    height: auto;
+
+    flex: none;
+
+    gap: 14px;
+
+    overflow: visible;
+  }
+
+
+  .admin-right-section > * {
+    flex-shrink: 0;
+  }
+
+
+  /* =======================================================
+     SUMMARY
+  ======================================================= */
+
+  .admin-summary-row {
+    display: grid;
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    width: 100%;
+
+    min-width: 0;
+
+    gap: 12px;
+  }
+
+
+  .admin-summary-row > * {
+    width: 100%;
+
+    min-width: 0;
+
+    position: relative;
+
+    transform: none;
+  }
+
+
+  /* =======================================================
+     KPI
+  ======================================================= */
+
+  .admin-kpi-grid {
+    display: grid;
+
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+
+    width: 100%;
+
+    min-width: 0;
+
+    gap: 10px;
+  }
+
+
+  .admin-kpi-card {
+    width: 100%;
+
+    min-width: 0;
+    min-height: 100px;
+
+    height: auto;
+  }
+
+
+  /* =======================================================
+     TOP TREATMENTS
+  ======================================================= */
+
+  .admin-right-info-card {
+    width: 100%;
+
+    min-width: 0;
+    min-height: 250px;
+
+    height: auto;
+    max-height: none;
+
+    flex: none;
+
+    position: relative;
+
+    overflow: hidden;
+  }
+
+
+  .admin-treatments-layout {
+    grid-template-columns:
+      130px minmax(0, 1fr);
+  }
+
+
+  /* =======================================================
+     APPOINTMENTS
+  ======================================================= */
+
+  .admin-appointments-card {
+    height: 300px;
+    min-height: 300px;
+    max-height: 300px;
+  }
+
+
+  /* =======================================================
+     MODALS
+  ======================================================= */
+
+  .admin-dashboard-request-summary-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 768px) {
+
+  .admin-dashboard-grid {
+    gap: 12px;
+
+    padding: 12px;
+  }
+
+
+  .admin-left-section,
+  .admin-right-section {
+    gap: 12px;
+  }
+
+
+  /* =======================================================
+     LIVE QUEUE
+  ======================================================= */
+
+  .admin-live-queue-card {
+    min-height: 210px;
+
+    padding: 16px;
+
+    border-radius: 20px;
+  }
+
+
+  .admin-card-header-row {
+    margin-bottom: 12px;
+  }
+
+
+  .admin-live-queue-title {
+    font-size: 21px;
+  }
+
+
+  .admin-live-queue-number {
+    font-size: 70px;
+  }
+
+
+  .admin-live-queue-status {
+    margin: 8px 0 16px;
+
+    font-size: 22px;
+  }
+
+
+  .admin-live-queue-empty {
+    min-height: 140px;
+
+    padding: 20px 12px;
+  }
+
+
+  .admin-live-queue-empty-title {
+    font-size: 19px;
+
+    text-align: center;
+  }
+
+
+  .admin-live-queue-empty-description {
+    max-width: 340px;
+
+    font-size: 12px;
+  }
+
+
+  .admin-live-queue-extra {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+
+    gap: 8px;
+  }
+
+
+  /* =======================================================
+     NEXT PATIENT + DENTISTS
+  ======================================================= */
+
+  .admin-left-bottom-grid {
+    gap: 12px;
+  }
+
+
+  .admin-left-bottom-grid > .admin-mini-stat-card {
+    min-height: 190px;
+
+    height: auto;
+
+    padding: 16px;
+
+    border-radius: 20px;
+  }
+
+
+  .admin-patient-card,
+  .admin-dentists-card {
+    min-height: 190px;
+
+    height: auto;
+  }
+
+
+  .admin-dentists-list {
+    max-height: 240px;
+  }
+
+
+  /* =======================================================
+     LEAVE REQUEST
+  ======================================================= */
+
+  .admin-dashboard-leave-card {
+    min-height: 200px;
+
+    padding: 16px;
+
+    border-radius: 20px;
+  }
+
+
+  .admin-dashboard-leave-list {
+    max-height: 250px;
+  }
+
+
+  /* =======================================================
+     SUMMARY
+  ======================================================= */
+
+  .admin-summary-row {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 10px;
+  }
+
+
+  /* =======================================================
+     KPI
+  ======================================================= */
+
+  .admin-kpi-grid {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+
+    gap: 8px;
+  }
+
+
+  .admin-kpi-card {
+    min-height: 96px;
+
+    padding: 12px;
+
+    border-radius: 18px;
+  }
+
+
+  .admin-kpi-title {
+    font-size: 10px;
+
+    line-height: 1.25;
+  }
+
+
+  .admin-kpi-value {
+    font-size: 24px;
+  }
+
+
+  .admin-kpi-subtext {
+    font-size: 9px;
+
+    line-height: 1.3;
+  }
+
+
+  /* =======================================================
+     RIGHT CARDS
+  ======================================================= */
+
+  .admin-right-info-card {
+    padding: 16px;
+
+    border-radius: 20px;
+  }
+
+
+  .admin-treatments-layout {
+    grid-template-columns:
+      120px minmax(0, 1fr);
+
+    gap: 14px;
+  }
+
+
+  .admin-treatments-chart {
+    width: 115px;
+    height: 115px;
+  }
+
+
+  .admin-appointments-card {
+    height: 290px;
+    min-height: 290px;
+    max-height: 290px;
+  }
+
+  .admin-line-chart-wrapper {
+    height: 220px;
+    min-height: 220px;
+    max-height: 220px;
+  }
+
+  .admin-line-chart {
+    height: 185px;
+    min-height: 185px;
+    max-height: 185px;
+  }
+
+
+  /* =======================================================
+     MODALS
+  ======================================================= */
 
   .admin-dashboard-request-summary-grid {
     grid-template-columns: 1fr;
   }
 }
 
-/* =========================================================
-   RESPONSIVE - TABLET
-========================================================= */
-
-@media (max-width: 768px) {
-  .admin-dashboard-toolbar {
-    padding: 12px 12px 0;
-  }
-
-  .admin-dashboard-branch-filter {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .admin-dashboard-branch-select {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .admin-dashboard-grid {
-    padding: 12px;
-    gap: 12px;
-  }
-
-  .admin-summary-row {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-live-queue-card,
-  .admin-mini-stat-card,
-  .admin-right-info-card,
-  .admin-kpi-card,
-  .admin-dashboard-leave-card {
-    padding: 16px;
-  }
-
-  .admin-live-queue-number {
-    font-size: 80px;
-  }
-
-  .admin-live-queue-status {
-    font-size: 22px;
-  }
-
-  .admin-dentists-list {
-    max-height: none;
-    overflow-y: visible;
-  }
-}
 
 /* =========================================================
-   RESPONSIVE - MOBILE
+   PHONE
 ========================================================= */
 
-@media (max-width: 520px) {
+@media (max-width: 600px) {
+
   .admin-dashboard-grid {
+    gap: 10px;
+
     padding: 10px;
+  }
+
+
+  .admin-left-section,
+  .admin-right-section {
     gap: 10px;
   }
 
-  .admin-live-queue-number {
-    font-size: 64px;
+
+  /* =======================================================
+     LIVE QUEUE
+  ======================================================= */
+
+  .admin-live-queue-card {
+    min-height: 190px;
+
+    padding: 14px;
   }
+
 
   .admin-live-queue-title {
-    font-size: 20px;
+    font-size: 19px;
   }
+
+
+  .admin-soft-badge {
+    padding: 6px 10px;
+
+    font-size: 10px;
+  }
+
+
+  .admin-live-queue-number {
+    font-size: 58px;
+  }
+
 
   .admin-live-queue-status {
-    font-size: 20px;
+    margin: 6px 0 14px;
+
+    font-size: 19px;
   }
 
-  .admin-summary-row,
-  .admin-kpi-grid {
+
+  .admin-live-queue-wait {
+    font-size: 12px;
+  }
+
+
+  .admin-live-queue-empty {
+    min-height: 130px;
+
+    padding: 18px 10px;
+  }
+
+
+  .admin-live-queue-empty-title {
+    font-size: 18px;
+  }
+
+
+  .admin-live-queue-empty-description {
+    font-size: 12px;
+  }
+
+
+  .admin-live-queue-extra {
     grid-template-columns: 1fr;
-  }
 
-  .admin-chart-legend {
     gap: 8px;
   }
 
-  .admin-line-chart-months {
-    font-size: 8px;
+
+  /* =======================================================
+     PATIENT / DENTISTS
+  ======================================================= */
+
+  .admin-left-bottom-grid {
+    gap: 10px;
   }
+
+
+  .admin-left-bottom-grid > .admin-mini-stat-card {
+    min-height: 180px;
+
+    padding: 14px;
+  }
+
+
+  .admin-patient-card,
+  .admin-dentists-card {
+    min-height: 180px;
+  }
+
+
+  .admin-mini-stat-title {
+    font-size: 17px;
+  }
+
+
+  .admin-patient-name {
+    font-size: 19px;
+  }
+
+
+  .admin-patient-treatment {
+    font-size: 13px;
+  }
+
+
+  .admin-patient-schedule {
+    font-size: 12px;
+  }
+
+
+  .admin-patient-bottom {
+    padding: 12px;
+  }
+
+
+  .admin-dentists-list {
+    margin-top: 12px;
+
+    max-height: 220px;
+  }
+
+
+  .admin-dentist-item {
+    padding: 10px 11px;
+  }
+
+
+  /* =======================================================
+     LEAVE REQUEST
+  ======================================================= */
 
   .admin-dashboard-leave-card {
-    max-height: 360px;
+    min-height: 190px;
+
+    padding: 14px;
   }
 
-  .admin-dashboard-leave-item {
-    grid-template-columns: 42px minmax(0, 1fr);
+
+  .admin-dashboard-leave-title-row h3 {
+    font-size: 17px;
   }
+
+
+  .admin-dashboard-leave-header p {
+    font-size: 11px;
+  }
+
+
+  .admin-dashboard-leave-empty {
+    min-height: 100px;
+
+    padding: 14px;
+  }
+
+
+  .admin-dashboard-leave-empty-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+
+  .admin-dashboard-leave-empty strong {
+    font-size: 12px;
+  }
+
+
+  .admin-dashboard-leave-empty p {
+    font-size: 10px;
+  }
+
+
+  .admin-dashboard-leave-item {
+    grid-template-columns:
+      38px minmax(0, 1fr);
+
+    gap: 9px;
+
+    padding: 10px;
+  }
+
+
+  .admin-dashboard-leave-avatar {
+    width: 38px;
+    height: 38px;
+  }
+
 
   .admin-dashboard-leave-review {
     grid-column: 1 / -1;
+
     width: 100%;
   }
+
+
+  /* =======================================================
+     SUMMARY
+  ======================================================= */
+
+  .admin-summary-row {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 8px;
+  }
+
+
+  /* =======================================================
+     KPI
+  ======================================================= */
+
+  .admin-kpi-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 8px;
+  }
+
+
+  .admin-kpi-card {
+    min-height: 92px;
+
+    padding: 12px;
+
+    border-radius: 16px;
+  }
+
+
+  .admin-kpi-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+
+  .admin-kpi-title {
+    font-size: 10px;
+  }
+
+
+  .admin-kpi-value {
+    font-size: 23px;
+  }
+
+
+  .admin-kpi-subtext {
+    font-size: 9px;
+  }
+
+
+  /* =======================================================
+     TOP TREATMENTS
+  ======================================================= */
+
+  .admin-right-info-card {
+    padding: 14px;
+  }
+
+
+  .admin-right-info-label {
+    font-size: 16px;
+  }
+
+
+  .admin-treatments-layout {
+    grid-template-columns: 1fr;
+
+    gap: 16px;
+  }
+
+
+  .admin-treatments-chart {
+    width: 120px;
+    height: 120px;
+
+    margin: 0 auto;
+  }
+
+
+  .admin-treatments-legend {
+    width: 100%;
+
+    gap: 8px;
+  }
+
+
+  .admin-treatment-item {
+    width: 100%;
+
+    font-size: 11px;
+  }
+
+
+  /* =======================================================
+     APPOINTMENTS
+  ======================================================= */
+
+  .admin-appointments-card {
+    height: 270px;
+    min-height: 270px;
+    max-height: 270px;
+  }
+
+
+  .admin-appointments-head {
+    align-items: flex-start;
+
+    gap: 8px;
+  }
+
+
+  .admin-chart-legend {
+    width: 100%;
+
+    gap: 10px;
+
+    font-size: 9px;
+  }
+
+
+  .admin-line-chart-wrapper {
+    height: 205px;
+    min-height: 205px;
+    max-height: 205px;
+  }
+
+  .admin-line-chart {
+    height: 170px;
+    min-height: 170px;
+    max-height: 170px;
+  }
+
+
+  .admin-line-chart-months {
+    font-size: 7px;
+  }
+
+
+  /* =======================================================
+     MODALS
+  ======================================================= */
+
+  .admin-dashboard-request-overlay {
+    padding: 12px;
+  }
+
 
   .admin-dashboard-request-modal,
   .admin-dashboard-reject-modal,
   .admin-dashboard-confirm-modal {
+    width: 100%;
+
     padding: 20px;
+
+    border-radius: 20px;
   }
+
 
   .admin-dashboard-request-modal-header {
     flex-direction: column;
+
+    gap: 10px;
+
+    padding-right: 35px;
   }
+
+
+  .admin-dashboard-request-modal-header h2 {
+    font-size: 20px;
+  }
+
 
   .admin-dashboard-confirm-summary {
     grid-template-columns: 1fr;
   }
+
 
   .admin-dashboard-request-modal-actions,
   .admin-dashboard-reject-actions,
@@ -1607,9 +3207,116 @@
     flex-direction: column-reverse;
   }
 
+
   .admin-dashboard-request-modal-actions button,
   .admin-dashboard-reject-actions button,
   .admin-dashboard-confirm-actions button {
     width: 100%;
+  }
+}
+
+
+/* =========================================================
+   SMALL PHONE
+========================================================= */
+
+@media (max-width: 420px) {
+
+  .admin-dashboard-grid {
+    padding: 8px;
+
+    gap: 9px;
+  }
+
+
+  /* SUMMARY */
+
+  .admin-summary-row {
+    grid-template-columns: 1fr;
+
+    gap: 9px;
+  }
+
+
+  /* KPI */
+
+  .admin-kpi-grid {
+    grid-template-columns: 1fr;
+
+    gap: 8px;
+  }
+
+
+  .admin-kpi-card {
+    min-height: 86px;
+
+    padding: 11px;
+  }
+
+
+  .admin-kpi-card:last-child:nth-child(odd) {
+    grid-column: auto;
+  }
+
+
+  .admin-kpi-title {
+    font-size: 10px;
+  }
+
+
+  .admin-kpi-value {
+    font-size: 23px;
+  }
+
+
+  .admin-kpi-subtext {
+    font-size: 9px;
+  }
+
+
+  /* TREATMENTS */
+
+  .admin-treatments-chart {
+    width: 110px;
+    height: 110px;
+  }
+
+
+  /* APPOINTMENTS */
+
+  .admin-chart-legend {
+    font-size: 8px;
+  }
+
+
+  .admin-line-chart-months {
+    font-size: 6.5px;
+  }
+}
+
+
+/* =========================================================
+   VERY SMALL PHONE
+========================================================= */
+
+@media (max-width: 360px) {
+
+  .admin-dashboard-grid {
+    padding: 7px;
+  }
+
+
+  .admin-live-queue-title {
+    font-size: 17px;
+  }
+
+
+  .admin-live-queue-number {
+    font-size: 52px;
+  }
+
+
+  .admin-mini-stat-title {
+    font-size: 16px;
   }
 }

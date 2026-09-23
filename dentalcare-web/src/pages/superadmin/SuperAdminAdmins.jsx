@@ -21,6 +21,7 @@ const REGISTER_BRANCHES = ["Dasmarinas, Cavite", "General Trias, Cavite", "Bacoo
 
 export default function SuperAdminAdmins() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -90,6 +91,14 @@ export default function SuperAdminAdmins() {
   const allVisibleSelected =
     filteredAdmins.length > 0 &&
     filteredAdmins.every((admin) => selectedIds.includes(admin.id));
+
+  const handleToggleSidebar = () => {
+    setIsSidebarOpen((prev) => !prev);
+  };
+
+  const handleCloseSidebar = () => {
+    setIsSidebarOpen(false);
+  };
 
   const handleMarkAllRead = () => {
     setNotifications([]);
@@ -599,8 +608,11 @@ export default function SuperAdminAdmins() {
   };
 
   return (
-    <div className="admin-dashboard-page">
-      <SuperAdminSidebar />
+    <div className="admin-dashboard-page superadmin-mobile-layout">
+      <SuperAdminSidebar
+        isOpen={isSidebarOpen}
+        onClose={handleCloseSidebar}
+      />
 
       <main className="admin-main-content">
         <SuperAdminTopbar
@@ -609,6 +621,7 @@ export default function SuperAdminAdmins() {
           onToggleNotifications={() => setIsNotificationOpen((prev) => !prev)}
           onCloseNotifications={() => setIsNotificationOpen(false)}
           onMarkAllRead={handleMarkAllRead}
+          onToggleSidebar={handleToggleSidebar}
         />
 
         <div className="superadmin-admins-fixed-page">

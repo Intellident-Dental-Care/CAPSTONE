@@ -2020,3 +2020,898 @@
     width: 100%;
   }
 }
+
+/* =========================================================
+   FINAL DENTIST PAGE RESPONSIVE FIX
+========================================================= */
+
+/* =========================================================
+   DESKTOP TABLE READABILITY
+========================================================= */
+
+.admin-dentist-table-wrapper {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  flex: 1;
+
+  overflow-x: auto;
+  overflow-y: auto;
+
+  padding-right: 4px;
+
+  -webkit-overflow-scrolling: touch;
+}
+
+
+/*
+ * Give the table enough real width.
+ * If the available area becomes smaller than this,
+ * ONLY the table will scroll horizontally.
+ */
+
+.admin-dentist-table {
+  width: 100%;
+  min-width: 1280px;
+
+  table-layout: fixed;
+
+  border-collapse: separate;
+  border-spacing: 0 7px;
+}
+
+
+/* Dentist Name */
+.admin-dentist-table th:nth-child(1),
+.admin-dentist-table td:nth-child(1) {
+  width: 20%;
+}
+
+
+/* Specialty */
+.admin-dentist-table th:nth-child(2),
+.admin-dentist-table td:nth-child(2) {
+  width: 14%;
+}
+
+
+/* Branch */
+.admin-dentist-table th:nth-child(3),
+.admin-dentist-table td:nth-child(3) {
+  width: 16%;
+}
+
+
+/* Phone Number */
+.admin-dentist-table th:nth-child(4),
+.admin-dentist-table td:nth-child(4) {
+  width: 15%;
+}
+
+
+/* Status */
+.admin-dentist-table th:nth-child(5),
+.admin-dentist-table td:nth-child(5) {
+  width: 11%;
+}
+
+
+/* Leave Request */
+.admin-dentist-table th:nth-child(6),
+.admin-dentist-table td:nth-child(6) {
+  width: 12%;
+}
+
+
+/* Action */
+.admin-dentist-table th:nth-child(7),
+.admin-dentist-table td:nth-child(7) {
+  width: 12%;
+}
+
+
+.admin-dentist-table thead th {
+  padding-left: 14px;
+  padding-right: 14px;
+
+  white-space: nowrap;
+}
+
+
+.admin-dentist-table tbody td {
+  padding-left: 14px;
+  padding-right: 14px;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/*
+ * Don't truncate important controls/status information.
+ */
+
+.admin-dentist-table tbody td:nth-child(5),
+.admin-dentist-table tbody td:nth-child(6),
+.admin-dentist-table tbody td:nth-child(7) {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+
+/* =========================================================
+   MEDIUM DESKTOP / LAPTOP
+   Sidebar is still visible at these widths.
+========================================================= */
+
+@media (max-width: 1400px) {
+
+  .admin-dentist-content {
+    padding: 14px 16px 16px;
+
+    gap: 11px;
+  }
+
+
+  /* Slightly more compact summary cards */
+
+  .dentist-stat-card {
+    height: 88px;
+
+    padding: 13px 16px;
+  }
+
+
+  .dentist-stat-card span {
+    margin-bottom: 5px;
+
+    font-size: 13px;
+  }
+
+
+  .dentist-stat-card h3 {
+    font-size: 27px;
+  }
+
+
+  .pending-request-stat p {
+    margin-top: 4px;
+
+    font-size: 11px;
+  }
+
+
+  /*
+   * Keep the table readable.
+   * It will horizontally scroll instead of compressing.
+   */
+
+  .admin-dentist-table {
+    min-width: 1250px;
+  }
+
+
+  .admin-dentist-table thead th {
+    font-size: 13px;
+  }
+
+
+  .admin-dentist-table tbody td {
+    font-size: 13px;
+  }
+}
+
+
+/* =========================================================
+   SMALL LAPTOP
+========================================================= */
+
+@media (max-width: 1200px) {
+
+  /*
+   * Your original CSS already changes Leave Requests
+   * to one column here.
+   */
+
+  .admin-pending-leave-list {
+    grid-template-columns: 1fr;
+  }
+
+
+  /*
+   * Make leave card a little shorter so Dentist List
+   * still gets enough vertical space.
+   */
+
+  .admin-pending-leave-card {
+    height: 215px;
+  }
+
+
+  .admin-dentist-table-card {
+    min-width: 0;
+  }
+
+
+  .admin-dentist-table-wrapper {
+    width: 100%;
+
+    overflow-x: auto;
+    overflow-y: auto;
+  }
+
+
+  /*
+   * IMPORTANT:
+   * Do not reduce this to the viewport width.
+   * Horizontal scrolling is intentional.
+   */
+
+  .admin-dentist-table {
+    width: 1250px;
+    min-width: 1250px;
+  }
+
+
+  .admin-dentist-search {
+    width: 280px;
+  }
+}
+
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 900px) {
+
+  /*
+   * Whole content becomes vertically scrollable.
+   */
+
+  .admin-dentist-content {
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding: 14px;
+
+    gap: 12px;
+  }
+
+
+  /* =======================================================
+     HEADING
+  ======================================================= */
+
+  .admin-dentist-heading h1 {
+    font-size: 26px;
+  }
+
+
+  .admin-dentist-heading p {
+    font-size: 12px;
+  }
+
+
+  /* =======================================================
+     SUMMARY
+
+     Use 3 compact cards while there is enough room.
+  ======================================================= */
+
+  .admin-dentist-stats {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+
+    gap: 9px;
+  }
+
+
+  .dentist-stat-card {
+    height: 78px;
+
+    padding: 10px 12px;
+
+    border-radius: 14px;
+  }
+
+
+  .dentist-stat-card span {
+    margin-bottom: 4px;
+
+    font-size: 11px;
+  }
+
+
+  .dentist-stat-card h3 {
+    font-size: 23px;
+  }
+
+
+  .pending-request-stat p {
+    margin-top: 3px;
+
+    font-size: 9px;
+  }
+
+
+  .pending-stat-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+
+  /* =======================================================
+     LEAVE REQUESTS
+  ======================================================= */
+
+  .admin-pending-leave-card {
+    height: 240px;
+
+    padding: 14px;
+
+    border-radius: 15px;
+  }
+
+
+  .admin-pending-leave-header h3 {
+    font-size: 17px;
+  }
+
+
+  .admin-pending-leave-header p {
+    font-size: 11px;
+  }
+
+
+  .admin-pending-leave-count {
+    padding: 6px 10px;
+
+    font-size: 10px;
+  }
+
+
+  /* =======================================================
+     DENTIST LIST
+  ======================================================= */
+
+  .admin-dentist-table-card {
+    flex: none;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 430px;
+
+    padding: 12px;
+
+    border-radius: 15px;
+  }
+
+
+  .admin-dentist-table-top {
+    margin-bottom: 8px;
+  }
+
+
+  .admin-dentist-table-top h3 {
+    font-size: 17px;
+  }
+
+
+  .admin-dentist-table-top p {
+    font-size: 11px;
+  }
+
+
+  .admin-dentist-search {
+    width: 280px;
+  }
+
+
+  .admin-dentist-search input {
+    height: 36px;
+
+    font-size: 11px;
+  }
+
+
+  /*
+   * Keep desktop-style table.
+   * User can swipe horizontally.
+   */
+
+  .admin-dentist-table {
+    width: 1150px;
+    min-width: 1150px;
+  }
+
+
+  .admin-dentist-table thead th {
+    padding: 7px 12px;
+
+    font-size: 12px;
+  }
+
+
+  .admin-dentist-table tbody td {
+    padding: 11px 12px;
+
+    font-size: 12px;
+  }
+
+
+  .dentist-badge {
+    min-width: 82px;
+    height: 29px;
+
+    padding: 0 10px;
+
+    font-size: 10px;
+  }
+
+
+  .table-pending-request,
+  .table-no-request {
+    font-size: 10px;
+  }
+
+
+  .dentist-view-btn {
+    height: 32px;
+
+    padding: 0 12px;
+
+    font-size: 10px;
+  }
+}
+
+
+/* =========================================================
+   PHONE
+========================================================= */
+
+@media (max-width: 640px) {
+
+  .admin-dentist-content {
+    padding: 10px;
+
+    gap: 10px;
+  }
+
+
+  /* =======================================================
+     HEADING
+  ======================================================= */
+
+  .admin-dentist-heading h1 {
+    font-size: 21px;
+  }
+
+
+  .admin-dentist-heading p {
+    margin-top: 3px;
+
+    font-size: 10px;
+
+    line-height: 1.4;
+  }
+
+
+  /* =======================================================
+     SUMMARY
+     
+     [ Total ] [ Active ]
+     [ Pending Leave Requests ]
+  ======================================================= */
+
+  .admin-dentist-stats {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 7px;
+  }
+
+
+  .dentist-stat-card {
+    height: 66px;
+
+    padding: 8px 10px;
+
+    border-radius: 12px;
+  }
+
+
+  .dentist-stat-card span {
+    margin-bottom: 3px;
+
+    font-size: 9px;
+  }
+
+
+  .dentist-stat-card h3 {
+    font-size: 20px;
+  }
+
+
+  .pending-request-stat {
+    grid-column: 1 / -1;
+
+    min-height: 66px;
+    height: auto;
+  }
+
+
+  .pending-request-stat p {
+    margin-top: 2px;
+
+    font-size: 8px;
+  }
+
+
+  /* =======================================================
+     LEAVE REQUEST CARD
+  ======================================================= */
+
+  .admin-pending-leave-card {
+    height: 230px;
+
+    padding: 11px;
+
+    border-radius: 13px;
+  }
+
+
+  .admin-pending-leave-header {
+    flex-direction: row;
+
+    align-items: flex-start;
+
+    gap: 8px;
+
+    margin-bottom: 8px;
+  }
+
+
+  .admin-pending-leave-header h3 {
+    margin-bottom: 2px;
+
+    font-size: 14px;
+  }
+
+
+  .admin-pending-leave-header p {
+    font-size: 9px;
+  }
+
+
+  .admin-pending-leave-count {
+    padding: 5px 8px;
+
+    font-size: 8px;
+  }
+
+
+  .admin-pending-leave-list {
+    grid-template-columns: 1fr;
+
+    grid-auto-rows: auto;
+
+    gap: 7px;
+  }
+
+
+  .admin-pending-leave-item {
+    min-height: 70px;
+    height: auto;
+
+    grid-template-columns:
+      36px minmax(0, 1fr) auto;
+
+    gap: 8px;
+
+    padding: 8px;
+  }
+
+
+  .admin-pending-leave-avatar {
+    width: 36px;
+    height: 36px;
+
+    font-size: 12px;
+  }
+
+
+  .admin-pending-leave-info strong {
+    font-size: 11px;
+  }
+
+
+  .admin-pending-leave-info span {
+    font-size: 9px;
+  }
+
+
+  .admin-review-request-btn {
+    grid-column: auto;
+
+    width: auto;
+    height: 30px;
+
+    padding: 0 9px;
+
+    font-size: 9px;
+  }
+
+
+  /* =======================================================
+     DENTIST LIST HEADER
+  ======================================================= */
+
+  .admin-dentist-table-card {
+    min-height: 420px;
+
+    padding: 10px;
+
+    border-radius: 13px;
+  }
+
+
+  .admin-dentist-table-top {
+    flex-direction: column;
+
+    align-items: stretch;
+
+    gap: 8px;
+  }
+
+
+  .admin-dentist-table-top h3 {
+    font-size: 15px;
+  }
+
+
+  .admin-dentist-table-top p {
+    font-size: 9px;
+  }
+
+
+  .admin-dentist-search {
+    width: 100%;
+  }
+
+
+  .admin-dentist-search input {
+    width: 100%;
+    height: 35px;
+
+    font-size: 10px;
+
+    border-radius: 10px;
+  }
+
+
+  /* =======================================================
+     TABLE
+
+     Preserve readable columns instead of shrinking them.
+     Swipe horizontally to see additional columns.
+  ======================================================= */
+
+  .admin-dentist-table-wrapper {
+    overflow-x: auto;
+    overflow-y: auto;
+
+    -webkit-overflow-scrolling: touch;
+  }
+
+
+  .admin-dentist-table {
+    width: 1050px;
+    min-width: 1050px;
+  }
+
+
+  .admin-dentist-table thead th {
+    padding: 6px 10px;
+
+    font-size: 10px;
+  }
+
+
+  .admin-dentist-table tbody td {
+    padding: 10px;
+
+    font-size: 10px;
+  }
+
+
+  .dentist-badge {
+    min-width: 72px;
+    height: 27px;
+
+    padding: 0 8px;
+
+    font-size: 9px;
+  }
+
+
+  .table-pending-request {
+    padding: 5px 8px;
+
+    font-size: 9px;
+  }
+
+
+  .table-no-request {
+    font-size: 9px;
+  }
+
+
+  .dentist-view-btn {
+    height: 29px;
+
+    padding: 0 10px;
+
+    border-radius: 8px;
+
+    font-size: 9px;
+  }
+
+
+  /* =======================================================
+     MODALS
+  ======================================================= */
+
+  .dentist-details-overlay {
+    padding: 10px;
+
+    overflow-y: auto;
+  }
+
+
+  .dentist-details-modal,
+  .leave-request-modal,
+  .reject-leave-modal,
+  .request-confirm-modal {
+    width: 100%;
+
+    max-height: calc(100dvh - 20px);
+
+    overflow-y: auto;
+
+    padding: 18px;
+
+    border-radius: 18px;
+  }
+
+
+  .dentist-details-header {
+    padding-right: 35px;
+
+    margin-bottom: 16px;
+  }
+
+
+  .dentist-details-avatar {
+    width: 60px;
+    height: 60px;
+
+    font-size: 22px;
+  }
+
+
+  .dentist-details-header-text h2 {
+    font-size: 20px;
+  }
+
+
+  .dentist-details-grid {
+    grid-template-columns: 1fr;
+
+    gap: 10px;
+  }
+
+
+  .dentist-info-card {
+    padding: 14px;
+
+    border-radius: 14px;
+  }
+
+
+  .dentist-info-row {
+    padding: 9px 0;
+  }
+
+
+  .dentist-info-row span,
+  .dentist-info-row strong {
+    font-size: 11px;
+  }
+
+
+  .leave-request-summary-grid,
+  .request-confirm-summary {
+    grid-template-columns: 1fr;
+  }
+
+
+  .leave-request-modal-actions,
+  .reject-leave-actions,
+  .request-confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+
+  .leave-request-reject-btn,
+  .leave-request-approve-btn,
+  .leave-request-close-btn,
+  .reject-cancel-btn,
+  .reject-confirm-btn,
+  .request-confirm-actions button {
+    width: 100%;
+  }
+}
+
+
+/* =========================================================
+   VERY SMALL PHONE
+========================================================= */
+
+@media (max-width: 380px) {
+
+  .admin-dentist-content {
+    padding: 8px;
+  }
+
+
+  .admin-dentist-stats {
+    gap: 6px;
+  }
+
+
+  .dentist-stat-card {
+    height: 62px;
+
+    padding: 7px 8px;
+  }
+
+
+  .dentist-stat-card span {
+    font-size: 8px;
+  }
+
+
+  .dentist-stat-card h3 {
+    font-size: 18px;
+  }
+
+
+  .admin-pending-leave-header {
+    flex-direction: column;
+  }
+
+
+  .admin-pending-leave-item {
+    grid-template-columns:
+      34px minmax(0, 1fr);
+  }
+
+
+  .admin-review-request-btn {
+    grid-column: 1 / -1;
+
+    width: 100%;
+  }
+
+
+  .admin-dentist-table {
+    width: 1000px;
+    min-width: 1000px;
+  }
+}
+

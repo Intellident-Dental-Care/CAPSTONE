@@ -132,7 +132,7 @@ export default function ProcedureModal({
         <div className="procedure-content">
           <div className="procedure-left">
             {/* Interactive 3D model iframe viewport panel layout context */}
-            <div className="procedure-image-wrap" style={{ position: 'relative', width: '100%', height: '300px', overflow: 'hidden', borderRadius: '8px' }}>
+            <div className="procedure-image-wrap">
               <iframe
                 ref={iframeRef}
                 onLoad={handleIframeLoad}

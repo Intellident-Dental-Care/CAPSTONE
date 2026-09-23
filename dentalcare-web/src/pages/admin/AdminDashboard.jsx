@@ -430,6 +430,7 @@ function DashboardRequestConfirmationModal({
 ========================================================= */
 
 export default function AdminDashboard() {
+
   const [isNotificationOpen, setIsNotificationOpen] =
     useState(false);
 
@@ -871,297 +872,292 @@ export default function AdminDashboard() {
             ================================================= */}
 
             <section className="admin-left-section">
-              {/* LIVE QUEUE */}
 
-              <div className="admin-live-queue-card">
-                <div className="admin-card-header-row">
-                  <h3 className="admin-live-queue-title">
-                    Live Queue
-                  </h3>
+            {/* =================================================
+                LIVE QUEUE
+            ================================================= */}
 
-                  <span className="admin-soft-badge">
-                    Active
-                  </span>
-                </div>
+            <div className="admin-live-queue-card">
+              <div className="admin-card-header-row">
+                <h3 className="admin-live-queue-title">
+                  Live Queue
+                </h3>
 
-                <div className="admin-live-queue-content">
-                  {isActivePatient ? (
+                <span className="admin-soft-badge">
+                  Active
+                </span>
+              </div>
+
+              <div className="admin-live-queue-content">
+                {isActivePatient ? (
+                  <>
+                    <div className="admin-live-queue-number">
+                      {`#${currentQueue.queueNumber}`}
+                    </div>
+
+                    <p className="admin-live-queue-status">
+                      {currentQueue.status}
+                    </p>
+
+                    <div className="admin-live-queue-extra">
+                      <div className="admin-live-queue-extra-item">
+                        <span className="admin-live-queue-extra-label">
+                          Next Patient
+                        </span>
+
+                        <span className="admin-live-queue-extra-value">
+                          {nextPatientFromApi?.patientName || "None"}
+                        </span>
+                      </div>
+
+                      <div className="admin-live-queue-extra-item">
+                        <span className="admin-live-queue-extra-label">
+                          Treatment / Procedure
+                        </span>
+
+                        <span className="admin-live-queue-extra-value">
+                          {currentQueue.procedure || "--"}
+                        </span>
+                      </div>
+
+                      <div className="admin-live-queue-extra-item">
+                        <span className="admin-live-queue-extra-label">
+                          Assigned Dentist
+                        </span>
+
+                        <span className="admin-live-queue-extra-value">
+                          {currentQueue.dentist || "Unassigned"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="admin-live-queue-progress">
+                      <div className="admin-live-queue-progress-fill" />
+                    </div>
+
+                    <p className="admin-live-queue-wait">
+                      Estimated wait for the next patient:{" "}
+                      <strong>
+                        {nextPatientFromApi
+                          ? `${nextPatientWaitMinutes} minutes`
+                          : "N/A"}
+                      </strong>
+                    </p>
+                  </>
+                ) : (
+                  <div className="admin-live-queue-empty">
+                    <p className="admin-live-queue-empty-title">
+                      No Current Patient
+                    </p>
+
+                    <p className="admin-live-queue-empty-description">
+                      The queue is currently empty or all patients
+                      have been completed
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* =================================================
+                NEXT PATIENT + ATTENDING DENTISTS
+            ================================================= */}
+
+            <div className="admin-left-bottom-grid">
+
+              {/* NEXT PATIENT */}
+
+              <div className="admin-mini-stat-card admin-patient-card">
+                <p className="admin-mini-stat-title">
+                  Next Patient Details
+                </p>
+
+                <div className="admin-patient-content">
+                  {nextPatientFromApi ? (
                     <>
-                      <div className="admin-live-queue-number">
-                        {`#${currentQueue.queueNumber}`}
+                      <div className="admin-patient-top">
+                        <h4 className="admin-patient-name">
+                          {nextPatientFromApi.patientName}
+                        </h4>
+
+                        <p className="admin-patient-treatment">
+                          {nextPatientFromApi.procedure || "--"}
+                        </p>
+
+                        <p className="admin-patient-schedule">
+                          {nextPatientFromApi.time} -{" "}
+                          {nextPatientFromApi.date}
+                        </p>
                       </div>
 
-                      <p className="admin-live-queue-status">
-                        {currentQueue.status}
-                      </p>
+                      <div className="admin-patient-bottom">
+                        <span className="admin-assigned-label">
+                          Assigned Dentist
+                        </span>
 
-                      <div className="admin-live-queue-extra">
-                        <div className="admin-live-queue-extra-item">
-                          <span className="admin-live-queue-extra-label">
-                            Next Patient
-                          </span>
-
-                          <span className="admin-live-queue-extra-value">
-                            {nextPatientFromApi?.patientName ||
-                              "None"}
-                          </span>
-                        </div>
-
-                        <div className="admin-live-queue-extra-item">
-                          <span className="admin-live-queue-extra-label">
-                            Treatment / Procedure
-                          </span>
-
-                          <span className="admin-live-queue-extra-value">
-                            {currentQueue.procedure || "--"}
-                          </span>
-                        </div>
-
-                        <div className="admin-live-queue-extra-item">
-                          <span className="admin-live-queue-extra-label">
-                            Assigned Dentist
-                          </span>
-
-                          <span className="admin-live-queue-extra-value">
-                            {currentQueue.dentist ||
-                              "Unassigned"}
-                          </span>
-                        </div>
+                        <span className="admin-assigned-value">
+                          {nextPatientFromApi.dentist || "Unassigned"}
+                        </span>
                       </div>
-
-                      <div className="admin-live-queue-progress">
-                        <div className="admin-live-queue-progress-fill" />
-                      </div>
-
-                      <p className="admin-live-queue-wait">
-                        Estimated wait for the next patient:{" "}
-                        <strong>
-                          {nextPatientFromApi
-                            ? `${nextPatientWaitMinutes} minutes`
-                            : "N/A"}
-                        </strong>
-                      </p>
                     </>
                   ) : (
-                    <div className="admin-live-queue-empty">
-                      <p className="admin-live-queue-empty-title">
-                        No Current Patient
-                      </p>
+                    <div
+                      className="admin-patient-top"
+                      style={{
+                        minHeight: "120px",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <h4
+                        className="admin-patient-name"
+                        style={{
+                          color: "#A0A0A0",
+                        }}
+                      >
+                        Queue is clear
+                      </h4>
 
-                      <p className="admin-live-queue-empty-description">
-                        The queue is currently empty or all
-                        patients have been completed
+                      <p
+                        className="admin-patient-treatment"
+                        style={{
+                          color: "#C0C0C0",
+                        }}
+                      >
+                        No upcoming patients for today
                       </p>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* =================================================
-                  DENTIST LEAVE REQUESTS
-              ================================================= */}
+              {/* ATTENDING DENTISTS */}
 
-              <div className="admin-dashboard-leave-card">
-                <div className="admin-dashboard-leave-header">
-                  <div>
-                    <div className="admin-dashboard-leave-title-row">
-                      <h3>Dentist Leave Requests</h3>
+              <div className="admin-mini-stat-card admin-dentists-card">
+                <p className="admin-mini-stat-title">
+                  Attending Dentists
+                </p>
 
-                      {pendingLeaveRequests.length > 0 ? (
-                        <span className="admin-dashboard-leave-count">
-                          {pendingLeaveRequests.length} Pending
+                <div className="admin-dentists-list">
+                  {attendingDentists.length ? (
+                    attendingDentists.map((dentist) => (
+                      <div
+                        key={dentist.id}
+                        className="admin-dentist-item"
+                      >
+                        <div className="admin-dentist-meta">
+                          <p className="admin-dentist-name">
+                            {dentist.name}
+                          </p>
+
+                          <span className="admin-dentist-patients">
+                            {dentist.patients}
+                          </span>
+                        </div>
+
+                        <span
+                          className={`admin-dentist-status ${dentist.statusClass}`}
+                        >
+                          {dentist.status}
                         </span>
-                      ) : null}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="admin-empty-text">
+                      No dentists scheduled for this branch.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* =================================================
+                DENTIST LEAVE REQUESTS
+            ================================================= */}
+
+            <div className="admin-dashboard-leave-card">
+              <div className="admin-dashboard-leave-header">
+                <div>
+                  <div className="admin-dashboard-leave-title-row">
+                    <h3>Dentist Leave Requests</h3>
+
+                    {pendingLeaveRequests.length > 0 ? (
+                      <span className="admin-dashboard-leave-count">
+                        {pendingLeaveRequests.length} Pending
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <p>
+                    Review leave requests submitted by dentists assigned
+                    to your branch.
+                  </p>
+                </div>
+              </div>
+
+              {pendingLeaveRequests.length ? (
+                <div className="admin-dashboard-leave-list">
+                  {pendingLeaveRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="admin-dashboard-leave-item"
+                    >
+                      <div className="admin-dashboard-leave-avatar">
+                        {request.dentistName
+                          .replace("Dr. ", "")
+                          .charAt(0)
+                          .toUpperCase()}
+                      </div>
+
+                      <div className="admin-dashboard-leave-info">
+                        <strong>
+                          {request.dentistName}
+                        </strong>
+
+                        <span>
+                          {request.leaveType} •{" "}
+                          {getLeaveDateSummary(request.dates)}
+                        </span>
+
+                        <small>
+                          Submitted {request.submittedAt}
+                        </small>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="admin-dashboard-leave-review"
+                        onClick={() =>
+                          handleOpenLeaveRequest(request)
+                        }
+                      >
+                        Review
+                      </button>
                     </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="admin-dashboard-leave-empty">
+                  <div className="admin-dashboard-leave-empty-icon">
+                    ✓
+                  </div>
+
+                  <div>
+                    <strong>
+                      No Pending Leave Requests
+                    </strong>
 
                     <p>
-                      Review leave requests submitted by
-                      dentists assigned to your branch.
+                      All dentist leave requests have been reviewed.
                     </p>
                   </div>
                 </div>
+              )}
+            </div>
 
-                {pendingLeaveRequests.length ? (
-                  <div className="admin-dashboard-leave-list">
-                    {pendingLeaveRequests.map((request) => (
-                      <div
-                        key={request.id}
-                        className="admin-dashboard-leave-item"
-                      >
-                        <div className="admin-dashboard-leave-avatar">
-                          {request.dentistName
-                            .replace("Dr. ", "")
-                            .charAt(0)
-                            .toUpperCase()}
-                        </div>
-
-                        <div className="admin-dashboard-leave-info">
-                          <strong>
-                            {request.dentistName}
-                          </strong>
-
-                          <span>
-                            {request.leaveType} •{" "}
-                            {getLeaveDateSummary(
-                              request.dates
-                            )}
-                          </span>
-
-                          <small>
-                            Submitted{" "}
-                            {request.submittedAt}
-                          </small>
-                        </div>
-
-                        <button
-                          type="button"
-                          className="admin-dashboard-leave-review"
-                          onClick={() =>
-                            handleOpenLeaveRequest(request)
-                          }
-                        >
-                          Review
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="admin-dashboard-leave-empty">
-                    <div className="admin-dashboard-leave-empty-icon">
-                      ✓
-                    </div>
-
-                    <div>
-                      <strong>
-                        No Pending Leave Requests
-                      </strong>
-
-                      <p>
-                        All dentist leave requests have been
-                        reviewed.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* =================================================
-                  LOWER LEFT CARDS
-              ================================================= */}
-
-              <div className="admin-left-bottom-grid">
-                {/* NEXT PATIENT */}
-
-                <div className="admin-mini-stat-card admin-patient-card">
-                  <p className="admin-mini-stat-title">
-                    Next Patient Details
-                  </p>
-
-                  <div className="admin-patient-content">
-                    {nextPatientFromApi ? (
-                      <>
-                        <div className="admin-patient-top">
-                          <h4 className="admin-patient-name">
-                            {
-                              nextPatientFromApi.patientName
-                            }
-                          </h4>
-
-                          <p className="admin-patient-treatment">
-                            {nextPatientFromApi.procedure ||
-                              "--"}
-                          </p>
-
-                          <p className="admin-patient-schedule">
-                            {nextPatientFromApi.time} -{" "}
-                            {nextPatientFromApi.date}
-                          </p>
-                        </div>
-
-                        <div className="admin-patient-bottom">
-                          <span className="admin-assigned-label">
-                            Assigned Dentist
-                          </span>
-
-                          <span className="admin-assigned-value">
-                            {nextPatientFromApi.dentist ||
-                              "Unassigned"}
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <div
-                        className="admin-patient-top"
-                        style={{
-                          minHeight: "120px",
-                          display: "flex",
-                          flexDirection: "column",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <h4
-                          className="admin-patient-name"
-                          style={{
-                            color: "#A0A0A0",
-                          }}
-                        >
-                          Queue is clear
-                        </h4>
-
-                        <p
-                          className="admin-patient-treatment"
-                          style={{
-                            color: "#C0C0C0",
-                          }}
-                        >
-                          No upcoming patients for today
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* ATTENDING DENTISTS */}
-
-                <div className="admin-mini-stat-card admin-dentists-card">
-                  <p className="admin-mini-stat-title">
-                    Attending Dentists
-                  </p>
-
-                  <div className="admin-dentists-list">
-                    {attendingDentists.length ? (
-                      attendingDentists.map((dentist) => (
-                        <div
-                          key={dentist.id}
-                          className="admin-dentist-item"
-                        >
-                          <div className="admin-dentist-meta">
-                            <p className="admin-dentist-name">
-                              {dentist.name}
-                            </p>
-
-                            <span className="admin-dentist-patients">
-                              {dentist.patients}
-                            </span>
-                          </div>
-
-                          <span
-                            className={`admin-dentist-status ${dentist.statusClass}`}
-                          >
-                            {dentist.status}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="admin-empty-text">
-                        No dentists scheduled for this
-                        branch.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </section>
+          </section>
 
             {/* =================================================
                 RIGHT SECTION

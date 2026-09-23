@@ -4,12 +4,12 @@
 ========================================================= */
 
 .dashboard-grid {
-  flex: 1;
+  flex: 1 1 auto;
+
+  width: 100%;
 
   min-width: 0;
   min-height: 0;
-
-  width: 100%;
 
   display: grid;
 
@@ -24,6 +24,10 @@
   overflow-y: auto;
   overflow-x: hidden;
 
+  overscroll-behavior: contain;
+
+  -webkit-overflow-scrolling: touch;
+
   background:
     radial-gradient(
       circle at top left,
@@ -36,6 +40,7 @@
       #f9fafc 100%
     );
 }
+
 
 /* =========================================================
    MAIN DASHBOARD SCROLLBAR
@@ -51,6 +56,7 @@
 
 .dashboard-grid::-webkit-scrollbar-thumb {
   background: #d9dbe3;
+
   border-radius: 20px;
 }
 
@@ -59,10 +65,13 @@
 }
 
 /* Firefox */
+
 .dashboard-grid {
   scrollbar-width: thin;
+
   scrollbar-color: #d9dbe3 transparent;
 }
+
 
 /* =========================================================
    LEFT / RIGHT SECTIONS
@@ -75,6 +84,8 @@
 
   display: flex;
   flex-direction: column;
+
+  align-self: start;
 }
 
 .left-section {
@@ -84,6 +95,7 @@
 .right-section {
   gap: 10px;
 }
+
 
 /* =========================================================
    COMMON CARDS
@@ -98,8 +110,10 @@
 
   border: 1px solid #ececf2;
 
-  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.04);
+  box-shadow:
+    0 8px 20px rgba(16, 24, 40, 0.04);
 }
+
 
 /* =========================================================
    WELCOME CARD
@@ -143,6 +157,7 @@
   color: #6f7482;
 }
 
+
 /* =========================================================
    PATIENTS CARD
 ========================================================= */
@@ -159,6 +174,7 @@
   flex-direction: column;
 }
 
+
 /* =========================================================
    SECTION HEADER
 ========================================================= */
@@ -167,7 +183,6 @@
   display: flex;
 
   justify-content: space-between;
-
   align-items: flex-start;
 
   gap: 12px;
@@ -194,6 +209,7 @@
   color: #8a8f9d;
 }
 
+
 /* =========================================================
    SECTION ACTIONS
 ========================================================= */
@@ -210,6 +226,7 @@
 
 .branch-select {
   min-width: 142px;
+
   height: 34px;
 
   border: 1px solid #e8e9ef;
@@ -232,8 +249,10 @@
 .branch-select:focus {
   border-color: #e34d86;
 
-  box-shadow: 0 0 0 2px rgba(227, 77, 134, 0.08);
+  box-shadow:
+    0 0 0 2px rgba(227, 77, 134, 0.08);
 }
+
 
 /* =========================================================
    DATE BADGE
@@ -263,6 +282,7 @@
   white-space: nowrap;
 }
 
+
 /* =========================================================
    PATIENT LIST
 ========================================================= */
@@ -281,6 +301,8 @@
   max-height: 520px;
 
   padding-right: 4px;
+
+  -webkit-overflow-scrolling: touch;
 }
 
 .patient-list-scroll::-webkit-scrollbar {
@@ -301,6 +323,7 @@
   background: #c4c7d0;
 }
 
+
 /* =========================================================
    LEFT MINI STATS
 ========================================================= */
@@ -308,7 +331,8 @@
 .left-mini-stats-grid {
   display: grid;
 
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
 
   gap: 10px;
 
@@ -318,6 +342,10 @@
 }
 
 .mini-stat-card {
+  min-width: 0;
+
+  min-height: 84px;
+
   background: #ffffff;
 
   border: 1px solid #ececf2;
@@ -326,9 +354,8 @@
 
   padding: 12px 14px;
 
-  box-shadow: 0 6px 16px rgba(16, 24, 40, 0.03);
-
-  min-height: 84px;
+  box-shadow:
+    0 6px 16px rgba(16, 24, 40, 0.03);
 }
 
 .mini-stat-title {
@@ -355,6 +382,7 @@
   color: #8a8f9d;
 }
 
+
 /* =========================================================
    SMALLER LAPTOP
 ========================================================= */
@@ -379,6 +407,7 @@
   }
 }
 
+
 /* =========================================================
    SMALL LAPTOP / TABLET
 ========================================================= */
@@ -393,6 +422,11 @@
   .left-section,
   .right-section {
     width: 100%;
+
+    min-width: 0;
+    min-height: 0;
+
+    align-self: auto;
   }
 
   .patients-card {
@@ -406,19 +440,48 @@
   }
 }
 
+
 /* =========================================================
    TABLET
 ========================================================= */
 
-@media (max-width: 768px) {
-  .dashboard-grid {
-    display: flex;
+@media (max-width: 900px) {
+  /*
+   * IMPORTANT:
+   * dashboard-grid remains the scrolling container.
+   * The topbar is outside this element, so it stays visible.
+   */
 
+  .dashboard-grid {
+    flex: 1 1 auto;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 0;
+
+    display: flex;
     flex-direction: column;
 
     padding: 12px;
 
     gap: 12px;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    overscroll-behavior: contain;
+
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .left-section,
+  .right-section {
+    width: 100%;
+
+    min-width: 0;
+
+    flex: none;
   }
 
   .welcome-card,
@@ -437,6 +500,8 @@
     padding: 14px;
 
     min-height: auto;
+
+    flex: none;
   }
 
   .section-title {
@@ -466,9 +531,11 @@
   }
 
   .left-mini-stats-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
 }
+
 
 /* =========================================================
    MOBILE
@@ -476,9 +543,16 @@
 
 @media (max-width: 520px) {
   .dashboard-grid {
+    flex: 1 1 auto;
+
+    min-height: 0;
+
     padding: 10px;
 
     gap: 10px;
+
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .welcome-card,
@@ -525,10 +599,17 @@
     width: 100%;
   }
 
+
+  /*
+   * On phone the patient list becomes part of the main
+   * dashboard scroll instead of creating nested scrolling.
+   */
+
   .patient-list-scroll {
     max-height: none;
 
     overflow-y: visible;
+    overflow-x: hidden;
 
     padding-right: 0;
   }

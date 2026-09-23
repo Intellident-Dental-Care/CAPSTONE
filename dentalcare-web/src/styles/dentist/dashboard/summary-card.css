@@ -1,92 +1,198 @@
+/* =========================================================
+   SUMMARY ROW
+========================================================= */
+
 .summary-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
   gap: 10px;
+
+  width: 100%;
+
+  min-width: 0;
+
   flex-shrink: 0;
 }
 
+
+/* =========================================================
+   SUMMARY CARD
+========================================================= */
+
 .summary-card {
-  border-radius: 18px;
-  padding: 14px 16px;
+  position: relative;
+
+  width: 100%;
+
+  min-width: 0;
   min-height: 92px;
+
   display: flex;
   flex-direction: column;
+
   justify-content: space-between;
-  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.04);
-  position: relative;
+
+  padding: 14px 16px;
+
+  border-radius: 18px;
+
+  box-shadow:
+    0 8px 20px rgba(16, 24, 40, 0.04);
+
   overflow: hidden;
 }
 
+
+/* =========================================================
+   CARD VARIANTS
+========================================================= */
+
 .summary-card.pink {
-  background: linear-gradient(135deg, #ec5b90, #f07ba6);
+  background:
+    linear-gradient(
+      135deg,
+      #ec5b90,
+      #f07ba6
+    );
+
   color: #ffffff;
 }
 
 .summary-card.rose {
-  background: linear-gradient(135deg, #ea4f84, #e96b98);
+  background:
+    linear-gradient(
+      135deg,
+      #ea4f84,
+      #e96b98
+    );
+
   color: #ffffff;
 }
 
 .summary-card.white {
   background: #ffffff;
+
   border: 1px solid #ececec;
+
   box-shadow: none;
 }
+
+
+/* =========================================================
+   DECORATIVE CIRCLES
+========================================================= */
 
 .summary-card.pink::before,
 .summary-card.rose::before {
   content: "";
+
   position: absolute;
+
   width: 120px;
   height: 120px;
+
   right: -30px;
   top: -30px;
-  background: rgba(255, 255, 255, 0.14);
+
+  background:
+    rgba(255, 255, 255, 0.14);
+
   border-radius: 50%;
+
+  pointer-events: none;
 }
 
 .summary-card.pink::after,
 .summary-card.rose::after {
   content: "";
+
   position: absolute;
+
   width: 78px;
   height: 78px;
+
   right: 18px;
   bottom: -28px;
-  background: rgba(255, 255, 255, 0.1);
+
+  background:
+    rgba(255, 255, 255, 0.1);
+
   border-radius: 50%;
+
+  pointer-events: none;
 }
 
+
+/* =========================================================
+   SUMMARY HEADER
+========================================================= */
+
 .summary-header {
+  position: relative;
+
+  z-index: 1;
+
   display: flex;
+
   justify-content: space-between;
   align-items: center;
-  position: relative;
-  z-index: 1;
+
+  gap: 10px;
+
+  min-width: 0;
 }
 
 .summary-header span {
+  min-width: 0;
+
   font-size: 15px;
+
   font-weight: 700;
 }
 
 .summary-header small {
   display: block;
+
   margin-top: 6px;
+
   font-size: 12px;
+
   font-weight: 700;
 }
 
+
+/* =========================================================
+   SUMMARY VALUE
+========================================================= */
+
 .summary-value {
+  position: relative;
+
+  z-index: 1;
+
   flex: 1;
+
   display: flex;
+
   align-items: center;
   justify-content: center;
+
+  min-width: 0;
+
   font-size: 30px;
+
   font-weight: 800;
-  position: relative;
-  z-index: 1;
+
+  line-height: 1;
 }
+
+
+/* =========================================================
+   COLORED CARD TEXT
+========================================================= */
 
 .summary-card.pink .summary-header span,
 .summary-card.rose .summary-header span,
@@ -100,4 +206,84 @@
 .summary-card.pink .summary-header small,
 .summary-card.rose .summary-header small {
   opacity: 0.95;
+}
+
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 900px) {
+  .summary-row {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    width: 100%;
+  }
+
+  .summary-card {
+    min-width: 0;
+  }
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 640px) {
+  .summary-row {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-card {
+    min-height: 88px;
+
+    padding: 13px 14px;
+  }
+
+  .summary-header span {
+    font-size: 14px;
+  }
+
+  .summary-header small {
+    font-size: 11px;
+  }
+
+  .summary-value {
+    font-size: 28px;
+  }
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
+
+@media (max-width: 480px) {
+  .summary-card {
+    min-height: 84px;
+
+    border-radius: 14px;
+
+    padding: 12px 14px;
+  }
+
+  .summary-header {
+    gap: 6px;
+  }
+
+  .summary-header span {
+    font-size: 13px;
+  }
+
+  .summary-header small {
+    margin-top: 4px;
+
+    font-size: 10px;
+  }
+
+  .summary-value {
+    font-size: 26px;
+  }
 }
