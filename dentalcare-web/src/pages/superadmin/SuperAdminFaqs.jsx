@@ -27,6 +27,7 @@ const FAQ_CATEGORIES = [
 
 export default function SuperAdminFaqs() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -197,8 +198,11 @@ export default function SuperAdminFaqs() {
   }, [faqs, searchTerm, selectedCategory]);
 
   return (
-    <div className="admin-dashboard-page">
-      <SuperAdminSidebar />
+    <div className="admin-dashboard-page superadmin-mobile-layout">
+      <SuperAdminSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       <main className="admin-main-content">
         <SuperAdminTopbar
@@ -208,6 +212,7 @@ export default function SuperAdminFaqs() {
           onToggleNotifications={() => setIsNotificationOpen((prev) => !prev)}
           onCloseNotifications={() => setIsNotificationOpen(false)}
           onMarkAllRead={handleMarkAllRead}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         />
 
         <div className="superadmin-faqs-fixed-page">

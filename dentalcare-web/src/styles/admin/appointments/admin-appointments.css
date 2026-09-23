@@ -1065,3 +1065,1108 @@
     width: 100%;
   }
 }
+
+/* =========================================================
+   FINAL APPOINTMENTS RESPONSIVE FIX
+   Main page + summary + table responsiveness
+========================================================= */
+
+
+/* =========================================================
+   PAGE SCROLLING
+========================================================= */
+
+.admin-main-content {
+  min-width: 0;
+  min-height: 0;
+  height: 100vh;
+  height: 100dvh;
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+}
+
+
+/*
+ * The appointments content is the scrolling area.
+ * Topbar stays outside of this container.
+ */
+
+.admin-appointments-content {
+  flex: 1;
+
+  width: 100%;
+
+  min-width: 0;
+  min-height: 0;
+
+  padding: 20px;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 16px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  scrollbar-width: thin;
+  scrollbar-color: #e4c8d3 transparent;
+}
+
+
+.admin-appointments-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+
+.admin-appointments-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+.admin-appointments-content::-webkit-scrollbar-thumb {
+  background: #e4c8d3;
+
+  border-radius: 999px;
+}
+
+
+.admin-appointments-content::-webkit-scrollbar-thumb:hover {
+  background: #d9afbf;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.appointments-header-row {
+  flex: none;
+
+  width: 100%;
+
+  min-width: 0;
+}
+
+
+.appointments-header-actions {
+  min-width: 0;
+}
+
+
+/* =========================================================
+   SUMMARY CARDS
+========================================================= */
+
+.appointments-summary-grid {
+  flex: none;
+
+  width: 100%;
+
+  min-width: 0;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(5, minmax(0, 1fr));
+
+  gap: 12px;
+}
+
+
+.appointments-summary-grid .summary-card {
+  min-width: 0;
+  min-height: 92px;
+
+  padding: 14px 16px;
+
+  border-radius: 18px;
+
+  display: flex;
+  flex-direction: column;
+
+  justify-content: center;
+}
+
+
+.appointments-summary-grid .summary-card span {
+  margin-bottom: 6px;
+
+  font-size: 12px;
+
+  line-height: 1.3;
+}
+
+
+.appointments-summary-grid .summary-card h3 {
+  font-size: 26px;
+
+  line-height: 1.1;
+}
+
+
+/* =========================================================
+   TOOLBAR
+========================================================= */
+
+.appointments-toolbar {
+  flex: none;
+
+  width: 100%;
+
+  min-width: 0;
+}
+
+
+/* =========================================================
+   BULK BAR
+========================================================= */
+
+.appointments-bulk-bar {
+  flex: none;
+
+  width: 100%;
+
+  min-width: 0;
+}
+
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.appointments-table-card {
+  flex: 1;
+
+  width: 100%;
+
+  min-width: 0;
+  min-height: 380px;
+
+  height: auto;
+
+  overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
+}
+
+
+.appointments-table-head {
+  flex-shrink: 0;
+}
+
+
+.appointments-table-body {
+  flex: 1;
+
+  min-width: 0;
+  min-height: 0;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+
+/* =========================================================
+   SMALLER DESKTOP
+========================================================= */
+
+@media (max-width: 1400px) {
+
+  .admin-appointments-content {
+    padding: 18px;
+
+    gap: 14px;
+  }
+
+
+  /* Keep all five compact when there is enough room */
+
+  .appointments-summary-grid {
+    grid-template-columns:
+      repeat(5, minmax(0, 1fr));
+
+    gap: 10px;
+  }
+
+
+  .appointments-summary-grid .summary-card {
+    min-height: 84px;
+
+    padding: 12px 14px;
+
+    border-radius: 17px;
+  }
+
+
+  .appointments-summary-grid .summary-card span {
+    font-size: 11px;
+
+    margin-bottom: 5px;
+  }
+
+
+  .appointments-summary-grid .summary-card h3 {
+    font-size: 24px;
+  }
+}
+
+
+/* =========================================================
+   SMALL LAPTOP
+========================================================= */
+
+@media (max-width: 1180px) {
+
+  .appointments-summary-grid {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+
+    gap: 10px;
+  }
+
+
+  .appointments-summary-grid .summary-card {
+    min-height: 82px;
+
+    padding: 12px 14px;
+  }
+
+
+  .appointments-summary-grid .summary-card span {
+    font-size: 11px;
+  }
+
+
+  .appointments-summary-grid .summary-card h3 {
+    font-size: 23px;
+  }
+
+
+  /*
+   * Preserve the desktop table columns.
+   * Horizontal scrolling is allowed inside the table.
+   */
+
+  .appointments-table-card {
+  flex: 1;
+
+  height: auto;
+  min-height: 380px;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+
+  .appointments-table-head,
+  .appointments-table-body {
+    min-width: 1180px;
+  }
+
+
+  .appointments-table-row {
+    min-width: 1148px;
+  }
+}
+
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 900px) {
+
+  .admin-appointments-content {
+    padding: 14px;
+
+    gap: 12px;
+  }
+
+
+  /* =======================================================
+     HEADER
+  ======================================================= */
+
+  .appointments-header-row {
+    display: flex;
+
+    flex-direction: column;
+
+    width: 100%;
+
+    gap: 12px;
+  }
+
+
+  .appointments-page-title {
+    font-size: 23px;
+  }
+
+
+  .appointments-page-subtitle {
+    font-size: 12px;
+  }
+
+
+  .appointments-header-actions {
+    width: 100%;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: stretch;
+
+    gap: 10px;
+  }
+
+
+  .appointments-walkin-btn {
+    width: 100%;
+
+    height: 44px;
+
+    border-radius: 13px;
+
+    font-size: 13px;
+  }
+
+
+  .appointments-date-range-box {
+    width: 100%;
+
+    min-width: 0;
+
+    display: grid;
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 10px;
+
+    padding: 10px;
+
+    border-radius: 15px;
+  }
+
+
+  .date-field {
+    min-width: 0;
+  }
+
+
+  .date-field input {
+    width: 100%;
+
+    min-width: 0;
+
+    height: 40px;
+
+    font-size: 12px;
+  }
+
+
+  /* =======================================================
+     SUMMARY
+  ======================================================= */
+
+  .appointments-summary-grid {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+
+    gap: 8px;
+  }
+
+
+  .appointments-summary-grid .summary-card {
+    min-height: 76px;
+
+    padding: 10px 12px;
+
+    border-radius: 15px;
+  }
+
+
+  .appointments-summary-grid .summary-card span {
+    margin-bottom: 4px;
+
+    font-size: 10px;
+  }
+
+
+  .appointments-summary-grid .summary-card h3 {
+    font-size: 21px;
+  }
+
+
+  /* =======================================================
+     TOOLBAR
+  ======================================================= */
+
+  .appointments-toolbar {
+    display: grid;
+
+    grid-template-columns:
+      minmax(0, 1fr)
+      150px;
+
+    gap: 8px;
+  }
+
+
+  .appointments-search {
+    width: 100%;
+
+    min-width: 0;
+  }
+
+
+  .appointments-search input {
+    height: 44px;
+
+    font-size: 12px;
+
+    padding: 0 14px;
+  }
+
+
+  .appointments-filters {
+    width: 100%;
+  }
+
+
+  .appointments-filters select {
+    width: 100%;
+
+    min-width: 0;
+
+    height: 44px;
+
+    border-radius: 14px;
+
+    font-size: 12px;
+  }
+
+
+  /* =======================================================
+     TABLE
+  ======================================================= */
+
+  .appointments-table-card {
+    width: 100%;
+
+    height: auto;
+    min-height: 360px;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+
+  .appointments-table-head {
+    min-width: 1100px;
+  }
+
+
+  .appointments-table-body {
+    min-width: 1100px;
+
+    height: 400px;
+
+    flex: none;
+
+    overflow-y: auto;
+  }
+
+
+  .appointments-table-row {
+    min-width: 1068px;
+  }
+}
+
+
+/* =========================================================
+   PHONE
+========================================================= */
+
+@media (max-width: 600px) {
+
+  .admin-appointments-content {
+    padding: 10px;
+
+    gap: 10px;
+  }
+
+
+  /* =======================================================
+     HEADER
+  ======================================================= */
+
+  .appointments-page-title {
+    font-size: 20px;
+  }
+
+
+  .appointments-page-subtitle {
+    margin-top: 3px;
+
+    font-size: 11px;
+
+    line-height: 1.4;
+  }
+
+
+  .appointments-header-row {
+    gap: 10px;
+  }
+
+
+  .appointments-header-actions {
+    gap: 8px;
+  }
+
+
+  .appointments-walkin-btn {
+    height: 40px;
+
+    padding: 0 14px;
+
+    border-radius: 12px;
+
+    font-size: 12px;
+  }
+
+
+  /* Keep From and To beside each other */
+
+  .appointments-date-range-box {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 7px;
+
+    padding: 8px;
+
+    border-radius: 13px;
+  }
+
+
+  .date-field {
+    gap: 4px;
+  }
+
+
+  .date-field label {
+    font-size: 9px;
+  }
+
+
+  .date-field input {
+    height: 36px;
+
+    padding: 0 7px;
+
+    border-radius: 9px;
+
+    font-size: 10px;
+  }
+
+
+  /* =======================================================
+     SUMMARY
+     
+     5 cards:
+     [ Total ] [ Pending ]
+     [ Queue ] [ Completed ]
+     [      Cancelled      ]
+  ======================================================= */
+
+  .appointments-summary-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 7px;
+  }
+
+
+  .appointments-summary-grid .summary-card {
+    min-height: 64px;
+
+    padding: 8px 10px;
+
+    border-radius: 13px;
+
+    box-shadow:
+      0 5px 12px rgba(239, 91, 145, 0.05);
+  }
+
+
+  .appointments-summary-grid .summary-card:last-child {
+    grid-column: 1 / -1;
+  }
+
+
+  .appointments-summary-grid .summary-card span {
+    margin-bottom: 2px;
+
+    font-size: 9px;
+
+    line-height: 1.2;
+  }
+
+
+  .appointments-summary-grid .summary-card h3 {
+    font-size: 19px;
+
+    line-height: 1;
+  }
+
+
+  /* =======================================================
+     SEARCH / STATUS
+  ======================================================= */
+
+  .appointments-toolbar {
+    display: grid;
+
+    grid-template-columns:
+      minmax(0, 1fr)
+      115px;
+
+    gap: 7px;
+  }
+
+
+  .appointments-search {
+    min-width: 0;
+  }
+
+
+  .appointments-search input {
+    height: 40px;
+
+    padding: 0 12px;
+
+    font-size: 11px;
+
+    border-radius: 12px;
+  }
+
+
+  .appointments-filters {
+    min-width: 0;
+  }
+
+
+  .appointments-filters select {
+    width: 100%;
+
+    min-width: 0;
+
+    height: 40px;
+
+    padding: 0 8px;
+
+    border-radius: 12px;
+
+    font-size: 10px;
+  }
+
+
+  /* =======================================================
+     BULK ACTIONS
+  ======================================================= */
+
+  .appointments-bulk-bar {
+    padding: 10px;
+
+    border-radius: 14px;
+  }
+
+
+  .appointments-bulk-actions {
+    width: 100%;
+
+    display: grid;
+
+    grid-template-columns: 1fr;
+
+    gap: 6px;
+  }
+
+
+  .bulk-action-btn {
+    width: 100%;
+
+    padding: 9px 10px;
+
+    font-size: 10px;
+  }
+
+
+  /* =======================================================
+     APPOINTMENTS TABLE
+
+     IMPORTANT:
+     The page itself now scrolls down to this card.
+     The table can scroll horizontally for all columns.
+  ======================================================= */
+
+  .appointments-table-card {
+    width: 100%;
+
+    height: auto;
+    min-height: 330px;
+
+    border-radius: 16px;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    -webkit-overflow-scrolling: touch;
+  }
+
+
+  .appointments-table-head {
+    min-width: 1000px;
+
+    padding: 12px 14px;
+
+    gap: 10px;
+
+    font-size: 10px;
+  }
+
+
+  .appointments-table-body {
+    min-width: 1000px;
+
+    height: 350px;
+
+    padding: 8px 10px 10px;
+
+    overflow-y: auto;
+  }
+
+
+  .appointments-table-row {
+    min-width: 976px;
+
+    gap: 10px;
+
+    padding: 12px 10px;
+
+    margin-bottom: 8px;
+
+    border-radius: 14px;
+  }
+
+
+  .patient-cell strong {
+    font-size: 11px;
+  }
+
+
+  .patient-cell p {
+    font-size: 9px;
+  }
+
+
+  .cell-muted {
+    font-size: 10px;
+  }
+
+
+  .status-badge {
+    min-width: 82px;
+
+    padding: 6px 8px;
+
+    font-size: 9px;
+  }
+
+
+  .table-action-btn {
+    padding: 7px 9px;
+
+    border-radius: 9px;
+
+    font-size: 9px;
+  }
+
+
+  /* =======================================================
+     DETAILS / CANCEL MODALS
+  ======================================================= */
+
+  .appointment-modal-overlay {
+    padding: 10px;
+
+    overflow-y: auto;
+  }
+
+
+  .appointment-details-modal,
+  .confirm-cancel-modal {
+    width: 100%;
+
+    max-height: calc(100dvh - 20px);
+
+    overflow-y: auto;
+
+    border-radius: 18px;
+  }
+
+
+  .appointment-details-modal {
+    padding: 18px;
+  }
+
+
+  .confirm-cancel-modal {
+    padding: 20px;
+  }
+
+
+  .details-top {
+    align-items: flex-start;
+
+    padding-right: 38px;
+
+    margin-bottom: 16px;
+  }
+
+
+  .details-top h2 {
+    font-size: 19px;
+  }
+
+
+  .details-grid {
+    grid-template-columns: 1fr;
+
+    gap: 9px;
+  }
+
+
+  .detail-box {
+    padding: 12px;
+
+    border-radius: 13px;
+  }
+
+
+  .full-width {
+    grid-column: auto;
+  }
+
+
+  .details-actions,
+  .confirm-actions {
+    display: grid;
+
+    grid-template-columns: 1fr;
+
+    gap: 8px;
+  }
+
+
+  .details-actions .table-action-btn,
+  .confirm-actions .table-action-btn {
+    width: 100%;
+  }
+
+
+  /* =======================================================
+     WALK-IN MODAL
+  ======================================================= */
+
+  .walkin-flow-modal,
+  .walkin-flow-modal-compact,
+  .walkin-flow-modal-confirmed {
+    width: 100%;
+
+    max-height: calc(100dvh - 20px);
+
+    overflow-y: auto;
+
+    border-radius: 18px;
+  }
+
+
+  .walkin-header-band {
+    padding: 20px 18px 14px;
+  }
+
+
+  .walkin-header-band h2 {
+    padding-right: 35px;
+
+    font-size: 20px;
+  }
+
+
+  .walkin-header-band p {
+    font-size: 11px;
+  }
+
+
+  .walkin-form-section {
+    grid-template-columns: 1fr;
+
+    padding: 16px 18px 6px;
+
+    gap: 11px;
+  }
+
+
+  .full-width-field {
+    grid-column: auto;
+  }
+
+
+  .walkin-field label {
+    font-size: 11px;
+  }
+
+
+  .walkin-field input,
+  .walkin-field select,
+  .walkin-field textarea {
+    padding: 10px 11px;
+
+    border-radius: 11px;
+
+    font-size: 12px;
+  }
+
+
+  .walkin-field textarea {
+    min-height: 85px;
+  }
+
+
+  .walkin-footer-actions {
+    padding: 14px 18px 18px;
+
+    margin-top: 6px;
+  }
+
+
+  .walkin-time-top {
+    padding: 20px 18px 0;
+  }
+
+
+  .walkin-today-card {
+    margin: 16px 18px 0;
+
+    padding: 13px;
+  }
+
+
+  .walkin-time-block {
+    padding: 16px 18px 0;
+  }
+
+
+  .walkin-time-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 8px;
+  }
+
+
+  .walkin-time-slot {
+    height: 42px;
+
+    font-size: 11px;
+  }
+
+
+  .walkin-review-card {
+    margin: 16px 18px 0;
+  }
+
+
+  .walkin-review-grid {
+    grid-template-columns: 1fr;
+
+    padding: 16px 18px 0;
+
+    gap: 9px;
+  }
+
+
+  .walkin-confirmed-panel {
+    padding: 40px 18px 20px;
+  }
+
+
+  .walkin-confirmed-icon {
+    width: 70px;
+    height: 70px;
+
+    font-size: 34px;
+  }
+
+
+  .walkin-confirmed-panel h2 {
+    font-size: 22px;
+  }
+}
+
+
+/* =========================================================
+   VERY SMALL PHONE
+========================================================= */
+
+@media (max-width: 380px) {
+
+  .admin-appointments-content {
+    padding: 8px;
+  }
+
+
+  .appointments-summary-grid {
+    gap: 6px;
+  }
+
+
+  .appointments-summary-grid .summary-card {
+    min-height: 60px;
+
+    padding: 7px 8px;
+  }
+
+
+  .appointments-summary-grid .summary-card span {
+    font-size: 8.5px;
+  }
+
+
+  .appointments-summary-grid .summary-card h3 {
+    font-size: 18px;
+  }
+
+
+  .appointments-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+
+  .appointments-filters select {
+    height: 38px;
+  }
+
+
+  .walkin-time-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -501,3 +501,252 @@
     width: 100%;
   }
 }
+
+/* =========================================================
+   TOOTH QUESTIONS - TABLET / MOBILE RESPONSIVE FIX
+   Append this AFTER the existing CSS.
+========================================================= */
+
+@media (max-width: 900px) {
+  .superadmin-tooth-page-scrollfix {
+    height: calc(100vh - 78px);
+    height: calc(100dvh - 78px);
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .superadmin-tooth-page {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+    padding: 18px;
+  }
+
+  .superadmin-tooth-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .superadmin-tooth-hero h2 {
+    font-size: 1.8rem;
+  }
+
+  .superadmin-tooth-hero p {
+    margin-top: 7px;
+  }
+
+  .superadmin-tooth-summary-card {
+    min-width: 170px;
+    padding: 14px 16px;
+    border-radius: 18px;
+  }
+
+  .superadmin-tooth-summary-card span {
+    margin-bottom: 5px;
+    font-size: 0.75rem;
+  }
+
+  .superadmin-tooth-summary-card h3 {
+    font-size: 1.35rem;
+  }
+
+  .superadmin-tooth-questions-card {
+    padding: 18px;
+    border-radius: 22px;
+  }
+
+  .superadmin-tooth-card-head-row {
+    gap: 12px;
+  }
+
+  .superadmin-tooth-actions {
+    gap: 8px;
+  }
+
+  .superadmin-tooth-action-btn {
+    height: 42px;
+    padding: 0 13px;
+    font-size: 13px;
+  }
+
+  .superadmin-shared-modal-overlay {
+    padding: 14px;
+    overflow-y: auto;
+  }
+
+  .superadmin-shared-modal {
+    max-width: min(680px, 100%);
+    max-height: calc(100dvh - 28px);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .superadmin-tooth-page-scrollfix {
+    height: calc(100vh - 64px);
+    height: calc(100dvh - 64px);
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .superadmin-tooth-page {
+    height: auto;
+    min-height: 100%;
+    padding: 16px;
+  }
+
+  .superadmin-tooth-hero {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .superadmin-tooth-hero h2 {
+    font-size: 1.65rem;
+  }
+
+  .superadmin-tooth-summary-card {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 14px;
+  }
+
+  .superadmin-tooth-summary-card span {
+    margin-bottom: 3px;
+  }
+
+  .superadmin-tooth-summary-card h3 {
+    font-size: 1.25rem;
+  }
+
+  .superadmin-tooth-card-head-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .superadmin-tooth-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .superadmin-tooth-action-btn {
+    width: 100%;
+  }
+
+  .superadmin-tooth-question-item.edit-mode {
+    flex-direction: column;
+  }
+
+  .superadmin-option-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .superadmin-option-remove-btn,
+  .superadmin-add-option-btn,
+  .superadmin-tooth-remove-btn {
+    width: 100%;
+  }
+
+  .superadmin-shared-modal {
+    width: 100%;
+  }
+
+  .superadmin-shared-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .superadmin-shared-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .superadmin-tooth-page {
+    padding: 12px;
+  }
+
+  .superadmin-tooth-hero {
+    margin-bottom: 12px;
+  }
+
+  .superadmin-tooth-hero h2 {
+    font-size: 1.45rem;
+    line-height: 1.25;
+  }
+
+  .superadmin-tooth-hero p {
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+
+  .superadmin-tooth-summary-card {
+    padding: 10px 12px;
+    border-radius: 15px;
+  }
+
+  .superadmin-tooth-summary-card h3 {
+    font-size: 1.15rem;
+  }
+
+  .superadmin-tooth-questions-card {
+    padding: 12px;
+    border-radius: 17px;
+  }
+
+  .superadmin-tooth-card-head h3 {
+    font-size: 1.15rem;
+  }
+
+  .superadmin-tooth-card-head p {
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+
+  .superadmin-tooth-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .superadmin-tooth-question-item {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .superadmin-question-options {
+    gap: 6px;
+  }
+
+  .superadmin-question-option-chip {
+    padding: 7px 10px;
+    font-size: 0.78rem;
+  }
+
+  .superadmin-shared-modal-overlay {
+    padding: 8px;
+  }
+
+  .superadmin-shared-modal {
+    max-height: calc(100dvh - 16px);
+    border-radius: 18px;
+  }
+
+  .superadmin-shared-modal-top {
+    padding: 18px 16px 14px;
+  }
+
+  .superadmin-shared-modal-body {
+    padding: 16px;
+    max-height: none;
+  }
+
+  .superadmin-shared-modal-actions {
+    padding: 0 16px 16px;
+  }
+}

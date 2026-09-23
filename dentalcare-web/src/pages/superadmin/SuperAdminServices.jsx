@@ -21,6 +21,7 @@ import "../../styles/superadmin/shared/superadmin-responsive.css";
 
 export default function SuperAdminServices() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -535,8 +536,11 @@ export default function SuperAdminServices() {
   };
 
   return (
-    <div className="admin-dashboard-page">
-      <SuperAdminSidebar />
+    <div className="admin-dashboard-page superadmin-mobile-layout">
+      <SuperAdminSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       <main className="admin-main-content">
         <SuperAdminTopbar
@@ -546,6 +550,7 @@ export default function SuperAdminServices() {
           onToggleNotifications={() => setIsNotificationOpen((prev) => !prev)}
           onCloseNotifications={() => setIsNotificationOpen(false)}
           onMarkAllRead={handleMarkAllRead}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         />
 
         <div className="superadmin-services-fixed-page">

@@ -19,6 +19,7 @@ export default function SuperAdminTermsConditions() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newSection, setNewSection] = useState({
@@ -128,11 +129,17 @@ export default function SuperAdminTermsConditions() {
   const renderSections = isEditMode ? draftSections : sections;
 
   return (
-    <div className="admin-dashboard-page">
-      <SuperAdminSidebar />
+    <div className="admin-dashboard-page superadmin-mobile-layout">
+      <SuperAdminSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       <main className="admin-main-content">
-        <SuperAdminTopbar title="Terms and Conditions" />
+        <SuperAdminTopbar
+          title="Terms and Conditions"
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+        />
 
         <div className="superadmin-terms-page-scrollfix">
           <div className="superadmin-terms-page">

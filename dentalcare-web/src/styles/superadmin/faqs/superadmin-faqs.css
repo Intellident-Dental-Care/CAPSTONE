@@ -251,6 +251,7 @@
   margin: 0;
   color: #6a7285;
   line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
 .superadmin-faqs-item-actions {
@@ -261,20 +262,20 @@
   flex-shrink: 0;
 }
 
-.superadmin-faqs-edit-btn {
-  min-width: 100px;
-  height: 40px;
-  padding: 0 16px;
-  background: linear-gradient(90deg, #b786d7, #9e69c3);
-  color: #fff;
-}
-
+.superadmin-faqs-edit-btn,
 .superadmin-faqs-delete-btn {
   min-width: 100px;
   height: 40px;
   padding: 0 16px;
-  background: linear-gradient(90deg, #ff4d4f, #c81e1e);
   color: #fff;
+}
+
+.superadmin-faqs-edit-btn {
+  background: linear-gradient(90deg, #b786d7, #9e69c3);
+}
+
+.superadmin-faqs-delete-btn {
+  background: linear-gradient(90deg, #ff4d4f, #c81e1e);
 }
 
 .superadmin-faqs-empty-state {
@@ -380,29 +381,101 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .superadmin-faqs-fixed-page {
-    height: auto;
-    overflow: visible;
+    height: calc(100vh - 78px);
+    height: calc(100dvh - 78px);
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
   }
 
   .superadmin-faqs-content {
     height: auto;
+    min-height: 100%;
     padding: 18px;
+    gap: 14px;
+  }
+
+  .superadmin-faqs-list-flex {
+    flex: none;
+  }
+
+  .superadmin-faqs-list-card {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .superadmin-faqs-list-scroll {
+    flex: none;
+    min-height: 0;
+    max-height: 500px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .superadmin-faqs-modal-overlay {
+    padding: 14px;
+    overflow-y: auto;
+  }
+
+  .superadmin-faqs-modal {
+    max-height: calc(100dvh - 28px);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .superadmin-faqs-fixed-page {
+    height: calc(100vh - 64px);
+    height: calc(100dvh - 64px);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .superadmin-faqs-content {
+    height: auto;
+    min-height: 100%;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .superadmin-faqs-header {
+    align-items: stretch;
   }
 
   .superadmin-faqs-title {
-    font-size: 1.8rem;
+    font-size: 1.7rem;
+  }
+
+  .superadmin-faqs-add-open-btn {
+    width: 100%;
+  }
+
+  .superadmin-faqs-card-head-wrap {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .superadmin-faqs-top-actions {
     width: 100%;
-    max-width: 100%;
+    max-width: none;
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .superadmin-faqs-search,
   .superadmin-faqs-filter {
-    min-width: 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .superadmin-faqs-list-scroll {
+    max-height: 470px;
   }
 
   .superadmin-faqs-item-head {
@@ -412,18 +485,70 @@
   .superadmin-faqs-item-actions {
     width: 100%;
     flex-direction: row;
-    justify-content: flex-end;
-  }
-
-  .superadmin-faqs-filter {
-    width: 100%;
-  }
-
-  .superadmin-faqs-header {
     align-items: stretch;
   }
 
-  .superadmin-faqs-add-open-btn {
+  .superadmin-faqs-edit-btn,
+  .superadmin-faqs-delete-btn {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .superadmin-faqs-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .superadmin-faqs-modal-cancel,
+  .superadmin-faqs-modal-confirm {
     width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .superadmin-faqs-content {
+    padding: 12px;
+  }
+
+  .superadmin-faqs-title {
+    font-size: 1.5rem;
+  }
+
+  .superadmin-faqs-subtitle {
+    margin-top: 6px;
+    font-size: 0.86rem;
+    line-height: 1.4;
+  }
+
+  .superadmin-faqs-list-card {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .superadmin-faqs-list-scroll {
+    max-height: 430px;
+  }
+
+  .superadmin-faqs-item {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .superadmin-faqs-item-main h4 {
+    font-size: 0.95rem;
+  }
+
+  .superadmin-faqs-item-main p {
+    font-size: 0.86rem;
+    line-height: 1.55;
+  }
+
+  .superadmin-faqs-modal-overlay {
+    padding: 8px;
+  }
+
+  .superadmin-faqs-modal {
+    max-height: calc(100dvh - 16px);
+    padding: 16px;
+    border-radius: 18px;
   }
 }

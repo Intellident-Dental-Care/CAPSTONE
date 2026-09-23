@@ -1,98 +1,206 @@
+/* =========================================================
+   PATIENT HISTORY PAGE
+========================================================= */
+
 .patient-history-page {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
   padding: 22px;
   background: #f6f7fb;
-  min-height: calc(100vh - 72px);
+
+  display: flex;
+  flex-direction: column;
+
   overflow: hidden;
 }
 
+
+/* =========================================================
+   PATIENT HISTORY CARD
+========================================================= */
+
 .patient-history-card {
+  flex: 1 1 auto;
+
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+
   background: #ffffff;
+
   border-radius: 28px;
   padding: 24px;
-  height: calc(100vh - 120px);
+
   display: flex;
   flex-direction: column;
+
   border: 1px solid #f3d9e4;
-  box-shadow: 0 10px 30px rgba(239, 75, 132, 0.06);
+
+  box-shadow:
+    0 10px 30px rgba(239, 75, 132, 0.06);
+
   overflow: hidden;
 }
+
+
+/* =========================================================
+   TOOLBAR
+========================================================= */
 
 .patient-history-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   gap: 16px;
   margin-bottom: 20px;
-  flex-shrink: 0;
+
+  flex: 0 0 auto;
 }
 
 .patient-history-search-wrap {
   position: relative;
+
   flex: 1;
+  min-width: 0;
 }
 
 .patient-history-search {
   width: 100%;
   height: 48px;
+
   border: 1.5px solid #f1d3df;
   border-radius: 16px;
+
   padding: 0 46px 0 16px;
+
   outline: none;
-  background: #fff;
+
+  background: #ffffff;
+
   font-size: 14px;
   color: #4b5563;
 }
 
 .patient-history-search:focus {
   border-color: #ef4b84;
-  box-shadow: 0 0 0 4px rgba(239, 75, 132, 0.1);
+
+  box-shadow:
+    0 0 0 4px rgba(239, 75, 132, 0.1);
 }
 
 .patient-history-search-icon {
   position: absolute;
+
   right: 16px;
   top: 50%;
+
   transform: translateY(-50%);
+
   color: #ef4b84;
+
   font-size: 14px;
   font-weight: 700;
+
+  pointer-events: none;
 }
 
 .patient-history-branch-filter {
   min-width: 220px;
   height: 48px;
+
   border: 1.5px solid #f1d3df;
   border-radius: 16px;
+
   padding: 0 14px;
-  background: #fff;
+
+  background: #ffffff;
+
   color: #4b5563;
+
   font-size: 14px;
   font-weight: 600;
+
   outline: none;
+
   cursor: pointer;
 }
 
+
+/* =========================================================
+   PATIENT TABLE SCROLL AREA
+   ONLY PATIENT LIST SCROLLS
+========================================================= */
+
 .patient-history-table-wrap {
-  flex: 1;
+  flex: 1 1 auto;
+
+  width: 100%;
+
+  min-width: 0;
+  min-height: 0;
+
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
+
   padding-right: 4px;
+
+  overscroll-behavior: contain;
+
+  -webkit-overflow-scrolling: touch;
+
+  scrollbar-width: thin;
+  scrollbar-color: #ef4b84 transparent;
 }
 
 .patient-history-table-wrap::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
+}
+
+.patient-history-table-wrap::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .patient-history-table-wrap::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #ef4b84 0%, #f7bfd3 100%);
+  background:
+    linear-gradient(
+      180deg,
+      #ef4b84 0%,
+      #f7bfd3 100%
+    );
+
   border-radius: 999px;
 }
 
+.patient-history-table-wrap::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(
+      180deg,
+      #e83f7a 0%,
+      #f2a9c3 100%
+    );
+}
+
+
+/* =========================================================
+   TABLE
+========================================================= */
+
 .patient-history-table {
   width: 100%;
+  min-width: 900px;
+
   border-collapse: separate;
   border-spacing: 0;
 }
+
+
+/* =========================================================
+   TABLE HEADER
+========================================================= */
 
 .patient-history-table thead {
   display: table-header-group;
@@ -100,6 +208,7 @@
 
 .patient-history-table thead tr {
   display: grid;
+
   grid-template-columns:
     minmax(180px, 2fr)
     minmax(80px, 0.7fr)
@@ -107,28 +216,42 @@
     minmax(150px, 1.3fr)
     minmax(140px, 1.2fr)
     minmax(110px, 0.8fr);
+
   gap: 16px;
+
   padding: 0 22px 8px;
 }
 
 .patient-history-table thead th {
   text-align: left;
+
   font-size: 12px;
   font-weight: 800;
+
   color: #98a1b2;
+
   text-transform: uppercase;
+
   letter-spacing: 0.04em;
 }
+
+
+/* =========================================================
+   TABLE BODY
+========================================================= */
 
 .patient-history-table tbody {
   display: flex;
   flex-direction: column;
+
   gap: 18px;
+
   width: 100%;
 }
 
 .patient-history-table tbody tr {
   display: grid;
+
   grid-template-columns:
     minmax(180px, 2fr)
     minmax(80px, 0.7fr)
@@ -138,21 +261,31 @@
     minmax(110px, 0.8fr);
 
   align-items: center;
+
   gap: 16px;
+
   width: 100%;
+
   padding: 20px 22px;
+
   border-radius: 22px;
+
   background: #ffffff;
+
   border: 1px solid #f3d9e4;
+
   box-shadow:
     0 8px 24px rgba(16, 24, 40, 0.04),
     inset 0 0 0 1px #f4d8e3;
+
   box-sizing: border-box;
+
   transition: 0.2s ease;
 }
 
 .patient-history-table tbody tr:hover {
   transform: translateY(-2px);
+
   box-shadow:
     0 14px 30px rgba(239, 75, 132, 0.08),
     inset 0 0 0 1px #f4d8e3;
@@ -161,279 +294,765 @@
 .patient-history-table tbody td {
   font-size: 14px;
   font-weight: 600;
+
   color: #4b5563;
+
   white-space: nowrap;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
 }
 
 .patient-name-cell {
   color: #ef4b84;
+
   font-weight: 800;
 }
+
+
+/* =========================================================
+   VIEW BUTTON
+========================================================= */
 
 .patient-history-view-btn {
   width: 100%;
   max-width: 120px;
+
   height: 42px;
+
   border: none;
   border-radius: 12px;
-  background: linear-gradient(135deg, #ef4b84, #f472a0);
+
+  background:
+    linear-gradient(
+      135deg,
+      #ef4b84,
+      #f472a0
+    );
+
   color: #ffffff;
+
   font-size: 13px;
   font-weight: 700;
+
   cursor: pointer;
+
   justify-self: end;
-  box-shadow: 0 8px 18px rgba(239, 75, 132, 0.2);
+
+  box-shadow:
+    0 8px 18px rgba(239, 75, 132, 0.2);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .patient-history-view-btn:hover {
   transform: translateY(-1px);
 }
 
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
 .patient-history-empty {
   text-align: center !important;
+
   padding: 80px 20px !important;
+
   color: #9aa3b2 !important;
+
   font-size: 14px;
 }
 
-/* MODALS */
+
+/* =========================================================
+   MODAL OVERLAYS
+========================================================= */
 
 .history-modal-overlay,
 .history-detail-overlay {
   position: fixed;
+
   inset: 0;
+
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+
   background: rgba(15, 23, 42, 0.45);
+
   backdrop-filter: blur(5px);
+
   display: flex;
+
   align-items: center;
   justify-content: center;
+
   z-index: 9999;
+
   padding: 20px;
+
+  overflow: hidden;
 }
+
+
+/* =========================================================
+   BOOKING HISTORY OVERVIEW MODAL
+========================================================= */
 
 .history-modal {
   width: min(1200px, 96vw);
-  max-height: 94vh;
-  overflow: hidden;
+
+  height: min(860px, calc(100vh - 40px));
+  height: min(860px, calc(100dvh - 40px));
+
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+
+  min-height: 0;
+
   background: #ffffff;
+
   border-radius: 28px;
+
   display: flex;
   flex-direction: column;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.2);
+
+  overflow: hidden;
+
+  box-shadow:
+    0 24px 70px rgba(15, 23, 42, 0.2);
 }
 
+
+/* =========================================================
+   BOOKING HISTORY MODAL HEADER
+   HEADER STAYS VISIBLE
+========================================================= */
+
 .history-modal-header {
+  width: 100%;
+
   height: 78px;
-  background: linear-gradient(90deg, #fff5f8 0%, #ffeef5 100%);
+  min-height: 78px;
+
+  flex: 0 0 auto;
+
+  background:
+    linear-gradient(
+      90deg,
+      #fff5f8 0%,
+      #ffeef5 100%
+    );
+
   border-bottom: 1px solid #f3d9e4;
+
   display: flex;
+
   align-items: center;
   justify-content: space-between;
+
+  gap: 16px;
+
   padding: 0 28px;
-  flex-shrink: 0;
+
+  position: relative;
+
+  z-index: 2;
 }
 
 .history-modal-title {
   margin: 0;
+
   font-size: 24px;
   font-weight: 800;
+
   color: #ef4b84;
 }
 
-.history-modal-close,
-.history-detail-close {
+.history-modal-close {
+  flex: 0 0 auto;
+
   border: none;
+
   background: transparent;
+
   font-size: 28px;
+
   color: #98a1b2;
+
   cursor: pointer;
 }
 
+
+/* =========================================================
+   BOOKING HISTORY MODAL BODY
+   ONLY THIS AREA SCROLLS
+========================================================= */
+
 .history-modal-body {
+  flex: 1 1 auto;
+
+  width: 100%;
+
+  min-width: 0;
+  min-height: 0;
+
   display: grid;
-  grid-template-columns: 400px 1fr;
+
+  grid-template-columns:
+    minmax(320px, 400px)
+    minmax(0, 1fr);
+
+  align-items: start;
+
   gap: 24px;
+
   padding: 24px;
-  overflow: auto;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  overscroll-behavior: contain;
+
+  -webkit-overflow-scrolling: touch;
+
+  scrollbar-width: thin;
+  scrollbar-color: #ef4b84 transparent;
 }
 
+.history-modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.history-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.history-modal-body::-webkit-scrollbar-thumb {
+  background:
+    linear-gradient(
+      180deg,
+      #ef4b84,
+      #f7bfd3
+    );
+
+  border-radius: 999px;
+}
+
+.history-modal-body::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(
+      180deg,
+      #e83f7a,
+      #f2a9c3
+    );
+}
+
+
+/* =========================================================
+   BOOKING HISTORY LEFT SIDE
+========================================================= */
+
 .history-modal-left {
+  width: 100%;
+
+  min-width: 0;
+  min-height: 0;
+
   display: flex;
+
   flex-direction: column;
+
   gap: 14px;
 }
 
 .history-modal-image-wrap {
+  width: 100%;
+
+  min-width: 0;
+
   border-radius: 22px;
+
   overflow: hidden;
+
   border: 1px solid #f3d9e4;
+
   background: #fffafb;
+}
+
+.history-modal-image-wrap iframe {
+  display: block;
+
+  width: 100% !important;
+
+  height: 350px !important;
+
+  border: none !important;
 }
 
 .history-modal-record-label {
   margin: 0;
+
   text-align: center;
+
   font-size: 16px;
   font-weight: 700;
+
   color: #ef4b84;
 }
 
+.history-modal-record-subtext {
+  margin: 8px 0 0;
+
+  text-align: center;
+
+  font-size: 13px;
+
+  color: #98a1b2;
+
+  line-height: 1.6;
+}
+
+
+/* =========================================================
+   BOOKING HISTORY RIGHT SIDE
+========================================================= */
+
 .history-modal-right {
-  display: flex;
-  flex-direction: column;
+  width: 100%;
+
+  min-width: 0;
   min-height: 0;
+
+  display: flex;
+
+  flex-direction: column;
 }
 
 .history-timeline-title {
   margin: 0 0 16px;
+
   font-size: 22px;
   font-weight: 800;
+
   color: #2f2f2f;
 }
 
-.history-timeline-list {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding-right: 6px;
+.history-timeline-subtitle {
+  margin: -4px 0 18px;
+
+  font-size: 13px;
+
+  color: #98a1b2;
 }
 
+
+/* =========================================================
+   BOOKING HISTORY LIST
+   MODAL BODY HANDLES VERTICAL SCROLLING
+========================================================= */
+
+.history-timeline-list {
+  width: 100%;
+
+  min-width: 0;
+  min-height: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 14px;
+
+  overflow: visible;
+
+  padding-right: 0;
+}
+
+
+/* =========================================================
+   TIMELINE CARD
+========================================================= */
+
 .history-timeline-card {
-  border-radius: 20px;
-  border: 1px solid #f3d9e4;
-  padding: 16px;
+  width: 100%;
+
+  border-radius: 22px;
+
+  padding: 18px;
+
   background: #fffafb;
+
+  border: 1px solid #f7d1de;
+
+  margin-bottom: 16px;
+
+  transition: 0.2s ease;
+
+  box-sizing: border-box;
+}
+
+.history-timeline-card:hover {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 12px 24px rgba(239, 75, 132, 0.08);
 }
 
 .history-timeline-card-top {
   display: flex;
+
   align-items: center;
   justify-content: space-between;
+
   gap: 10px;
+
   margin-bottom: 10px;
 }
 
 .history-timeline-date {
   font-size: 13px;
   font-weight: 700;
+
   color: #ef4b84;
 }
 
 .history-view-details-btn {
   border: none;
+
   background: transparent;
+
   color: #ef4b84;
+
   font-size: 13px;
   font-weight: 700;
+
   cursor: pointer;
+}
+
+.history-view-details-btn:hover {
+  text-decoration: underline;
 }
 
 .history-timeline-text {
   margin: 4px 0;
+
   font-size: 14px;
+
   color: #4b5563;
 }
 
 .history-timeline-text span {
   font-weight: 700;
+
   color: #ef4b84;
 }
 
 .history-timeline-empty {
   border: 1.5px dashed #f3d9e4;
+
   border-radius: 18px;
+
   padding: 40px 20px;
+
   text-align: center;
+
   color: #98a1b2;
+
   background: #fffafb;
 }
 
-.history-modal-actions,
-.history-detail-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 14px;
-  margin-top: 20px;
-  flex-wrap: wrap;
+
+/* =========================================================
+   TIMELINE GRID
+========================================================= */
+
+.history-timeline-grid {
+  display: grid;
+
+  grid-template-columns:
+    1fr 1fr;
+
+  gap: 12px 18px;
+
+  margin-top: 14px;
 }
 
-.history-close-btn,
-.history-add-btn,
-.history-detail-close-btn,
-.history-detail-add-btn {
-  min-width: 150px;
-  height: 46px;
-  border-radius: 14px;
+.history-timeline-grid p {
+  margin: 0;
+
   font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
+
+  color: #4b5563;
 }
 
-.history-close-btn,
-.history-detail-close-btn {
-  border: 1.5px solid #ef4b84;
-  background: #ffffff;
+.history-timeline-grid span {
+  color: #ef4b84;
+
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   STATUS BADGES
+========================================================= */
+
+.history-status-badge {
+  display: inline-flex;
+
+  align-items: center;
+
+  width: fit-content;
+
+  padding: 5px 10px;
+
+  border-radius: 999px;
+
+  font-size: 11px;
+  font-weight: 800;
+
+  text-transform: capitalize;
+}
+
+.history-status-badge.completed {
+  background: #e9f8ef;
+
+  color: #23824b;
+}
+
+.history-status-badge.pending,
+.history-status-badge.waiting {
+  background: #fff7df;
+
+  color: #a46a00;
+}
+
+.history-status-badge.ongoing,
+.history-status-badge.in-progress,
+.history-status-badge.in-treatment {
+  background: #eef4ff;
+
+  color: #3157b7;
+}
+
+.history-status-badge.cancelled,
+.history-status-badge.canceled {
+  background: #ffecec;
+
+  color: #bd2f2f;
+}
+
+.history-status-badge.confirmed,
+.history-status-badge.scheduled {
+  background: #fff0f6;
+
   color: #ef4b84;
 }
 
-.history-add-btn,
-.history-detail-add-btn {
-  border: none;
-  background: linear-gradient(135deg, #ef4b84, #f472a0);
-  color: #ffffff;
-  box-shadow: 0 10px 24px rgba(239, 75, 132, 0.2);
+.history-status-badge.no-status {
+  background: #f1f5f9;
+
+  color: #64748b;
 }
+
+
+/* =========================================================
+   PATIENT HISTORY DETAILS MODAL
+========================================================= */
 
 .history-detail-modal {
   width: min(760px, 96vw);
-  max-height: 94vh;
-  overflow: auto;
+
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+
+  min-height: 0;
+
+  overflow: hidden;
+
   background: #ffffff;
+
   border-radius: 28px;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.2);
+
+  display: flex;
+  flex-direction: column;
+
+  box-shadow:
+    0 24px 70px rgba(15, 23, 42, 0.2);
 }
 
+
+/* =========================================================
+   DETAILS HEADER
+========================================================= */
+
 .history-detail-header {
+  flex: 0 0 auto;
+
   padding: 22px 24px;
+
   border-bottom: 1px solid #f3d9e4;
-  background: linear-gradient(90deg, #fff5f8 0%, #ffeef5 100%);
+
+  background:
+    linear-gradient(
+      90deg,
+      #fff5f8 0%,
+      #ffeef5 100%
+    );
+
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
 }
 
 .history-detail-title {
   margin: 0;
+
   font-size: 22px;
   font-weight: 800;
+
   color: #ef4b84;
 }
 
+.history-detail-close {
+  flex: 0 0 auto;
+
+  border: none;
+
+  background: transparent;
+
+  font-size: 28px;
+
+  color: #98a1b2;
+
+  cursor: pointer;
+}
+
+
+/* =========================================================
+   DETAILS CONTENT
+   THIS AREA CAN SCROLL
+========================================================= */
+
 .history-detail-content {
+  flex: 1 1 auto;
+
+  min-height: 0;
+
   padding: 24px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  overscroll-behavior: contain;
+
+  -webkit-overflow-scrolling: touch;
+
+  scrollbar-width: thin;
+
+  scrollbar-color:
+    #ef4b84 transparent;
+}
+
+.history-detail-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.history-detail-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.history-detail-content::-webkit-scrollbar-thumb {
+  background:
+    linear-gradient(
+      180deg,
+      #ef4b84,
+      #f7bfd3
+    );
+
+  border-radius: 999px;
+}
+
+
+/* =========================================================
+   DETAIL SECTIONS
+========================================================= */
+
+.history-detail-section {
+  width: 100%;
+
+  min-width: 0;
+}
+
+.history-detail-section + .history-detail-section {
+  margin-top: 24px;
 }
 
 .history-detail-section-title {
   margin: 0 0 12px;
+
   font-size: 16px;
   font-weight: 800;
+
   color: #2f2f2f;
+}
+
+.history-detail-section-header {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  margin-bottom: 14px;
+}
+
+.history-detail-status {
+  padding: 8px 14px;
+
+  border-radius: 999px;
+
+  background: #fff0f5;
+
+  color: #ef4b84;
+
+  font-size: 12px;
+  font-weight: 700;
+
+  white-space: nowrap;
 }
 
 .history-detail-info-card,
 .history-detail-empty-box {
   border-radius: 18px;
+
   border: 1px solid #f3d9e4;
+
   background: #fffafb;
+
   padding: 18px;
+
+  min-width: 0;
 }
 
 .history-detail-info-card p {
   margin: 0;
+
   font-size: 14px;
+
   color: #4b5563;
+
   line-height: 1.7;
+
+  overflow-wrap: anywhere;
 }
 
 .history-detail-info-card p + p {
@@ -442,114 +1061,438 @@
 
 .history-detail-info-card span {
   color: #ef4b84;
+
   font-weight: 700;
 }
+
+
+/* =========================================================
+   PRE-ASSESSMENT
+========================================================= */
+
+.history-preassessment-scroll {
+  max-height: 320px;
+
+  overflow-y: auto;
+
+  scrollbar-width: thin;
+
+  scrollbar-color:
+    #ef4b84 transparent;
+}
+
+.history-preassessment-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-preassessment-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.history-preassessment-scroll::-webkit-scrollbar-thumb {
+  background: #ef4b84;
+
+  border-radius: 999px;
+}
+
+.history-preassessment-item {
+  padding-bottom: 14px;
+
+  margin-bottom: 14px;
+
+  border-bottom: 1px solid #f3d9e4;
+}
+
+.history-preassessment-item:last-child {
+  margin-bottom: 0;
+
+  border-bottom: none;
+}
+
+.history-suggested-treatment {
+  margin-top: 14px;
+
+  padding-top: 14px;
+
+  border-top: 1px solid #f3d9e4;
+}
+
+
+/* =========================================================
+   NO ASSESSMENT
+========================================================= */
+
+.history-no-assessment {
+  display: flex;
+
+  align-items: center;
+
+  gap: 18px;
+
+  padding: 22px;
+
+  border-radius: 18px;
+
+  border: 1px dashed #f3bfd2;
+
+  background: #fff8fb;
+}
+
+.history-no-assessment-icon {
+  width: 62px;
+  height: 62px;
+
+  border-radius: 18px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #ef4b84,
+      #f58db3
+    );
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  font-size: 28px;
+
+  color: #ffffff;
+
+  flex-shrink: 0;
+}
+
+.history-no-assessment h4 {
+  margin: 0 0 6px;
+
+  color: #ef4b84;
+
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.history-no-assessment p {
+  margin: 0;
+
+  color: #6b7280;
+
+  font-size: 14px;
+
+  line-height: 1.6;
+}
+
+
+/* =========================================================
+   DETAIL / MODAL ACTIONS
+========================================================= */
+
+.history-modal-actions,
+.history-detail-actions {
+  display: flex;
+
+  justify-content: flex-end;
+
+  gap: 14px;
+
+  margin-top: 20px;
+
+  flex-wrap: wrap;
+}
+
+.history-close-btn,
+.history-add-btn,
+.history-detail-close-btn,
+.history-detail-add-btn {
+  min-width: 150px;
+
+  height: 46px;
+
+  border-radius: 14px;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.history-close-btn,
+.history-detail-close-btn {
+  border: 1.5px solid #ef4b84;
+
+  background: #ffffff;
+
+  color: #ef4b84;
+}
+
+.history-add-btn,
+.history-detail-add-btn {
+  border: none;
+
+  background:
+    linear-gradient(
+      135deg,
+      #ef4b84,
+      #f472a0
+    );
+
+  color: #ffffff;
+
+  box-shadow:
+    0 10px 24px rgba(239, 75, 132, 0.2);
+}
+
+
+/* =========================================================
+   SAVE TOAST
+========================================================= */
 
 .save-toast {
   position: fixed;
+
   right: 24px;
   bottom: 24px;
+
   z-index: 10020;
+
   background: #2fb46e;
-  color: #fff;
+
+  color: #ffffff;
+
   padding: 12px 18px;
+
   border-radius: 14px;
+
   font-size: 14px;
   font-weight: 700;
-  box-shadow: 0 10px 24px rgba(47, 180, 110, 0.28);
+
+  box-shadow:
+    0 10px 24px rgba(47, 180, 110, 0.28);
 }
 
-/* =========================
-   LARGE / MEDIUM SCREENS
-========================= */
+
+/* =========================================================
+   SMALL DESKTOP / LAPTOP
+========================================================= */
 
 @media (max-width: 1200px) {
   .patient-history-page {
+    flex: 1 1 auto;
+
+    min-height: 0;
+
     padding: 16px;
-    overflow-x: hidden;
+
+    overflow: hidden;
   }
 
   .patient-history-card {
-    padding: 18px;
+    flex: 1 1 auto;
+
+    min-height: 0;
+
     height: auto;
-    min-height: calc(100vh - 110px);
+
+    padding: 18px;
+
+    overflow: hidden;
   }
 
   .patient-history-table-wrap {
+    flex: 1 1 auto;
+
+    min-height: 0;
+
+    overflow-y: auto;
     overflow-x: auto;
   }
 
   .patient-history-table {
     min-width: 980px;
   }
+
+
+  /* Booking History modal */
+
+  .history-modal {
+    width: min(1050px, calc(100vw - 32px));
+
+    height: calc(100vh - 32px);
+    height: calc(100dvh - 32px);
+
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+  }
+
+  .history-modal-body {
+    grid-template-columns:
+      minmax(300px, 360px)
+      minmax(0, 1fr);
+
+    gap: 20px;
+
+    padding: 20px;
+  }
+
+  .history-modal-image-wrap iframe {
+    height: 320px !important;
+  }
 }
 
-/* =========================
+
+/* =========================================================
    TABLET
-========================= */
+========================================================= */
 
 @media (max-width: 900px) {
   .patient-history-page {
+    flex: 1 1 auto;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 0;
+
     padding: 14px;
-    overflow-x: hidden;
+
+    overflow: hidden;
   }
 
   .patient-history-card {
-    border-radius: 24px;
-    padding: 16px;
+    flex: 1 1 auto;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 0;
+
     height: auto;
-    min-height: calc(100vh - 110px);
+
+    border-radius: 24px;
+
+    padding: 16px;
+
+    overflow: hidden;
   }
 
+
+  /* =======================================================
+     PATIENT HISTORY TOOLBAR
+  ======================================================= */
+
   .patient-history-toolbar {
+    flex: 0 0 auto;
+
     flex-direction: column;
+
     align-items: stretch;
+
     gap: 12px;
+
+    margin-bottom: 14px;
   }
 
   .patient-history-search-wrap,
   .patient-history-branch-filter {
     width: 100%;
+
     min-width: 0;
   }
 
+
+  /* =======================================================
+     PATIENT HISTORY LIST
+  ======================================================= */
+
   .patient-history-table-wrap {
+    flex: 1 1 auto;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 0;
+
+    overflow-y: auto;
     overflow-x: hidden;
+
+    padding-right: 3px;
+
+    overscroll-behavior: contain;
+
+    -webkit-overflow-scrolling: touch;
   }
 
   .patient-history-table {
     width: 100%;
+
     min-width: 0;
+
+    max-width: 100%;
+  }
+
+  .patient-history-table thead {
+    display: none;
   }
 
   .patient-history-table tbody {
+    display: flex;
+
+    flex-direction: column;
+
     gap: 18px;
+
+    width: 100%;
   }
 
   .patient-history-table tbody tr {
     display: flex;
+
     flex-direction: column;
+
     align-items: stretch;
-    gap: 10px;
+
+    gap: 0;
+
     width: 100%;
-    padding: 18px;
+
+    padding: 16px;
+
+    border-radius: 18px;
   }
 
   .patient-history-table tbody td {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+
+    grid-template-columns:
+      95px minmax(0, 1fr);
+
     align-items: center;
+
     gap: 12px;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
+
+    width: 100%;
+
+    padding: 7px 0;
+
     font-size: 13px;
+
+    white-space: normal;
+
+    overflow: visible;
+
+    text-overflow: unset;
+
+    text-align: right;
   }
 
   .patient-history-table tbody td::before {
+    text-align: left;
+
     font-size: 11px;
     font-weight: 800;
+
     color: #98a1b2;
+
     text-transform: uppercase;
   }
 
@@ -573,40 +1516,147 @@
     content: "Date";
   }
 
+  .patient-history-table tbody td:nth-child(6) {
+    display: block;
+
+    padding-top: 14px;
+  }
+
   .patient-history-table tbody td:nth-child(6)::before {
     content: "";
   }
 
   .patient-history-view-btn {
     width: 100%;
-    max-width: unset;
+
+    max-width: none;
+
     height: 42px;
+  }
+
+
+  /* =======================================================
+     BOOKING HISTORY MODAL
+  ======================================================= */
+
+  .history-modal-overlay {
+    padding: 14px;
+  }
+
+  .history-modal {
+    width: 100%;
+
+    height: calc(100vh - 28px);
+    height: calc(100dvh - 28px);
+
+    max-height: calc(100vh - 28px);
+    max-height: calc(100dvh - 28px);
+
+    border-radius: 24px;
+  }
+
+  .history-modal-header {
+    height: 68px;
+    min-height: 68px;
+
+    padding: 0 20px;
+  }
+
+  .history-modal-title {
+    font-size: 21px;
   }
 
   .history-modal-body {
     grid-template-columns: 1fr;
+
+    align-items: start;
+
+    gap: 22px;
+
+    padding: 18px;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .history-modal-left,
+  .history-modal-right {
+    width: 100%;
+
+    min-width: 0;
+  }
+
+  .history-modal-image-wrap iframe {
+    height: 320px !important;
+  }
+
+  .history-timeline-list {
+    overflow: visible;
+  }
+
+
+  /* Details modal */
+
+  .history-detail-modal {
+    width: min(720px, calc(100vw - 28px));
+
+    max-height: calc(100vh - 28px);
+    max-height: calc(100dvh - 28px);
   }
 }
 
-/* =========================
+
+/* =========================================================
    MOBILE
-========================= */
+========================================================= */
 
 @media (max-width: 640px) {
   .patient-history-page {
+    flex: 1 1 auto;
+
+    min-height: 0;
+
     padding: 10px;
+
+    overflow: hidden;
   }
 
   .patient-history-card {
-    border-radius: 22px;
+    flex: 1 1 auto;
+
+    min-height: 0;
+
     padding: 14px;
+
+    border-radius: 22px;
+
+    overflow: hidden;
+  }
+
+  .patient-history-toolbar {
+    gap: 10px;
+
+    margin-bottom: 12px;
   }
 
   .patient-history-search,
   .patient-history-branch-filter {
     height: 44px;
+
     border-radius: 14px;
+
     font-size: 13px;
+  }
+
+  .patient-history-table-wrap {
+    flex: 1 1 auto;
+
+    min-height: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding-right: 2px;
   }
 
   .patient-history-table tbody {
@@ -618,27 +1668,204 @@
   }
 
   .patient-history-table tbody td {
+    grid-template-columns:
+      80px minmax(0, 1fr);
+
     font-size: 12px;
   }
 
   .patient-history-view-btn {
     height: 40px;
+
     font-size: 12px;
   }
 
-  .history-modal-header,
+
+  /* =======================================================
+     BOOKING HISTORY MODAL
+  ======================================================= */
+
+  .history-modal-overlay,
+  .history-detail-overlay {
+    padding: 8px;
+  }
+
+  .history-modal {
+    width: 100%;
+
+    height: calc(100vh - 16px);
+    height: calc(100dvh - 16px);
+
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+
+    border-radius: 20px;
+  }
+
+  .history-modal-header {
+    height: 62px;
+    min-height: 62px;
+
+    padding: 0 16px;
+  }
+
+  .history-modal-title {
+    font-size: 18px;
+
+    line-height: 1.2;
+  }
+
+  .history-modal-close {
+    font-size: 25px;
+  }
+
+  .history-modal-body {
+    grid-template-columns: 1fr;
+
+    padding: 14px;
+
+    gap: 18px;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .history-modal-image-wrap {
+    border-radius: 18px;
+  }
+
+  .history-modal-image-wrap iframe {
+    height: 280px !important;
+  }
+
+  .history-modal-record-label {
+    font-size: 15px;
+  }
+
+  .history-modal-record-subtext {
+    font-size: 12px;
+
+    line-height: 1.5;
+  }
+
+  .history-timeline-title {
+    font-size: 19px;
+
+    margin-bottom: 10px;
+  }
+
+  .history-timeline-subtitle {
+    font-size: 12px;
+
+    margin-bottom: 14px;
+  }
+
+  .history-timeline-list {
+    overflow: visible;
+
+    gap: 12px;
+  }
+
+  .history-timeline-grid {
+    grid-template-columns: 1fr;
+
+    gap: 10px;
+  }
+
+
+  /* =======================================================
+     DETAILS MODAL
+  ======================================================= */
+
+  .history-detail-modal {
+    width: 100%;
+
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+
+    border-radius: 20px;
+  }
+
   .history-detail-header {
-    padding: 18px;
-  }
-
-  .history-modal-title,
-  .history-detail-title {
-    font-size: 20px;
-  }
-
-  .history-modal-body,
-  .history-detail-content {
     padding: 16px;
+
+    min-height: 62px;
+  }
+
+  .history-detail-title {
+    font-size: 18px;
+  }
+
+  .history-detail-content {
+    padding: 14px;
+  }
+
+  .history-detail-section-header {
+    align-items: flex-start;
+
+    flex-direction: column;
+  }
+
+  .history-preassessment-scroll {
+    max-height: 280px;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding-right: 6px;
+
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Mobile booking card: keep View Details as the final full-width action */
+  .history-timeline-card {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .history-timeline-card-top {
+    display: contents;
+  }
+
+  .history-timeline-date {
+    order: 1;
+    margin-bottom: 10px;
+  }
+
+  .history-timeline-grid {
+    order: 2;
+    width: 100%;
+    margin-top: 0;
+  }
+
+  .history-view-details-btn {
+    order: 3;
+    width: 100%;
+    min-height: 40px;
+    margin-top: 14px;
+    padding: 10px 14px;
+
+    border: none;
+    border-radius: 12px;
+
+    background: linear-gradient(135deg, #ef4b84, #f472a0);
+    color: #ffffff;
+
+    text-align: center;
+    text-decoration: none;
+
+    box-shadow: 0 8px 18px rgba(239, 75, 132, 0.18);
+  }
+
+  .history-view-details-btn:hover {
+    text-decoration: none;
+    transform: translateY(-1px);
+  }
+
+  .history-modal-actions,
+  .history-detail-actions {
+    flex-direction: column;
   }
 
   .history-close-btn,
@@ -646,202 +1873,8 @@
   .history-detail-close-btn,
   .history-detail-add-btn {
     width: 100%;
-  }
 
-  .history-modal-actions,
-  .history-detail-actions {
-    flex-direction: column;
-  }
-}
-
-@media (max-width: 900px) {
-  .patient-history-page,
-  .patient-history-card,
-  .patient-history-table-wrap,
-  .patient-history-table,
-  .patient-history-table tbody,
-  .patient-history-table tbody tr {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    overflow-x: hidden !important;
-  }
-
-  .patient-history-table thead {
-    display: none !important;
-  }
-
-  .patient-history-table tbody tr {
-    display: flex !important;
-    flex-direction: column !important;
-    padding: 16px !important;
-  }
-
-  .patient-history-table tbody td {
-    display: grid !important;
-    grid-template-columns: 95px 1fr !important;
-    width: 100% !important;
-    padding: 7px 0 !important;
-    white-space: normal !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    text-align: right !important;
-  }
-
-  .patient-history-table tbody td::before {
-    text-align: left !important;
-  }
-
-  .patient-history-table tbody td:nth-child(1)::before {
-    content: "Patient";
-  }
-
-  .patient-history-table tbody td:nth-child(2)::before {
-    content: "Gender";
-  }
-
-  .patient-history-table tbody td:nth-child(3)::before {
-    content: "Age";
-  }
-
-  .patient-history-table tbody td:nth-child(4)::before {
-    content: "Phone";
-  }
-
-  .patient-history-table tbody td:nth-child(5)::before {
-    content: "Date";
-  }
-
-  .patient-history-table tbody td:nth-child(6) {
-    display: block !important;
-    padding-top: 14px !important;
-  }
-
-  .patient-history-table tbody td:nth-child(6)::before {
-    content: "";
-  }
-
-  .patient-history-view-btn {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-}
-
-.history-modal-record-subtext {
-  margin-top: 8px;
-  text-align: center;
-  font-size: 13px;
-  color: #98a1b2;
-  line-height: 1.6;
-}
-
-.history-timeline-subtitle {
-  margin: -4px 0 18px;
-  font-size: 13px;
-  color: #98a1b2;
-}
-
-.history-timeline-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px 18px;
-  margin-top: 14px;
-}
-
-.history-timeline-grid p {
-  margin: 0;
-  font-size: 14px;
-  color: #4b5563;
-}
-
-.history-timeline-grid span {
-  color: #ef4b84;
-  font-weight: 700;
-}
-
-.history-detail-section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.history-detail-status {
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: #fff0f5;
-  color: #ef4b84;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.history-no-assessment {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 22px;
-  border-radius: 18px;
-  border: 1px dashed #f3bfd2;
-  background: #fff8fb;
-}
-
-.history-no-assessment-icon {
-  width: 62px;
-  height: 62px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #ef4b84, #f58db3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  color: #ffffff;
-  flex-shrink: 0;
-}
-
-.history-no-assessment h4 {
-  margin: 0 0 6px;
-  color: #ef4b84;
-  font-size: 16px;
-  font-weight: 800;
-}
-
-.history-no-assessment p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.history-timeline-card {
-  border-radius: 22px;
-  padding: 18px;
-  background: #fffafb;
-  border: 1px solid #f7d1de;
-  margin-bottom: 16px;
-  transition: 0.2s ease;
-}
-
-.history-timeline-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 24px rgba(239, 75, 132, 0.08);
-}
-
-.history-view-details-btn {
-  border: none;
-  background: transparent;
-  color: #ef4b84;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.history-view-details-btn:hover {
-  text-decoration: underline;
-}
-
-@media (max-width: 768px) {
-  .history-timeline-grid {
-    grid-template-columns: 1fr;
+    min-width: 0;
   }
 
   .history-no-assessment {
@@ -849,48 +1882,238 @@
   }
 }
 
-.history-status-badge {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: capitalize;
-}
 
-.history-status-badge.completed {
-  background: #e9f8ef;
-  color: #23824b;
-}
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
 
-.history-status-badge.pending,
-.history-status-badge.waiting {
-  background: #fff7df;
-  color: #a46a00;
-}
+@media (max-width: 480px) {
+  .patient-history-page {
+    padding: 8px;
 
-.history-status-badge.ongoing,
-.history-status-badge.in-progress,
-.history-status-badge.in-treatment {
-  background: #eef4ff;
-  color: #3157b7;
-}
+    min-height: 0;
+  }
 
-.history-status-badge.cancelled,
-.history-status-badge.canceled {
-  background: #ffecec;
-  color: #bd2f2f;
-}
+  .patient-history-card {
+    padding: 12px;
 
-.history-status-badge.confirmed,
-.history-status-badge.scheduled {
-  background: #fff0f6;
-  color: #ef4b84;
-}
+    border-radius: 18px;
 
-.history-status-badge.no-status {
-  background: #f1f5f9;
-  color: #64748b;
+    min-height: 0;
+  }
+
+  .patient-history-toolbar {
+    gap: 8px;
+
+    margin-bottom: 10px;
+  }
+
+  .patient-history-search,
+  .patient-history-branch-filter {
+    height: 42px;
+
+    font-size: 12px;
+  }
+
+  .patient-history-table-wrap {
+    flex: 1 1 auto;
+
+    min-height: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .patient-history-table tbody {
+    gap: 12px;
+  }
+
+  .patient-history-table tbody tr {
+    padding: 14px;
+
+    border-radius: 16px;
+  }
+
+  .patient-history-table tbody td {
+    grid-template-columns:
+      72px minmax(0, 1fr);
+
+    gap: 8px;
+
+    padding: 6px 0;
+
+    font-size: 11px;
+  }
+
+  .patient-history-table tbody td::before {
+    font-size: 9px;
+  }
+
+  .patient-history-view-btn {
+    height: 38px;
+
+    font-size: 11px;
+  }
+
+
+  /* =======================================================
+     BOOKING HISTORY MODAL
+  ======================================================= */
+
+  .history-modal-overlay,
+  .history-detail-overlay {
+    padding: 6px;
+  }
+
+  .history-modal {
+    width: 100%;
+
+    height: calc(100vh - 12px);
+    height: calc(100dvh - 12px);
+
+    max-height: calc(100vh - 12px);
+    max-height: calc(100dvh - 12px);
+
+    border-radius: 18px;
+  }
+
+  .history-modal-header {
+    height: 58px;
+    min-height: 58px;
+
+    padding: 0 14px;
+  }
+
+  .history-modal-title {
+    font-size: 16px;
+  }
+
+  .history-modal-close {
+    font-size: 23px;
+  }
+
+  .history-modal-body {
+    padding: 12px;
+
+    gap: 16px;
+  }
+
+  .history-modal-image-wrap iframe {
+    height: 240px !important;
+  }
+
+  .history-modal-record-label {
+    font-size: 14px;
+  }
+
+  .history-modal-record-subtext {
+    font-size: 11px;
+  }
+
+  .history-timeline-title {
+    font-size: 17px;
+  }
+
+  .history-timeline-card {
+    padding: 14px;
+
+    border-radius: 16px;
+
+    margin-bottom: 8px;
+  }
+
+  .history-timeline-card-top {
+    display: contents;
+  }
+
+  .history-timeline-grid {
+    grid-template-columns: 1fr;
+
+    gap: 8px;
+  }
+
+  .history-timeline-grid p {
+    font-size: 12px;
+  }
+
+
+  /* =======================================================
+     DETAILS MODAL
+  ======================================================= */
+
+  .history-detail-modal {
+    width: 100%;
+
+    max-height: calc(100vh - 12px);
+    max-height: calc(100dvh - 12px);
+
+    border-radius: 18px;
+  }
+
+  .history-detail-header {
+    padding: 14px;
+
+    min-height: 58px;
+  }
+
+  .history-detail-title {
+    font-size: 16px;
+  }
+
+  .history-detail-close {
+    font-size: 23px;
+  }
+
+  .history-detail-content {
+    padding: 12px;
+  }
+
+  .history-detail-info-card,
+  .history-detail-empty-box {
+    padding: 14px;
+
+    border-radius: 16px;
+  }
+
+  .history-detail-info-card p {
+    font-size: 12px;
+  }
+
+  .history-no-assessment {
+    flex-direction: column;
+
+    gap: 12px;
+
+    padding: 16px;
+  }
+
+  .history-no-assessment-icon {
+    width: 52px;
+    height: 52px;
+
+    font-size: 23px;
+  }
+
+  .history-preassessment-scroll {
+    max-height: 250px;
+    padding-right: 5px;
+  }
+
+  .history-view-details-btn {
+    min-height: 38px;
+    margin-top: 12px;
+    font-size: 11px;
+    border-radius: 10px;
+  }
+
+  .save-toast {
+    left: 10px;
+    right: 10px;
+
+    bottom: 10px;
+
+    text-align: center;
+
+    font-size: 12px;
+  }
 }

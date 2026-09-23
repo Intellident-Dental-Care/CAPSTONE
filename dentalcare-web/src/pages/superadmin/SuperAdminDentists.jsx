@@ -262,6 +262,7 @@ function ModalHeader({ title, subtitle, onClose }) {
 
 export default function SuperAdminDentists() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -468,6 +469,14 @@ export default function SuperAdminDentists() {
   const handleMarkAllRead = () => {
     setNotifications([]);
     setIsNotificationOpen(false);
+  };
+
+  const handleToggleSidebar = () => {
+    setIsSidebarOpen((prev) => !prev);
+  };
+
+  const handleCloseSidebar = () => {
+    setIsSidebarOpen(false);
   };
 
   const toggleScheduleDay = (day) => {
@@ -1337,8 +1346,11 @@ export default function SuperAdminDentists() {
   };
 
   return (
-    <div className="admin-dashboard-page">
-      <SuperAdminSidebar />
+    <div className="admin-dashboard-page superadmin-mobile-layout">
+      <SuperAdminSidebar
+        isOpen={isSidebarOpen}
+        onClose={handleCloseSidebar}
+      />
 
       <main className="admin-main-content">
         <SuperAdminTopbar
@@ -1348,6 +1360,7 @@ export default function SuperAdminDentists() {
           onToggleNotifications={() => setIsNotificationOpen((prev) => !prev)}
           onCloseNotifications={() => setIsNotificationOpen(false)}
           onMarkAllRead={handleMarkAllRead}
+          onToggleSidebar={handleToggleSidebar}
         />
 
         <div className="superadmin-dentists-fixed-page">
@@ -1447,7 +1460,7 @@ export default function SuperAdminDentists() {
                   <p>Calendar-style view of all dentist schedules.</p>
                 </div>
               </div>
-
+              <div className="superadmin-dentists-view-calendar-scroll">
               <div className="superadmin-dentists-calendar-grid">
                 <div className="superadmin-dentists-calendar-header-cell">Branch</div>
                 {DAYS.map((day) => (
@@ -1515,6 +1528,7 @@ export default function SuperAdminDentists() {
                     })}
                   </div>
                 ))}
+              </div>
               </div>
             </section>
           </div>

@@ -1,29 +1,84 @@
+/* =========================================================
+   SMALL DESKTOP / LAPTOP
+========================================================= */
+
 @media (max-width: 1280px) {
-  html,
-  body,
-  #root {
-    overflow: auto;
-  }
+
+  /* =======================================================
+     DENTIST DASHBOARD LAYOUT
+
+     Keep the dashboard locked to the viewport.
+     The browser/document itself should not be responsible
+     for scrolling the dashboard.
+  ======================================================= */
 
   .dentist-dashboard {
-    height: auto;
-    overflow: visible;
+    display: flex;
+
+    width: 100%;
+
+    height: 100vh;
+    height: 100dvh;
+
+    min-width: 0;
+    min-height: 0;
+
+    overflow: hidden;
   }
 
-  .main-content {
-    height: auto;
-    overflow: visible;
+  .dentist-dashboard .main-content {
+    flex: 1;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 0;
+
+    height: 100%;
+    max-height: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
   }
 
-  .dashboard-grid {
+
+  /* =======================================================
+     DASHBOARD SCROLL AREA
+
+     Only dashboard-grid scrolls.
+  ======================================================= */
+
+  .dentist-dashboard .dashboard-grid {
+    flex: 1 1 auto;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 0;
+
     grid-template-columns: 1fr;
-    height: auto;
+
+    align-content: start;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    overscroll-behavior: contain;
+
+    -webkit-overflow-scrolling: touch;
   }
 
-  .right-section,
-  .right-extra-grid {
+  .dentist-dashboard .right-section,
+  .dentist-dashboard .right-extra-grid {
     overflow: visible;
   }
+
+
+  /* =======================================================
+     PRE-ASSESSMENT / PROCEDURE
+  ======================================================= */
 
   .preassessment-content,
   .procedure-content {
@@ -42,15 +97,25 @@
     font-size: 18px;
   }
 
+
+  /* =======================================================
+     PROFILE
+  ======================================================= */
+
   .profile-form-grid.three,
   .profile-form-grid.two {
     grid-template-columns: 1fr;
   }
 
+
+  /* =======================================================
+     SCHEDULE
+  ======================================================= */
+
   .schedule-page {
-    height: auto;
-    min-height: calc(100vh - 72px);
-    overflow: visible;
+    min-height: 0;
+
+    overflow: auto;
   }
 
   .schedule-board {
@@ -58,66 +123,195 @@
   }
 }
 
+
+/* =========================================================
+   TABLET / MOBILE SIDEBAR
+========================================================= */
+
 @media (max-width: 900px) {
+
+  /* =======================================================
+     DASHBOARD SHELL
+
+     IMPORTANT:
+     Do not change this to display:block or height:auto.
+     It must stay locked to the viewport.
+  ======================================================= */
+
   .dentist-dashboard {
-    display: block;
-    min-height: 100vh;
+    display: flex;
+
+    width: 100%;
+
+    height: 100vh;
+    height: 100dvh;
+
+    min-width: 0;
+    min-height: 0;
+
+    overflow: hidden;
   }
 
-  .sidebar {
+
+  /* =======================================================
+     MOBILE OFF-CANVAS SIDEBAR
+  ======================================================= */
+
+  .dentist-dashboard .sidebar {
     position: fixed;
+
     top: 0;
     left: 0;
+
     width: min(82vw, 320px);
+
     height: 100vh;
+    height: 100dvh;
+
+    min-height: 0;
+
     z-index: 999;
+
     transform: translateX(-110%);
-    transition: transform 0.28s ease;
-    border-radius: 0 24px 24px 0;
+
+    transition:
+      transform 0.28s ease;
+
+    border-radius:
+      0 24px 24px 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    -webkit-overflow-scrolling: touch;
   }
 
-  .sidebar.open {
+  .dentist-dashboard .sidebar.open {
     transform: translateX(0);
   }
 
   .dentist-sidebar-overlay.show {
     opacity: 1;
+
     visibility: visible;
+
     pointer-events: auto;
   }
 
-  .main-content {
+
+  /* =======================================================
+     MAIN CONTENT
+
+     The main content itself does NOT scroll.
+  ======================================================= */
+
+  .dentist-dashboard .main-content {
+    flex: 1;
+
     width: 100%;
+
     min-width: 0;
+    min-height: 0;
+
+    height: 100%;
+    max-height: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
   }
+
+
+  /* =======================================================
+     MOBILE MENU BUTTON
+  ======================================================= */
 
   .dentist-menu-btn {
     display: inline-flex !important;
   }
 
+
+  /* =======================================================
+     TOPBAR
+
+     Topbar stays outside dashboard-grid.
+     Therefore it remains visible while dashboard-grid
+     scrolls underneath it.
+  ======================================================= */
+
   .admin-topbar.dentist-topbar {
+    position: relative;
+
+    top: 0;
+
+    width: 100%;
+
+    flex: 0 0 auto;
+
     padding: 12px 16px !important;
+
     height: auto !important;
     min-height: 72px;
+
+    z-index: 500;
+
+    background: #ffffff;
   }
 
   .dentist-topbar-left {
     display: flex;
+
     align-items: center;
+
     gap: 14px;
+
+    min-width: 0;
   }
 
-  .dashboard-grid {
+
+  /* =======================================================
+     DASHBOARD GRID
+
+     THIS IS THE MAIN SCROLLING AREA.
+  ======================================================= */
+
+  .dentist-dashboard .dashboard-grid {
+    flex: 1 1 auto;
+
+    width: 100%;
+
+    min-width: 0;
+    min-height: 0;
+
+    display: flex;
+    flex-direction: column;
+
     padding: 18px;
+
     gap: 18px;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    overscroll-behavior: contain;
+
+    -webkit-overflow-scrolling: touch;
   }
+
+
+  /* =======================================================
+     DASHBOARD CONTENT
+  ======================================================= */
 
   .summary-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
 
   .section-title {
     flex-direction: column;
+
     align-items: stretch;
   }
 
@@ -130,6 +324,11 @@
     width: 100%;
   }
 
+
+  /* =======================================================
+     SCHEDULE
+  ======================================================= */
+
   .schedule-page {
     padding: 18px;
   }
@@ -140,32 +339,65 @@
 
   .schedule-filters {
     grid-template-columns: 1fr;
+
     gap: 14px;
   }
 
   .schedule-board {
     min-height: 650px;
+
     padding: 14px;
   }
 
   .schedule-grid-wrapper {
-    grid-template-columns: 76px minmax(640px, 1fr);
+    grid-template-columns:
+      76px minmax(640px, 1fr);
   }
 
   .schedule-scroll-area {
     overflow-x: auto;
+
+    -webkit-overflow-scrolling: touch;
   }
 }
 
+
+/* =========================================================
+   SMALL TABLET / LARGE MOBILE
+========================================================= */
+
 @media (max-width: 640px) {
+
+  /* =======================================================
+     TOPBAR
+  ======================================================= */
+
   .admin-topbar.dentist-topbar h1 {
     font-size: 17px;
   }
 
-  .dashboard-grid {
+
+  /* =======================================================
+     DASHBOARD
+  ======================================================= */
+
+  .dentist-dashboard .dashboard-grid {
+    flex: 1 1 auto;
+
+    min-height: 0;
+
     padding: 12px;
+
     gap: 14px;
+
+    overflow-y: auto;
+    overflow-x: hidden;
   }
+
+
+  /* =======================================================
+     CARDS
+  ======================================================= */
 
   .welcome-card,
   .patients-card,
@@ -188,6 +420,11 @@
     font-size: 12px;
   }
 
+
+  /* =======================================================
+     SUMMARY
+  ======================================================= */
+
   .summary-row {
     grid-template-columns: 1fr;
   }
@@ -200,30 +437,78 @@
     font-size: 28px;
   }
 
+
+  /* =======================================================
+     SECTION ACTIONS
+  ======================================================= */
+
   .section-actions {
     flex-direction: column;
+
     gap: 10px;
   }
 
+
+  /* =======================================================
+     PATIENT LIST
+
+     On smaller screens, avoid nested vertical scrolling.
+     The main dashboard-grid handles vertical scrolling.
+  ======================================================= */
+
   .patient-list-scroll {
-    max-height: unset;
-    overflow: visible;
+    max-height: none;
+
+    overflow-y: visible;
+    overflow-x: hidden;
+
+    padding-right: 0;
   }
+
+
+  /* =======================================================
+     DONUT CHART
+  ======================================================= */
 
   .donut-layout {
     flex-direction: column;
-    align-items: flex-start;
+
+    align-items: stretch;
   }
 
+  .donut-chart {
+    align-self: center;
+  }
+
+  .donut-legend {
+    width: 100%;
+
+    min-width: 0;
+  }
+
+
+  /* =======================================================
+     BAR CHART
+  ======================================================= */
+
   .bar-chart {
+    width: 100%;
+
     gap: 6px;
-    overflow-x: auto;
+
+    overflow: hidden;
+
     padding-bottom: 6px;
   }
 
   .bar-item {
-    min-width: 34px;
+    min-width: 0;
   }
+
+
+  /* =======================================================
+     CALENDAR
+  ======================================================= */
 
   .calendar-wrapper {
     padding: 12px;
@@ -231,8 +516,14 @@
 
   .custom-calendar .react-calendar__tile {
     height: 34px;
+
     font-size: 12px;
   }
+
+
+  /* =======================================================
+     SCHEDULE
+  ======================================================= */
 
   .schedule-page {
     padding: 12px;
@@ -252,19 +543,23 @@
 
   .filter-group {
     padding: 14px;
+
     border-radius: 18px;
   }
 
   .filter-group select,
   .filter-group input {
     height: 46px;
+
     border-radius: 14px;
   }
 
   .schedule-board {
-    border-radius: 20px;
-    padding: 12px;
     min-height: 620px;
+
+    border-radius: 20px;
+
+    padding: 12px;
   }
 
   .time-slot-label {
@@ -282,12 +577,24 @@
 
   .schedule-empty {
     inset: 18px;
+
     min-height: 220px;
+
     font-size: 13px;
   }
 }
 
+
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
+
 @media (max-width: 480px) {
+
+  /* =======================================================
+     TOPBAR
+  ======================================================= */
+
   .admin-topbar.dentist-topbar {
     padding: 10px 12px !important;
   }
@@ -296,8 +603,18 @@
     display: none;
   }
 
-  .dashboard-grid {
+
+  /* =======================================================
+     DASHBOARD
+  ======================================================= */
+
+  .dentist-dashboard .dashboard-grid {
     padding: 10px;
+
+    min-height: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .welcome-label {
@@ -312,8 +629,16 @@
     padding: 12px;
   }
 
-  .sidebar {
+
+  /* =======================================================
+     SIDEBAR
+  ======================================================= */
+
+  .dentist-dashboard .sidebar {
     width: min(86vw, 310px);
+
+    height: 100vh;
+    height: 100dvh;
   }
 
   .brand h2 {
@@ -324,6 +649,11 @@
     width: 82px;
     height: 82px;
   }
+
+
+  /* =======================================================
+     SCHEDULE
+  ======================================================= */
 
   .schedule-page {
     padding: 10px;
@@ -338,7 +668,8 @@
   }
 
   .schedule-grid-wrapper {
-    grid-template-columns: 68px minmax(580px, 1fr);
+    grid-template-columns:
+      68px minmax(580px, 1fr);
   }
 
   .schedule-board {
