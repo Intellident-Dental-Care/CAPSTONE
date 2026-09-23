@@ -163,6 +163,7 @@ export default function Login() {
         user: data.user,
         session: data.session,
         fullName: userProfile.full_name || data.user.email,
+        remember,
       });
 
       await cancelOverdueAppointments({ userId: data.user.id });
@@ -207,6 +208,7 @@ export default function Login() {
           user,
           session: await supabase.auth.getSession(),
           fullName: userProfile?.full_name || user.user_metadata?.full_name || user.email,
+          remember,
         });
 
         await cancelOverdueAppointments({ userId: user.id });
