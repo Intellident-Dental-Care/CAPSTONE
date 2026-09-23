@@ -87,6 +87,14 @@ function formatLongDate(dateString) {
   });
 }
 
+const STATUS_DISPLAY_ORDER = {
+  "In Treatment": 0,
+  "In Queue": 1,
+  "Pending": 2,
+  "Completed": 3,
+  "Cancelled": 4,
+};
+
 function isWithinRange(date, startDate, endDate) {
   const current = new Date(date);
   const start = startDate ? new Date(startDate) : null;
@@ -304,6 +312,12 @@ export default function AdminAppointments() {
       );
 
       return matchesSearch && matchesStatus && matchesBranch && matchesDateRange;
+    })
+    .slice()
+    .sort((a, b) => {
+      const orderA = STATUS_DISPLAY_ORDER[a.status] ?? Number.MAX_SAFE_INTEGER;
+      const orderB = STATUS_DISPLAY_ORDER[b.status] ?? Number.MAX_SAFE_INTEGER;
+      return orderA - orderB;
     });
   }, [appointments, searchTerm, statusFilter, selectedBranch, startDate, endDate]);
 

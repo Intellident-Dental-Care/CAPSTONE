@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminSidebar from "../../components/admin/layout/AdminSidebar";
 import AdminTopbar from "../../components/admin/layout/AdminTopbar";
-import { getAdminPatients, getAdminProfile } from "../../services/adminService";
+import { getAdminPatients } from "../../services/adminService";
+import { useBranch } from "../../context/BranchContext";
 
 import "../../styles/admin/patient/admin-patient.css";
 import "../../styles/admin/dashboard/admin-layout.css";
@@ -9,29 +10,6 @@ import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
 import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
-
-const defaultAssignedBranch = "General Trias";
-
-const initialNotifications = [
-  {
-    id: 1,
-    title: "New Appointment Booked",
-    message: "A patient booked an appointment in your branch.",
-    time: "5 mins ago",
-  },
-  {
-    id: 2,
-    title: "Walk-in Patient Added",
-    message: "A new walk-in patient was added today.",
-    time: "22 mins ago",
-  },
-  {
-    id: 3,
-    title: "Patient Record Updated",
-    message: "A patient profile was updated.",
-    time: "1 hour ago",
-  },
-];
 
 function formatDate(dateString) {
   if (!dateString) return "N/A";
@@ -190,22 +168,16 @@ function PatientDetailsModal({ patient, onClose }) {
 export default function AdminPatient() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPatient, setSelectedPatient] = useState(null);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [notifications, setNotifications] = useState(initialNotifications);
   const [patients, setPatients] = useState([]);
-  const [adminAssignedBranch, setAdminAssignedBranch] = useState(defaultAssignedBranch);
+  const { selectedBranch } = useBranch();
 
   useEffect(() => {
     let active = true;
 
     const load = async () => {
-      const [patientsResult, profileResult] = await Promise.all([getAdminPatients(), getAdminProfile()]);
+      const patientsResult = await getAdminPatients();
       if (active && patientsResult?.success && Array.isArray(patientsResult.data)) {
         setPatients(patientsResult.data);
-      }
-
-      if (active && profileResult?.success && profileResult?.data?.branch) {
-        setAdminAssignedBranch(profileResult.data.branch);
       }
     };
 
@@ -216,12 +188,10 @@ export default function AdminPatient() {
   }, []);
 
   const filteredPatients = useMemo(() => {
-    const adminBranches = adminAssignedBranch ? adminAssignedBranch.split("|").map(b => b.trim().toLowerCase()) : [];
-
     return patients
       .filter((patient) => {
-        if (!adminAssignedBranch || adminAssignedBranch === "All") return true;
-        return adminBranches.includes(String(patient.branch || "").trim().toLowerCase());
+        if (!selectedBranch || selectedBranch === "All") return true;
+        return String(patient.branch || "").trim().toLowerCase() === selectedBranch.trim().toLowerCase();
       })
       .filter((patient) => {
         const search = searchTerm.toLowerCase();
@@ -233,7 +203,7 @@ export default function AdminPatient() {
           patient.status.toLowerCase().includes(search)
         );
       });
-  }, [patients, searchTerm, adminAssignedBranch]);
+  }, [patients, searchTerm, selectedBranch]);
 
   const totalPatients = filteredPatients.length;
   const completedPatients = filteredPatients.reduce((count, patient) => {
@@ -243,38 +213,19 @@ export default function AdminPatient() {
     return count + completedProcedures;
   }, 0);
 
-  const handleToggleNotifications = () => {
-    setIsNotificationOpen((prev) => !prev);
-  };
-
-  const handleCloseNotifications = () => {
-    setIsNotificationOpen(false);
-  };
-
-  const handleMarkAllRead = () => {
-    setNotifications([]);
-  };
-
   return (
     <div className="admin-patient-page">
       <AdminSidebar />
 
       <div className="admin-patient-main">
-        <AdminTopbar
-          title="Patients"
-          notifications={notifications}
-          isNotificationOpen={isNotificationOpen}
-          onToggleNotifications={handleToggleNotifications}
-          onCloseNotifications={handleCloseNotifications}
-          onMarkAllRead={handleMarkAllRead}
-        />
+        <AdminTopbar title="Patients" />
 
         <div className="admin-patient-content">
           <div className="admin-patient-heading">
             <div>
               <h1>Patients</h1>
               <p>
-                Manage and view patient records assigned to {adminAssignedBranch}.
+                Manage and view patient records assigned to {selectedBranch}.
               </p>
             </div>
           </div>
@@ -292,7 +243,7 @@ export default function AdminPatient() {
 
             <div className="patient-stat-card">
               <span>Assigned Branch</span>
-              <h3 className="branch-name-card">{adminAssignedBranch}</h3>
+              <h3 className="branch-name-card">{selectedBranch}</h3>
             </div>
           </div>
 
