@@ -183,6 +183,7 @@ export const authenticateAdmin = async (email, password) => {
           } else {
             try {
               const notes = admin.notes ? JSON.parse(String(admin.notes)) : {};
+
               if (notes.fallback_password_hash && verifyPasswordForFallback(password, notes.fallback_password_hash)) {
                 usedSchemaFallback = true;
                 authUser = { id: admin.id };
@@ -190,11 +191,22 @@ export const authenticateAdmin = async (email, password) => {
                   adminId: admin.id,
                   adminEmail: admin.email,
                 });
-              } else {
-                console.log("[ADMIN_LOGIN_FALLBACK_PASSWORD_MISMATCH_OR_NOT_SET]", {
+              } else if (notes.fallback_password_hash) {
+                // A fallback hash exists but didn't match: this is a wrong password, not an unset-up account.
+                console.log("[ADMIN_LOGIN_FALLBACK_PASSWORD_MISMATCH]", {
                   adminId: admin.id,
                   adminEmail: admin.email,
-                  hasFallbackHash: !!notes.fallback_password_hash,
+                });
+
+                return {
+                  success: false,
+                  message: "Invalid email or password",
+                  statusCode: 401,
+                };
+              } else {
+                console.log("[ADMIN_LOGIN_FALLBACK_HASH_NOT_SET]", {
+                  adminId: admin.id,
+                  adminEmail: admin.email,
                 });
 
                 return {
@@ -212,12 +224,8 @@ export const authenticateAdmin = async (email, password) => {
 
               return {
                 success: false,
-                message: "Your account needs to be set up. Please use 'Forgot Password' to complete the authentication setup.",
+                message: "Invalid email or password",
                 statusCode: 401,
-                data: {
-                  accountNeedsSetup: true,
-                  email: admin.email,
-                },
               };
             }
           }
