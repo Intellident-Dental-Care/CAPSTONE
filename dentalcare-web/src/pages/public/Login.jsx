@@ -252,8 +252,8 @@ export default function Login() {
 
       const res =
         activeRole === "admin"
-          ? await AuthService.adminLogin(email, password)
-          : await AuthService.dentistLogin(email, password);
+          ? await AuthService.adminLogin(email, password, saveUser)
+          : await AuthService.dentistLogin(email, password, saveUser);
 
       if (!res?.success) {
         return setError(res?.message || "Login failed.");

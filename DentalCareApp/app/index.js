@@ -3,7 +3,7 @@ import { View, Image, StyleSheet, ActivityIndicator, Text } from "react-native";
 import { useRouter } from "expo-router";
 import { colors } from "./theme/colors";
 import { startDeepLinkListener } from "../server/deepLinkHandler";
-import { getSession } from "./_storage/authStorage";
+import { getSession, isSessionStillValid, logoutUser } from "./_storage/authStorage";
 import { restoreSessionFromStorage, supabase } from "../server/supabaseService";
 
 export default function Index() {
@@ -18,6 +18,14 @@ export default function Index() {
       try {
         const session = await getSession();
 
+        // A session that wasn't "remembered" only survives while the app
+        // process stays alive; if the app was closed and reopened, log out.
+        if (session && !isSessionStillValid(session)) {
+          await logoutUser();
+          router.replace("/get-started");
+          return;
+        }
+
         // Restore Supabase session from AsyncStorage if available
         if (session?.session) {
           await restoreSessionFromStorage(session);
@@ -31,7 +39,8 @@ export default function Index() {
             try {
               const { data: { user }, error } = await supabase.auth.getUser();
               if (user && !error) {
-                router.replace("/home");
+                // Always show the Data Privacy notice before Home, same as a fresh login.
+                router.replace("/data-privacy");
               } else {
                 // Session invalid, redirect to login
                 console.warn('Session invalid after restore:', error);

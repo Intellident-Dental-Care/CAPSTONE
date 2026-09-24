@@ -10,21 +10,32 @@ const PROFILES_KEY = "@dc_profiles_by_email";
 const ACTIVE_PROFILE_KEY = "@dc_active_profile_by_email";
 const PATIENT_PROFILES_KEY = "@dc_patient_profiles";
 
+const REMEMBER_ME_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
 /* =========================
    SESSION & AUTH FUNCTIONS
 ========================= */
 
 // Unified session storage function for both regular login and Google login
-export const storeSession = async ({ user, session, fullName }) => {
+export const storeSession = async ({ user, session, fullName, remember = false }) => {
   try {
     const sessionData = {
       user,
       session: session || null,
       fullName: fullName || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User',
-      loginTime: Date.now()
+      loginTime: Date.now(),
+      remember: !!remember,
+      // Only a remembered session gets a long-lived expiry; a non-remembered
+      // session is only valid while the app process stays alive (see
+      // isSessionStillValid) and is dropped on the next cold start.
+      expiryAt: remember ? Date.now() + REMEMBER_ME_DURATION_MS : null,
     };
-    
+
     await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+    // Marks that this session was created during the current app process,
+    // so a non-remembered session can be told apart from one restored after
+    // the app was fully closed and reopened (which resets this flag).
+    global.__authSessionAlive = true;
     console.log(" Session stored successfully");
   } catch (error) {
     console.error("Error storing session:", error);
@@ -34,14 +45,18 @@ export const storeSession = async ({ user, session, fullName }) => {
 // Keep setSession for Google login compatibility
 export const setSession = async (sessionData) => {
   try {
+    const remember = !!sessionData.remember;
     const unifiedData = {
       user: sessionData.user,
       session: sessionData.session || null,
       fullName: sessionData.fullName,
-      loginTime: sessionData.loginTime || Date.now()
+      loginTime: sessionData.loginTime || Date.now(),
+      remember,
+      expiryAt: remember ? Date.now() + REMEMBER_ME_DURATION_MS : null,
     };
-    
+
     await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(unifiedData));
+    global.__authSessionAlive = true;
     console.log("✅ Google session stored successfully");
   } catch (error) {
     console.error("Error setting session:", error);
@@ -58,6 +73,22 @@ export const getSession = async () => {
   }
 };
 
+// Decides whether a stored session should still be treated as logged in.
+// - Remembered sessions stay valid across app restarts until the 30-day
+//   expiry passes.
+// - Non-remembered sessions only survive while the app process stays alive;
+//   `global.__authSessionAlive` resets on every cold start, so closing and
+//   reopening the app logs the user out.
+export const isSessionStillValid = (sessionData) => {
+  if (!sessionData) return false;
+
+  if (sessionData.remember) {
+    return !sessionData.expiryAt || Date.now() < sessionData.expiryAt;
+  }
+
+  return !!global.__authSessionAlive;
+};
+
 export const logoutUser = async () => {
   try {
     // Sign out from Supabase (From File 1)
@@ -70,6 +101,7 @@ export const logoutUser = async () => {
     await AsyncStorage.removeItem(PROFILES_KEY);
     await AsyncStorage.removeItem(ACTIVE_PROFILE_KEY);
     await AsyncStorage.removeItem(PATIENT_PROFILES_KEY);
+    global.__authSessionAlive = false;
     console.log("✅ User logged out successfully");
   } catch (error) {
     console.error("Error during logout:", error);

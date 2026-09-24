@@ -143,11 +143,42 @@ const parseJwtPayload = (token) => {
   }
 };
 
+const REMEMBER_ME_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const SESSION_MARKER_KEY = 'auth_session_marker';
+
 class AuthService {
-  static setToken(token, role) {
-    if (token) {
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('auth_role', role);
+  static setToken(token, role, remember = false) {
+    if (!token) return;
+
+    localStorage.setItem('auth_token', token);
+    localStorage.setItem('auth_role', role);
+    localStorage.setItem('auth_remember', remember ? 'true' : 'false');
+
+    if (remember) {
+      localStorage.setItem('auth_expiry', String(Date.now() + REMEMBER_ME_DURATION_MS));
+      sessionStorage.removeItem(SESSION_MARKER_KEY);
+    } else {
+      localStorage.removeItem('auth_expiry');
+      // Marks that this token belongs to the current browser session; if it's
+      // missing on a later check, the browser was closed and reopened.
+      sessionStorage.setItem(SESSION_MARKER_KEY, '1');
+    }
+  }
+
+  // Expires the "remember me" (30-day) session, and logs out a
+  // non-remembered session once the browser has been closed and reopened.
+  static enforceSessionExpiry() {
+    if (!localStorage.getItem('auth_token')) return;
+
+    const remember = localStorage.getItem('auth_remember') === 'true';
+
+    if (remember) {
+      const expiry = Number(localStorage.getItem('auth_expiry') || 0);
+      if (expiry && Date.now() > expiry) {
+        this.clearAuth();
+      }
+    } else if (!sessionStorage.getItem(SESSION_MARKER_KEY)) {
+      this.clearAuth();
     }
   }
 
@@ -160,16 +191,21 @@ class AuthService {
   }
 
   static isAuthenticated() {
+    this.enforceSessionExpiry();
     return !!this.getToken();
   }
 
   static clearAuth() {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_role');
+    localStorage.removeItem('auth_remember');
+    localStorage.removeItem('auth_expiry');
     localStorage.removeItem('user_data');
     localStorage.removeItem('verification_token');
     localStorage.removeItem('pending_role');
     localStorage.removeItem('pending_profile');
+    localStorage.removeItem('pending_remember');
+    sessionStorage.removeItem(SESSION_MARKER_KEY);
     // Lets the per-role data caches drop the previous user's data.
     window.dispatchEvent(new Event('auth:cleared'));
   }
@@ -178,6 +214,7 @@ class AuthService {
     localStorage.removeItem('verification_token');
     localStorage.removeItem('pending_role');
     localStorage.removeItem('pending_profile');
+    localStorage.removeItem('pending_remember');
   }
 
   static getAuthHeader() {
@@ -195,7 +232,7 @@ class AuthService {
     return parseJwtPayload(verificationToken);
   }
 
-  static async dentistLogin(email, password) {
+  static async dentistLogin(email, password, remember = false) {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/dentist/login`, {
         method: 'POST',
@@ -212,10 +249,11 @@ class AuthService {
           localStorage.setItem("verification_token", data.data.verificationToken);
           localStorage.setItem("pending_role", "dentist");
           localStorage.setItem("pending_profile", JSON.stringify(data.data.profile || {}));
+          localStorage.setItem("pending_remember", remember ? "true" : "false");
           return data;
         }
 
-        this.setToken(data.data.token, 'dentist');
+        this.setToken(data.data.token, 'dentist', remember);
         localStorage.setItem('user_data', JSON.stringify(data.data.dentist));
         return data;
       }
@@ -274,7 +312,7 @@ class AuthService {
     }
   }
 
-  static async adminLogin(email, password) {
+  static async adminLogin(email, password, remember = false) {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/admin/login`, {
         method: 'POST',
@@ -291,13 +329,14 @@ class AuthService {
           localStorage.setItem("verification_token", data.data.verificationToken);
           localStorage.setItem("pending_role", "admin");
           localStorage.setItem("pending_profile", JSON.stringify(data.data.profile || {}));
+          localStorage.setItem("pending_remember", remember ? "true" : "false");
           return data;
         }
 
         const adminData = data.data.admin;
         const assignedRole = adminData.admin_type === "super_admin" || adminData.adminType === "super_admin" ? "super_admin" : "admin";
-        
-        this.setToken(data.data.token, assignedRole);
+
+        this.setToken(data.data.token, assignedRole, remember);
         localStorage.setItem('user_data', JSON.stringify(adminData));
         return data;
       }
@@ -594,7 +633,8 @@ class AuthService {
 
       if (data?.success && data?.data?.token) {
         const role = data?.data?.role || localStorage.getItem("pending_role") || "dentist";
-        this.setToken(data.data.token, role);
+        const remember = localStorage.getItem("pending_remember") === "true";
+        this.setToken(data.data.token, role, remember);
         localStorage.setItem("user_data", JSON.stringify(data.data.profile || {}));
         this.clearPendingVerification();
       }
