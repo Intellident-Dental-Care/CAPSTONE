@@ -12,6 +12,10 @@
   gap: 16px;
 }
 
+/* =========================================================
+   PAGE HEADER
+========================================================= */
+
 .superadmin-services-header {
   flex-shrink: 0;
   display: flex;
@@ -34,7 +38,10 @@
   font-size: 0.95rem;
 }
 
-/* CARDS */
+/* =========================================================
+   CARDS
+========================================================= */
+
 .superadmin-services-form-card,
 .superadmin-services-list-card {
   background: #ffffff;
@@ -47,11 +54,17 @@
   padding: 18px 20px;
   flex: 1;
   min-height: 0;
+
   display: flex;
   flex-direction: column;
+
+  overflow: hidden;
 }
 
-/* HEADER */
+/* =========================================================
+   CARD HEADER
+========================================================= */
+
 .superadmin-services-card-head {
   margin-bottom: 14px;
 }
@@ -60,41 +73,56 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+
   gap: 14px;
+
   flex-wrap: wrap;
 }
 
 .superadmin-services-card-head h3 {
   margin: 0;
+
   font-size: 1.2rem;
   font-weight: 800;
+
   color: #495167;
 }
 
 .superadmin-services-card-head p {
   margin: 4px 0 0;
+
   font-size: 0.85rem;
+
   color: #8a90a2;
 }
 
-/* FORM */
+/* =========================================================
+   FORM
+========================================================= */
+
 .superadmin-services-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
+
   gap: 14px;
+
   align-items: start;
 }
 
 .superadmin-services-modal-form-grid {
   margin-top: 0;
+
   display: grid;
+
   grid-template-columns: 1fr 1fr;
+
   gap: 18px 16px;
 }
 
 .superadmin-services-field {
   display: flex;
   flex-direction: column;
+
   gap: 6px;
 }
 
@@ -105,6 +133,7 @@
 .superadmin-services-field label {
   font-size: 0.82rem;
   font-weight: 800;
+
   color: #8a90a2;
 }
 
@@ -113,19 +142,29 @@
 .superadmin-services-field textarea,
 .superadmin-services-search {
   width: 100%;
+
   border: 1px solid #f4b5cc;
   border-radius: 14px;
+
   padding: 12px 14px;
+
   font-size: 0.95rem;
+
   color: #3f4658;
+
   background: #fff;
+
   outline: none;
+
+  box-sizing: border-box;
 }
 
 .superadmin-services-field input:focus,
 .superadmin-services-field select:focus,
-.superadmin-services-field textarea:focus {
+.superadmin-services-field textarea:focus,
+.superadmin-services-search:focus {
   border-color: #ec4f8f;
+
   box-shadow: 0 0 0 4px rgba(236, 79, 143, 0.1);
 }
 
@@ -137,19 +176,42 @@
 
 .superadmin-services-field textarea {
   min-height: 140px;
+
   resize: none;
 }
 
-/* BUTTONS */
+.superadmin-services-field-hint {
+  font-size: 0.75rem;
+
+  color: #8a90a2;
+
+  line-height: 1.4;
+}
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
 .superadmin-services-primary-btn {
   height: 44px;
+
   padding: 0 18px;
+
   border: none;
   border-radius: 12px;
-  background: linear-gradient(90deg, #f37aa8, #ec4f8f);
+
+  background: linear-gradient(
+    90deg,
+    #f37aa8,
+    #ec4f8f
+  );
+
   color: #fff;
+
   font-weight: 700;
+
   cursor: pointer;
+
   box-shadow: 0 8px 18px rgba(236, 79, 143, 0.22);
 }
 
@@ -159,18 +221,26 @@
 
 .superadmin-services-secondary-btn {
   height: 48px;
+
   padding: 0 18px;
+
   border: 1px solid #f4bfd3;
   border-radius: 12px;
+
   background: #ffe9ee;
+
   color: #8f214d;
+
   font-weight: 700;
+
   cursor: pointer;
 }
 
 .superadmin-services-secondary-btn.enable-selected-btn {
   background: #e7f7ec;
+
   color: #167a3f;
+
   border: 1px solid #bde6c9;
 }
 
@@ -182,310 +252,606 @@
   background: #d9f4e2;
 }
 
-/* ACTIONS */
+.superadmin-services-primary-btn:disabled,
+.superadmin-services-secondary-btn:disabled,
+.superadmin-services-action-btn:disabled,
+.superadmin-services-modal-confirm:disabled,
+.superadmin-services-modal-cancel:disabled {
+  cursor: not-allowed;
+
+  opacity: 0.6;
+}
+
+/* =========================================================
+   HEADER ACTIONS
+========================================================= */
+
+.superadmin-services-header-actions {
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  flex-wrap: wrap;
+}
+
+/* =========================================================
+   SEARCH / BULK ACTIONS
+========================================================= */
+
 .superadmin-services-top-actions {
   display: flex;
+
   align-items: center;
+
   gap: 12px;
+
   width: 100%;
 }
 
 .superadmin-services-search {
   flex: 1;
+
   min-width: 260px;
 }
 
 .superadmin-services-bulk-actions {
   display: flex;
+
   align-items: center;
+
   gap: 10px;
+
   margin-left: auto;
 }
 
-/* TABLE */
+/* =========================================================
+   SERVICES TABLE SCROLL AREA
+========================================================= */
+
 .superadmin-services-table-scroll {
   flex: 1;
-  overflow: auto;
+
+  min-height: 0;
+
+  width: 100%;
+
+  overflow-x: auto;
+  overflow-y: auto;
+
+  -webkit-overflow-scrolling: touch;
+
+  scrollbar-gutter: stable;
 }
+
+.superadmin-services-table-wrap {
+  width: 100%;
+  min-width: 0;
+}
+
+/* =========================================================
+   SERVICES TABLE
+========================================================= */
 
 .superadmin-services-table {
   width: 100%;
+  min-width: 0;
+
   border-collapse: separate;
   border-spacing: 0 10px;
-  min-width: 1550px;
+
   table-layout: fixed;
 }
 
-/* HEADER */
+/* =========================================================
+   TABLE HEADER
+========================================================= */
+
 .superadmin-services-table thead th {
   position: sticky;
+
   top: 0;
+
+  z-index: 3;
+
   background: #fff;
+
+  padding: 0 12px 10px;
+
   font-size: 0.82rem;
-  color: #8a90a2;
-  padding: 0 14px 10px;
-  text-align: left;
+
   font-weight: 700;
+
+  color: #8a90a2;
+
+  text-align: left;
+
   white-space: nowrap;
 }
 
-/* BODY */
+/* =========================================================
+   TABLE BODY
+========================================================= */
+
 .superadmin-services-table tbody td {
+  display: table-cell;
+
   background: #fff;
-  padding: 14px;
+
+  padding: 16px 12px;
+
   font-size: 0.9rem;
+
   color: #556074;
+
+  vertical-align: middle;
+
   border-top: 1px solid #f3cfdb;
   border-bottom: 1px solid #f3cfdb;
-  vertical-align: middle;
+
   text-align: left;
+
+  height: 76px;
+
+  box-sizing: border-box;
 }
 
-/* ROUNDED EDGES */
+/* =========================================================
+   SERVICE ROW EDGES
+========================================================= */
+
 .superadmin-services-table tbody tr td:first-child {
   border-left: 1px solid #f3cfdb;
+
   border-radius: 14px 0 0 14px;
 }
 
 .superadmin-services-table tbody tr td:last-child {
   border-right: 1px solid #f3cfdb;
+
   border-radius: 0 14px 14px 0;
 }
 
-/* COLUMN WIDTHS */
+/* =========================================================
+   TABLE COLUMN WIDTHS
+
+   1 = Checkbox
+   2 = Service Name
+   3 = Category
+   4 = Price
+   5 = Duration
+   6 = Description
+   7 = Status
+   8 = Action
+========================================================= */
+
+/* CHECKBOX */
+
 .superadmin-services-table th:nth-child(1),
 .superadmin-services-table td:nth-child(1) {
-  width: 50px;
+  width: 3%;
+  text-align: center;
 }
+
+/* SERVICE NAME */
 
 .superadmin-services-table th:nth-child(2),
 .superadmin-services-table td:nth-child(2) {
-  width: 230px;
-}
-
-.superadmin-services-table th:nth-child(3),
-.superadmin-services-table td:nth-child(3) {
-  width: 180px;
-}
-
-.superadmin-services-table th:nth-child(4),
-.superadmin-services-table td:nth-child(4) {
-  width: 250px;
-}
-
-.superadmin-services-table th:nth-child(5),
-.superadmin-services-table td:nth-child(5) {
-  width: 560px;
-}
-
-.superadmin-services-table th:nth-child(6),
-.superadmin-services-table td:nth-child(6) {
-  width: 110px;
-  text-align: center;
-}
-
-.superadmin-services-table th:nth-child(7),
-.superadmin-services-table td:nth-child(7) {
-  width: 120px;
-  text-align: center;
-}
-
-/* NAME */
-.superadmin-services-name-cell {
-  font-weight: 700;
-  color: #f05a96;
-  line-height: 1.5;
-  word-break: break-word;
+  width: 14%;
 }
 
 /* CATEGORY */
-.superadmin-services-category-cell {
-  font-weight: 600;
-  line-height: 1.5;
-  word-break: break-word;
+
+.superadmin-services-table th:nth-child(3),
+.superadmin-services-table td:nth-child(3) {
+  width: 11%;
 }
 
 /* PRICE */
-.superadmin-services-price-cell {
-  font-weight: 800;
-  color: #ec4f8f;
-  white-space: normal;
-  line-height: 1.5;
-  word-break: break-word;
+
+.superadmin-services-table th:nth-child(4),
+.superadmin-services-table td:nth-child(4) {
+  width: 14%;
 }
 
 /* DURATION */
-.superadmin-services-duration-cell {
-  font-weight: 600;
-  color: #6b7280;
-  white-space: nowrap;
-}
 
-.superadmin-services-field-hint {
-  font-size: 0.75rem;
-  color: #8a90a2;
+.superadmin-services-table th:nth-child(5),
+.superadmin-services-table td:nth-child(5) {
+  width: 9%;
 }
 
 /* DESCRIPTION */
-.superadmin-services-description-cell {
-  line-height: 1.6;
-  color: #5f6677;
-  word-break: break-word;
+
+.superadmin-services-table th:nth-child(6),
+.superadmin-services-table td:nth-child(6) {
+  width: 24%;
 }
 
 /* STATUS */
+
+.superadmin-services-table th:nth-child(7),
+.superadmin-services-table td:nth-child(7) {
+  width: 9%;
+  text-align: center;
+}
+
+/* ACTION */
+
+.superadmin-services-table th:nth-child(8),
+.superadmin-services-table td:nth-child(8) {
+  width: 16%;
+  text-align: center;
+}
+
+/* =========================================================
+   SERVICE NAME CELL
+========================================================= */
+
+.superadmin-services-name-cell {
+  font-weight: 700;
+
+  color: #f05a96;
+
+  line-height: 1.45;
+
+  word-break: normal;
+
+  overflow-wrap: break-word;
+}
+
+/* =========================================================
+   CATEGORY CELL
+========================================================= */
+
+.superadmin-services-category-cell {
+  font-weight: 600;
+
+  line-height: 1.45;
+
+  word-break: normal;
+
+  overflow-wrap: break-word;
+}
+
+/* =========================================================
+   PRICE CELL
+========================================================= */
+
+.superadmin-services-price-cell {
+  font-weight: 800;
+
+  color: #ec4f8f;
+
+  line-height: 1.45;
+
+  white-space: normal;
+
+  word-break: normal;
+
+  overflow-wrap: break-word;
+}
+
+/* =========================================================
+   DURATION CELL
+========================================================= */
+
+.superadmin-services-duration-cell {
+  font-weight: 600;
+
+  color: #6b7280;
+
+  white-space: nowrap;
+}
+
+/* =========================================================
+   DESCRIPTION CELL
+========================================================= */
+
+.superadmin-services-description-cell {
+  line-height: 1.5;
+
+  color: #5f6677;
+
+  white-space: normal;
+
+  word-break: normal;
+
+  overflow-wrap: break-word;
+}
+
+/* =========================================================
+   STATUS
+========================================================= */
+
 .superadmin-services-status {
   display: inline-flex;
+
   justify-content: center;
   align-items: center;
+
   min-width: 78px;
+
   padding: 6px 12px;
+
   border-radius: 999px;
+
   font-size: 0.8rem;
+
   font-weight: 700;
+
+  white-space: nowrap;
 }
 
 .superadmin-services-status.is-active {
   background: #e5f7ea;
+
   color: #1f9d57;
 }
 
 .superadmin-services-status.is-disabled {
   background: #fbe6ee;
+
   color: #d35b85;
 }
 
-/* ACTION */
+/* =========================================================
+   ACTION CELL
+========================================================= */
+
 .superadmin-services-action-cell {
+  display: table-cell;
+
   text-align: center;
-  display: flex;
-  gap: 8px;
-  justify-content: center;
+
+  white-space: nowrap;
+
+  vertical-align: middle;
 }
 
-/* BUTTON */
+.superadmin-services-action-cell
+  .superadmin-services-action-btn
+  + .superadmin-services-action-btn {
+  margin-left: 6px;
+}
+
+/* =========================================================
+   ACTION BUTTON
+========================================================= */
+
 .superadmin-services-action-btn {
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
   height: 38px;
-  min-width: 82px;
+
+  min-width: 72px;
+
   padding: 0 12px;
+
   border: none;
+
   border-radius: 10px;
+
   color: #fff;
-  font-size: 0.85rem;
+
+  font-size: 0.82rem;
+
   cursor: pointer;
+
+  white-space: nowrap;
 }
 
 .superadmin-services-action-btn.disable-btn {
-  background: linear-gradient(90deg, #ff4d4f, #c81e1e);
+  background: linear-gradient(
+    90deg,
+    #ff4d4f,
+    #c81e1e
+  );
 }
 
 .superadmin-services-action-btn.enable-btn {
-  background: linear-gradient(90deg, #1ab65c, #0b7d3a);
+  background: linear-gradient(
+    90deg,
+    #1ab65c,
+    #0b7d3a
+  );
 }
 
 .superadmin-services-action-btn.edit-btn {
-  background: linear-gradient(90deg, #f37aa8, #ec4f8f);
+  background: linear-gradient(
+    90deg,
+    #f37aa8,
+    #ec4f8f
+  );
 }
 
-/* EMPTY */
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
 .superadmin-services-empty-state {
+  width: 100%;
+
   text-align: center;
-  padding: 20px;
+
+  padding: 24px;
+
   color: #8a90a2;
 }
 
-/* MODAL */
+/* =========================================================
+   MODAL OVERLAY
+========================================================= */
+
 .superadmin-services-modal-overlay {
   position: fixed;
+
   inset: 0;
+
   background: rgba(20, 24, 35, 0.45);
+
   backdrop-filter: blur(3px);
+
   display: flex;
+
   justify-content: center;
   align-items: center;
+
   padding: 24px;
+
   z-index: 999;
 }
 
+/* =========================================================
+   MODAL
+========================================================= */
+
 .superadmin-services-modal {
   background: #ffffff;
+
   padding: 26px;
+
   border-radius: 22px;
+
   width: 100%;
+
   max-width: 460px;
+
   box-shadow: 0 20px 50px rgba(31, 41, 55, 0.2);
+
+  box-sizing: border-box;
 }
 
 .superadmin-services-add-modal {
   max-width: 760px;
+
   max-height: 90vh;
+
   overflow-y: auto;
 }
 
+/* =========================================================
+   MODAL HEADER
+========================================================= */
+
 .superadmin-services-modal-top {
   display: flex;
+
   justify-content: space-between;
+
   align-items: flex-start;
+
   gap: 14px;
+
   margin-bottom: 18px;
 }
 
 .superadmin-services-modal-top h3 {
   margin: 0;
+
   font-size: 1.35rem;
+
   font-weight: 800;
+
   color: #495167;
 }
 
 .superadmin-services-modal-top p {
   margin: 7px 0 0;
+
   color: #8a90a2;
+
   font-size: 0.92rem;
 }
 
+/* =========================================================
+   MODAL CLOSE BUTTON
+========================================================= */
+
 .superadmin-services-modal-close {
   border: none;
+
   background: #f6f7fb;
+
   color: #6b7280;
+
   width: 40px;
+
   height: 40px;
+
   border-radius: 12px;
+
   font-size: 1.3rem;
+
   cursor: pointer;
+
   flex-shrink: 0;
 }
 
+/* =========================================================
+   MODAL ACTIONS
+========================================================= */
+
 .superadmin-services-modal-actions {
   display: flex;
+
   justify-content: flex-end;
+
   align-items: center;
+
   gap: 12px;
+
   margin-top: 8px;
+
   grid-column: 1 / -1;
 }
 
 .superadmin-services-modal-cancel {
   border: none;
+
   background: #f6f7fb;
+
   color: #4b5563;
+
   padding: 12px 18px;
+
   border-radius: 12px;
+
   cursor: pointer;
+
   font-weight: 700;
 }
 
 .superadmin-services-modal-confirm {
   border: none;
-  background: linear-gradient(90deg, #f37aa8, #ec4f8f);
+
+  background: linear-gradient(
+    90deg,
+    #f37aa8,
+    #ec4f8f
+  );
+
   color: #fff;
+
   padding: 12px 20px;
+
   border-radius: 12px;
+
   cursor: pointer;
+
   font-weight: 800;
+
   box-shadow: 0 8px 18px rgba(236, 79, 143, 0.22);
 }
 
-/* RESPONSIVE */
+/* =========================================================
+   RESPONSIVE - 1024PX
+========================================================= */
+
 @media (max-width: 1024px) {
   .superadmin-services-form-grid,
   .superadmin-services-modal-form-grid {
@@ -506,76 +872,41 @@
   }
 }
 
-@media (max-width: 768px) {
-  .superadmin-services-fixed-page {
-    height: auto;
-  }
-
-  .superadmin-services-content {
-    height: auto;
-  }
-
-  .superadmin-services-header {
-    align-items: stretch;
-  }
-
-  .superadmin-services-add-open-btn {
-    width: 100%;
-  }
-
-  .superadmin-services-search {
-    min-width: 100%;
-  }
-
-  .superadmin-services-modal {
-    padding: 18px;
-  }
-}
-
-/* ✅ ADDED CATEGORY BUTTON WRAPPER */
-.superadmin-services-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-@media (max-width: 768px) {
-  .superadmin-services-header-actions {
-    width: 100%;
-  }
-
-  .superadmin-services-header-actions button {
-    width: 100%;
-  }
-}
-
 /* =========================================================
-   SERVICES MANAGEMENT - RESPONSIVE PAGE FIX
-   Keeps desktop unchanged and fixes tablet/mobile behavior.
+   RESPONSIVE - 900PX
 ========================================================= */
 
 @media (max-width: 900px) {
   .superadmin-services-fixed-page {
     height: calc(100vh - 78px);
     height: calc(100dvh - 78px);
+
     min-height: 0;
+
     overflow-y: auto;
+
     overflow-x: hidden;
+
     -webkit-overflow-scrolling: touch;
+
     overscroll-behavior: contain;
   }
 
   .superadmin-services-content {
     height: auto;
+
     min-height: 100%;
+
     padding: 18px;
+
     gap: 14px;
   }
 
   .superadmin-services-header {
     flex-direction: column;
+
     align-items: stretch;
+
     gap: 12px;
   }
 
@@ -585,8 +916,11 @@
 
   .superadmin-services-header-actions {
     width: 100%;
+
     display: grid;
+
     grid-template-columns: 1fr 1fr;
+
     gap: 10px;
   }
 
@@ -594,148 +928,217 @@
   .superadmin-services-add-open-btn,
   .superadmin-services-secondary-btn {
     width: 100%;
+
     min-width: 0;
   }
 
-  /* Let the card use natural page height on small screens. */
   .superadmin-services-list-card {
     flex: none;
+
     height: auto;
+
     min-height: 0;
+
     max-height: none;
+
     padding: 16px;
+
     overflow: hidden;
   }
 
   .superadmin-services-card-head,
   .superadmin-services-card-head-wrap {
     height: auto;
+
     min-height: 0;
   }
 
   .superadmin-services-card-head-wrap {
     flex-direction: column;
+
     align-items: stretch;
   }
 
   .superadmin-services-top-actions {
     width: 100%;
+
     flex-direction: column;
+
     align-items: stretch;
   }
 
   .superadmin-services-search {
     width: 100%;
+
     min-width: 0;
   }
 
   .superadmin-services-bulk-actions {
     width: 100%;
+
     margin-left: 0;
   }
 
   .superadmin-services-bulk-actions button {
     flex: 1;
+
     min-width: 0;
   }
 
-  /* Only the service list scrolls sideways for its 8 columns. */
+  /* TABLE */
+
   .superadmin-services-table-scroll {
     flex: none;
+
     width: 100%;
-    min-height: 260px;
+
+    min-height: 300px;
+
     max-height: 470px;
-    overflow: auto;
+
+    overflow-x: auto;
+
+    overflow-y: auto;
+
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+
+    scrollbar-gutter: stable;
   }
 
   .superadmin-services-table-wrap {
     width: max-content;
+
     min-width: 100%;
   }
 
   .superadmin-services-table {
-    min-width: 1250px;
+    width: 1180px;
+
+    min-width: 1180px;
+
+    table-layout: fixed;
   }
 
-  /* More balanced service columns at tablet/mobile sizes. */
+  /* CHECKBOX */
+
   .superadmin-services-table th:nth-child(1),
   .superadmin-services-table td:nth-child(1) {
     width: 48px;
   }
 
+  /* SERVICE NAME */
+
   .superadmin-services-table th:nth-child(2),
   .superadmin-services-table td:nth-child(2) {
-    width: 190px;
+    width: 180px;
   }
+
+  /* CATEGORY */
 
   .superadmin-services-table th:nth-child(3),
   .superadmin-services-table td:nth-child(3) {
-    width: 150px;
+    width: 145px;
   }
+
+  /* PRICE */
 
   .superadmin-services-table th:nth-child(4),
   .superadmin-services-table td:nth-child(4) {
-    width: 190px;
+    width: 170px;
   }
+
+  /* DURATION */
 
   .superadmin-services-table th:nth-child(5),
   .superadmin-services-table td:nth-child(5) {
-    width: 150px;
+    width: 115px;
   }
+
+  /* DESCRIPTION */
 
   .superadmin-services-table th:nth-child(6),
   .superadmin-services-table td:nth-child(6) {
-    width: 300px;
-    text-align: left;
+    width: 280px;
   }
+
+  /* STATUS */
 
   .superadmin-services-table th:nth-child(7),
   .superadmin-services-table td:nth-child(7) {
-    width: 110px;
+    width: 105px;
+
     text-align: center;
   }
+
+  /* ACTION */
 
   .superadmin-services-table th:nth-child(8),
   .superadmin-services-table td:nth-child(8) {
-    width: 190px;
+    width: 180px;
+
     text-align: center;
   }
 
-  .superadmin-services-description-cell {
-    word-break: normal;
-    overflow-wrap: break-word;
+  .superadmin-services-table tbody td {
+    height: auto;
+
+    min-height: 72px;
+
+    padding: 14px 10px;
   }
 
-  /* Modals remain usable on smaller screens. */
+  .superadmin-services-action-cell {
+    display: table-cell;
+
+    white-space: nowrap;
+  }
+
+  /* MODAL */
+
   .superadmin-services-modal-overlay {
     padding: 14px;
+
     overflow-y: auto;
   }
 
   .superadmin-services-modal,
   .superadmin-services-add-modal {
     max-width: min(760px, 100%);
+
     max-height: calc(100dvh - 28px);
+
     overflow-y: auto;
   }
 }
+
+/* =========================================================
+   RESPONSIVE - 768PX
+========================================================= */
 
 @media (max-width: 768px) {
   .superadmin-services-fixed-page {
     height: calc(100vh - 64px);
     height: calc(100dvh - 64px);
+
     min-height: 0;
+
     overflow-y: auto;
+
     overflow-x: hidden;
   }
 
   .superadmin-services-content {
     height: auto;
+
     min-height: 100%;
+
     padding: 16px;
+
     gap: 12px;
+  }
+
+  .superadmin-services-header {
+    align-items: stretch;
   }
 
   .superadmin-services-title {
@@ -744,21 +1147,29 @@
 
   .superadmin-services-subtitle {
     margin-top: 6px;
+
     line-height: 1.4;
   }
 
   .superadmin-services-header-actions {
+    width: 100%;
+
     grid-template-columns: 1fr 1fr;
   }
 
   .superadmin-services-header-actions button {
+    width: 100%;
+
     height: 44px;
+
     padding: 0 12px;
+
     font-size: 0.82rem;
   }
 
   .superadmin-services-list-card {
     padding: 14px;
+
     border-radius: 18px;
   }
 
@@ -767,21 +1178,70 @@
   }
 
   .superadmin-services-search {
+    width: 100%;
+
+    min-width: 0;
+
     height: 46px;
   }
 
+  /* TABLE */
+
   .superadmin-services-table-scroll {
-    min-height: 280px;
+    width: 100%;
+
+    min-height: 300px;
+
     max-height: 440px;
+
+    overflow-x: auto;
+
+    overflow-y: auto;
+  }
+
+  .superadmin-services-table-wrap {
+    width: max-content;
+
+    min-width: 100%;
   }
 
   .superadmin-services-table {
-    min-width: 1180px;
+    width: 1120px;
+
+    min-width: 1120px;
   }
+
+  .superadmin-services-table thead th {
+    padding: 0 10px 10px;
+
+    font-size: 0.76rem;
+  }
+
+  .superadmin-services-table tbody td {
+    padding: 13px 10px;
+
+    font-size: 0.84rem;
+
+    height: auto;
+  }
+
+  .superadmin-services-action-btn {
+    height: 36px;
+
+    min-width: 68px;
+
+    padding: 0 9px;
+
+    font-size: 0.76rem;
+  }
+
+  /* MODAL */
 
   .superadmin-services-modal {
     width: 100%;
+
     padding: 18px;
+
     border-radius: 18px;
   }
 
@@ -804,9 +1264,14 @@
   }
 }
 
+/* =========================================================
+   RESPONSIVE - 480PX
+========================================================= */
+
 @media (max-width: 480px) {
   .superadmin-services-content {
     padding: 12px;
+
     gap: 11px;
   }
 
@@ -818,18 +1283,27 @@
     font-size: 0.86rem;
   }
 
+  /* HEADER BUTTONS */
+
   .superadmin-services-header-actions {
+    grid-template-columns: 1fr 1fr;
+
     gap: 8px;
   }
 
   .superadmin-services-header-actions button {
     height: 42px;
+
     padding: 0 8px;
+
     font-size: 0.74rem;
   }
 
+  /* CARD */
+
   .superadmin-services-list-card {
     padding: 12px;
+
     border-radius: 16px;
   }
 
@@ -839,25 +1313,149 @@
 
   .superadmin-services-card-head p {
     font-size: 0.76rem;
+
+    line-height: 1.4;
   }
+
+  /* SEARCH */
 
   .superadmin-services-search {
     height: 44px;
+
     font-size: 0.85rem;
   }
 
   .superadmin-services-bulk-actions {
     flex-direction: column;
+
+    align-items: stretch;
   }
 
+  .superadmin-services-bulk-actions button {
+    width: 100%;
+  }
+
+  /* TABLE */
+
   .superadmin-services-table-scroll {
+    width: 100%;
+
     min-height: 300px;
+
     max-height: 410px;
+
+    overflow-x: auto;
+
+    overflow-y: auto;
+
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .superadmin-services-table-wrap {
+    width: max-content;
+
+    min-width: 100%;
   }
 
   .superadmin-services-table {
-    min-width: 1120px;
+    width: 1050px;
+
+    min-width: 1050px;
   }
+
+  .superadmin-services-table thead th {
+    font-size: 0.72rem;
+
+    padding-left: 8px;
+
+    padding-right: 8px;
+  }
+
+  .superadmin-services-table tbody td {
+    padding: 12px 8px;
+
+    font-size: 0.8rem;
+  }
+
+  /* CHECKBOX */
+
+  .superadmin-services-table th:nth-child(1),
+  .superadmin-services-table td:nth-child(1) {
+    width: 42px;
+  }
+
+  /* SERVICE NAME */
+
+  .superadmin-services-table th:nth-child(2),
+  .superadmin-services-table td:nth-child(2) {
+    width: 160px;
+  }
+
+  /* CATEGORY */
+
+  .superadmin-services-table th:nth-child(3),
+  .superadmin-services-table td:nth-child(3) {
+    width: 130px;
+  }
+
+  /* PRICE */
+
+  .superadmin-services-table th:nth-child(4),
+  .superadmin-services-table td:nth-child(4) {
+    width: 150px;
+  }
+
+  /* DURATION */
+
+  .superadmin-services-table th:nth-child(5),
+  .superadmin-services-table td:nth-child(5) {
+    width: 100px;
+  }
+
+  /* DESCRIPTION */
+
+  .superadmin-services-table th:nth-child(6),
+  .superadmin-services-table td:nth-child(6) {
+    width: 240px;
+  }
+
+  /* STATUS */
+
+  .superadmin-services-table th:nth-child(7),
+  .superadmin-services-table td:nth-child(7) {
+    width: 95px;
+
+    text-align: center;
+  }
+
+  /* ACTION */
+
+  .superadmin-services-table th:nth-child(8),
+  .superadmin-services-table td:nth-child(8) {
+    width: 165px;
+
+    text-align: center;
+  }
+
+  .superadmin-services-status {
+    min-width: 68px;
+
+    padding: 5px 9px;
+
+    font-size: 0.72rem;
+  }
+
+  .superadmin-services-action-btn {
+    height: 34px;
+
+    min-width: 62px;
+
+    padding: 0 8px;
+
+    font-size: 0.72rem;
+  }
+
+  /* MODAL */
 
   .superadmin-services-modal-overlay {
     padding: 8px;
@@ -866,7 +1464,9 @@
   .superadmin-services-modal,
   .superadmin-services-add-modal {
     max-height: calc(100dvh - 16px);
+
     padding: 16px;
+
     border-radius: 16px;
   }
 
@@ -874,8 +1474,13 @@
     font-size: 1.2rem;
   }
 
+  .superadmin-services-modal-top p {
+    font-size: 0.82rem;
+  }
+
   .superadmin-services-modal-actions {
     flex-direction: column-reverse;
+
     align-items: stretch;
   }
 
@@ -883,4 +1488,3 @@
     width: 100%;
   }
 }
-

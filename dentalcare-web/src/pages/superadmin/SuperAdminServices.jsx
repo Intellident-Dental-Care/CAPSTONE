@@ -16,8 +16,8 @@ import "../../styles/admin/layout/admin-topbar.css";
 import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
 
-import "../../styles/superadmin/services/superadmin-services.css";
 import "../../styles/superadmin/shared/superadmin-responsive.css";
+import "../../styles/superadmin/services/superadmin-services.css";
 
 export default function SuperAdminServices() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
