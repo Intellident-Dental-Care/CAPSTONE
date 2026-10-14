@@ -9,6 +9,7 @@ import {
   reviewLeaveRequest,
 } from "../../services/adminService";
 import { useBranch } from "../../context/BranchContext";
+import ArchiveModal from "../../components/admin/archive/ArchiveModal";
 
 import "../../styles/admin/dashboard/admin-dashboard.css";
 import "../../styles/admin/dashboard/admin-layout.css";
@@ -17,6 +18,7 @@ import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
 import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
+import "../../styles/admin/archive/admin-archive-modal.css";
 
 /* =========================================================
    HELPERS
@@ -433,6 +435,8 @@ export default function AdminDashboard() {
 
   const [isNotificationOpen, setIsNotificationOpen] =
     useState(false);
+
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
 
   const [snapshot, setSnapshot] = useState(null);
 
@@ -865,6 +869,17 @@ export default function AdminDashboard() {
             }
             onMarkAllRead={handleMarkAllRead}
           />
+
+          <div className="admin-dashboard-archive-row">
+            <button
+              className="admin-archive-trigger-btn"
+              onClick={() => setShowArchiveModal(true)}
+            >
+              Archive
+            </button>
+          </div>
+
+          <ArchiveModal open={showArchiveModal} onClose={() => setShowArchiveModal(false)} />
 
           <div className="admin-dashboard-grid">
             {/* =================================================

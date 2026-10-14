@@ -7,6 +7,7 @@ import {
   reviewLeaveRequest,
 } from "../../services/adminService";
 import { useBranch } from "../../context/BranchContext";
+import ArchiveModal from "../../components/admin/archive/ArchiveModal";
 
 import "../../styles/admin/dentist/admin-dentist.css";
 import "../../styles/admin/dashboard/admin-layout.css";
@@ -14,6 +15,7 @@ import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
 import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
+import "../../styles/admin/archive/admin-archive-modal.css";
 
 function formatDate(dateString) {
   if (!dateString) return "N/A";
@@ -656,6 +658,7 @@ function DentistDetailsModal({
 
 export default function AdminDentist() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
 
   const [selectedDentist, setSelectedDentist] =
     useState(null);
@@ -929,7 +932,16 @@ export default function AdminDentist() {
                 {selectedBranch}.
               </p>
             </div>
+
+            <button
+              className="admin-archive-trigger-btn"
+              onClick={() => setShowArchiveModal(true)}
+            >
+              Archive
+            </button>
           </div>
+
+          <ArchiveModal open={showArchiveModal} onClose={() => setShowArchiveModal(false)} />
 
           <div className="admin-dentist-stats">
             <div className="dentist-stat-card">

@@ -9,12 +9,14 @@ import {
   updateAppointmentStatus,
 } from "../../services/adminService";
 import { useBranch } from "../../context/BranchContext";
+import ArchiveModal from "../../components/admin/archive/ArchiveModal";
 import "../../styles/admin/appointments/admin-appointments.css";
 import "../../styles/admin/dashboard/admin-layout.css";
 import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
 import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
+import "../../styles/admin/archive/admin-archive-modal.css";
 
 const branchOptions = [
   "Dasmarinas, Cavite",
@@ -143,6 +145,7 @@ export default function AdminAppointments() {
   const [selectedIds, setSelectedIds] = useState([]);
 
   const [showWalkInModal, setShowWalkInModal] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [walkInStep, setWalkInStep] = useState(1);
   const [patientQuery, setPatientQuery] = useState("");
   const [showPatientSuggestions, setShowPatientSuggestions] = useState(false);
@@ -616,6 +619,13 @@ export default function AdminAppointments() {
 
             <div className="appointments-header-actions">
               <button
+                className="admin-archive-trigger-btn"
+                onClick={() => setShowArchiveModal(true)}
+              >
+                Archive
+              </button>
+
+              <button
                 className="appointments-walkin-btn"
                 onClick={() => setShowWalkInModal(true)}
               >
@@ -948,6 +958,8 @@ export default function AdminAppointments() {
             </div>
           </div>
         )}
+
+        <ArchiveModal open={showArchiveModal} onClose={() => setShowArchiveModal(false)} />
 
         {showWalkInModal && (
           <div

@@ -119,37 +119,76 @@ const toPreAssessmentPayload = (row, fallbackService, questionnaireLookup = new 
 };
 
 export const getDentistPatientHistory = async (dentistProfileId) => {
-  const [bookingsResult, usersResult, dentistResult, proceduresResult, profilesResult] = await Promise.all([
-    supabaseAdmin
-      .from("bookings")
-      .select("id, user_id, patient_name, branch, service, appointment_date, appointment_time, status, preassessment_id")
-      .eq("dentist_id", dentistProfileId)
-      .order("appointment_date", { ascending: false })
-      .order("appointment_time", { ascending: false }),
+  const ownBookingsResult = await supabaseAdmin
+    .from("bookings")
+    .select("id, user_id, patient_name, branch, service, appointment_date, appointment_time, status, preassessment_id, dentist_id")
+    .eq("dentist_id", dentistProfileId)
+    .order("appointment_date", { ascending: false })
+    .order("appointment_time", { ascending: false });
+
+  if (ownBookingsResult.error) {
+    return { success: false, statusCode: 500, message: "Failed to load patient history" };
+  }
+
+  const ownBookings = ownBookingsResult.data || [];
+  const patientUserIds = [...new Set(ownBookings.map((item) => item.user_id).filter(Boolean))];
+
+  const [usersResult, dentistListResult, otherBookingsResult, ownProceduresResult, otherProceduresResult, profilesResult] = await Promise.all([
     supabaseAdmin
       .from("users")
       .select("id, full_name, mobile, dob"),
     supabaseAdmin
       .from("dentist_list")
-      .select("name")
-      .eq("id", dentistProfileId)
-      .maybeSingle(),
+      .select("id, name"),
+    patientUserIds.length
+      ? supabaseAdmin
+          .from("bookings")
+          .select("id, user_id, patient_name, branch, service, appointment_date, appointment_time, status, preassessment_id, dentist_id")
+          .in("user_id", patientUserIds)
+          .neq("dentist_id", dentistProfileId)
+      : Promise.resolve({ data: [] }),
     supabaseAdmin
       .from("patient_procedures")
-      .select("id, patient_id, booking_id, tooth, procedure_name, remarks, before_image_url, after_image_url, created_at, updated_at")
+      .select("id, patient_id, booking_id, dentist_id, tooth, procedure_name, remarks, before_image_url, after_image_url, created_at, updated_at")
       .eq("dentist_id", dentistProfileId)
       .order("created_at", { ascending: true }), // Ascending so newest log goes to top of array via unshift
+    patientUserIds.length
+      ? supabaseAdmin
+          .from("patient_procedures")
+          .select("id, patient_id, booking_id, dentist_id, tooth, procedure_name, remarks, before_image_url, after_image_url, created_at, updated_at")
+          .in("patient_id", patientUserIds)
+          .neq("dentist_id", dentistProfileId)
+          .order("created_at", { ascending: true })
+      : Promise.resolve({ data: [] }),
     supabaseAdmin
       .from("user_profiles")
       .select("id, user_id, name, email"),
   ]);
 
-  if (bookingsResult.error) {
-    return { success: false, statusCode: 500, message: "Failed to load patient history" };
-  }
-
   const userById = new Map((usersResult.data || []).map((item) => [item.id, item]));
-  const dentistName = dentistResult.data?.name || "Assigned Dentist";
+  const dentistNameById = new Map((dentistListResult.data || []).map((item) => [item.id, item.name]));
+  const resolveDentistName = (id) => dentistNameById.get(id) || "Assigned Dentist";
+
+  // Only completed (past) appointments from OTHER dentists are surfaced here; the
+  // current dentist's own bookings keep showing all statuses, same as before.
+  const otherBookingsAll = otherBookingsResult.data || [];
+  const otherPastBookings = otherBookingsAll.filter((booking) => normalize(booking.status) === "completed");
+
+  const bookingStatusById = new Map(
+    [...ownBookings, ...otherBookingsAll].map((booking) => [booking.id, booking.status])
+  );
+
+  const bookingsResult = { data: [...ownBookings, ...otherPastBookings] };
+
+  // Procedures from other dentists are factual logs of work already performed, so they are
+  // always "past" — except when tied to a not-yet-completed booking (ongoing/future), which
+  // is excluded per the same past-only rule applied to bookings.
+  const otherPastProcedures = (otherProceduresResult.data || []).filter((procedure) => {
+    if (!procedure.booking_id) return true;
+    return normalize(bookingStatusById.get(procedure.booking_id)) === "completed";
+  });
+
+  const proceduresResult = { data: [...(ownProceduresResult.data || []), ...otherPastProcedures] };
 
   let questionnaireLookup = new Map();
   const questionnaireResult = await supabaseAdmin
@@ -236,8 +275,8 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
       id: `booking-${booking.id}`,
       date: formatProcedureDate(booking.appointment_date, booking.appointment_time),
       procedure: booking.service || "Dental Appointment",
-      tooth: paPayload?.tooth || "Not specified", 
-      dentist: dentistName,
+      tooth: paPayload?.tooth || "Not specified",
+      dentist: resolveDentistName(booking.dentist_id),
       remarks: `Status: ${booking.status || "scheduled"}`,
       beforePhoto: null,
       afterPhoto: null,
@@ -273,7 +312,7 @@ export const getDentistPatientHistory = async (dentistProfileId) => {
         date: formatProcedureDate(procedure.updated_at || procedure.created_at, null),
         procedure: procedure.procedure_name || "Procedure",
         tooth: procedure.tooth || "Not specified",
-        dentist: dentistName,
+        dentist: resolveDentistName(procedure.dentist_id),
         remarks: procedure.remarks || "-",
         beforePhoto: procedure.before_image_url || null,
         afterPhoto: procedure.after_image_url || null,

@@ -3,6 +3,7 @@ import AdminSidebar from "../../components/admin/layout/AdminSidebar";
 import AdminTopbar from "../../components/admin/layout/AdminTopbar";
 import { getAdminPatients } from "../../services/adminService";
 import { useBranch } from "../../context/BranchContext";
+import ArchiveModal from "../../components/admin/archive/ArchiveModal";
 
 import "../../styles/admin/patient/admin-patient.css";
 import "../../styles/admin/dashboard/admin-layout.css";
@@ -10,6 +11,7 @@ import "../../styles/admin/layout/admin-sidebar.css";
 import "../../styles/admin/layout/admin-topbar.css";
 import "../../styles/admin/notifications/admin-notification-popup.css";
 import "../../styles/admin/shared/admin-responsive.css";
+import "../../styles/admin/archive/admin-archive-modal.css";
 
 function formatDate(dateString) {
   if (!dateString) return "N/A";
@@ -169,6 +171,7 @@ export default function AdminPatient() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [patients, setPatients] = useState([]);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
   const { selectedBranch } = useBranch();
 
   useEffect(() => {
@@ -228,7 +231,16 @@ export default function AdminPatient() {
                 Manage and view patient records assigned to {selectedBranch}.
               </p>
             </div>
+
+            <button
+              className="admin-archive-trigger-btn"
+              onClick={() => setShowArchiveModal(true)}
+            >
+              Archive
+            </button>
           </div>
+
+          <ArchiveModal open={showArchiveModal} onClose={() => setShowArchiveModal(false)} />
 
           <div className="admin-patient-stats">
             <div className="patient-stat-card">

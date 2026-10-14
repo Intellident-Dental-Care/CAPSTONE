@@ -526,3 +526,76 @@ export const markNotificationsAsRead = async (branch = "") => {
     return { success: false, message: "Failed to clear notifications" };
   }
 };
+
+export const getArchivedPatients = async (search = "") => {
+  try {
+    const searchParam = search ? `?search=${encodeURIComponent(search)}` : "";
+    const data = await fetchJson(`/admin/archive${searchParam}`, { method: "GET" });
+    return data;
+  } catch (error) {
+    console.error("Error fetching archived patients:", error);
+    return { success: false, message: "Failed to load archived patients", data: [] };
+  }
+};
+
+export const getArchivedPatientDetail = async (id) => {
+  try {
+    const data = await fetchJson(`/admin/archive/${id}`, { method: "GET" });
+    return data;
+  } catch (error) {
+    console.error("Error fetching archived patient detail:", error);
+    return { success: false, message: "Failed to load archived patient" };
+  }
+};
+
+export const getArchivedBookings = async (search = "") => {
+  try {
+    const searchParam = search ? `?search=${encodeURIComponent(search)}` : "";
+    const data = await fetchJson(`/admin/archive/bookings${searchParam}`, { method: "GET" });
+    return data;
+  } catch (error) {
+    console.error("Error fetching archived bookings:", error);
+    return { success: false, message: "Failed to load archived bookings", data: [] };
+  }
+};
+
+export const getArchivedBookingDetail = async (id) => {
+  try {
+    const data = await fetchJson(`/admin/archive/bookings/${id}`, { method: "GET" });
+    return data;
+  } catch (error) {
+    console.error("Error fetching archived booking detail:", error);
+    return { success: false, message: "Failed to load archived booking" };
+  }
+};
+
+export const getArchivedProcedures = async (search = "") => {
+  try {
+    const searchParam = search ? `?search=${encodeURIComponent(search)}` : "";
+    const data = await fetchJson(`/admin/archive/procedures${searchParam}`, { method: "GET" });
+    return data;
+  } catch (error) {
+    console.error("Error fetching archived procedures:", error);
+    return { success: false, message: "Failed to load archived procedures", data: [] };
+  }
+};
+
+export const getArchivedProcedureDetail = async (id) => {
+  try {
+    const data = await fetchJson(`/admin/archive/procedures/${id}`, { method: "GET" });
+    return data;
+  } catch (error) {
+    console.error("Error fetching archived procedure detail:", error);
+    return { success: false, message: "Failed to load archived procedure" };
+  }
+};
+
+export const runArchiveSweepNow = async () => {
+  try {
+    const data = await fetchJson("/admin/archive/run", { method: "POST" });
+    return data;
+  } catch (error) {
+    console.error("Error running archive sweep:", error);
+    return { success: false, message: "Failed to run archive sweep" };
+  }
+};

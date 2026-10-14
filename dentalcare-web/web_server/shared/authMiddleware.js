@@ -55,6 +55,19 @@ export const requireRole = (role) => {
   };
 };
 
+export const requireAnyRole = (...roles) => {
+  return (req, res, next) => {
+    const role = req.user?.role;
+    const adminType = req.user?.adminType;
+
+    if (req.user && (roles.includes(role) || roles.includes(adminType))) {
+      return next();
+    }
+
+    return res.status(403).json({ success: false, message: "Forbidden" });
+  };
+};
+
 export const requireSuperAdmin = (req, res, next) => {
   console.log("SUPER ADMIN CHECK START");
   console.log("Token Role:", req.user?.role);

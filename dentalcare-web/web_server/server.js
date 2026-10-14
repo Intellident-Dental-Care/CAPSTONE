@@ -13,6 +13,7 @@ import dentistsRoutes from "./admin/dentists/dentistsRoutes.js";
 import patientsRoutes from "./admin/patients/patientsRoutes.js";
 import notificationRoutes from "./admin/notifications/notificationRoutes.js";
 import adminRequestsRoutes from "./admin/requests/requestsRoutes.js";
+import adminArchiveRoutes from "./admin/archive/archiveRoutes.js";
 
 import dentistDashboardRoutes from "./dentist/dashboard/dashboardRoutes.js";
 import dentistScheduleRoutes from "./dentist/schedule/scheduleRoutes.js";
@@ -39,6 +40,7 @@ import {
 } from "./shared/getServerUrl.js";
 
 import { verifyEmailTransport } from "./nodemailer/emailOtpService.js";
+import { startArchiveScheduler } from "./shared/archiveScheduler.js";
 
 dotenv.config({
   path: path.resolve(process.cwd(), ".env"),
@@ -110,6 +112,7 @@ app.use("/api/admin/dentists", dentistsRoutes);
 app.use("/api/admin/patients", patientsRoutes);
 app.use("/api/admin/notifications", notificationRoutes);
 app.use("/api/admin/requests", adminRequestsRoutes);
+app.use("/api/admin/archive", adminArchiveRoutes);
 
 app.use("/admin/dashboard", dashboardRoutes);
 app.use("/admin/queuecontrol", queueRoutes);
@@ -119,6 +122,7 @@ app.use("/admin/dentists", dentistsRoutes);
 app.use("/admin/patients", patientsRoutes);
 app.use("/admin/notifications", notificationRoutes);
 app.use("/admin/requests", adminRequestsRoutes);
+app.use("/admin/archive", adminArchiveRoutes);
 
 app.use("/api/dentist/dashboard", dentistDashboardRoutes);
 app.use("/api/dentist/schedule", dentistScheduleRoutes);
@@ -286,4 +290,7 @@ app.listen(PORT, "0.0.0.0", async () => {
       error?.message || error
     );
   }
+
+  startArchiveScheduler();
+  console.log("Patient archive scheduler started (runs nightly at 02:00)");
 });
